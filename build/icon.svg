@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+    <!-- Platzhalter-Icon; eigenes Motiv hier einsetzen und build/make-icons.sh ausführen.
+         Wichtiges innerhalb der mittleren 80 % halten (maskable). -->
+    <rect width="512" height="512" fill="#14161A"/>
+    <rect x="128" y="128" width="256" height="256" rx="64" fill="#4C8DFF"/>
+    <circle cx="256" cy="256" r="56" fill="#FFFFFF"/>
+</svg>

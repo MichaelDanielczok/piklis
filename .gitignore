@@ -1,0 +1,9 @@
+/vendor/
+/node_modules/
+/tools/
+.DS_Store
+.idea/
+/.phpunit.result.cache
+/phpstan.neon
+/phpunit.xml
+/.claude/tasks/

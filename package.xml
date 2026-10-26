@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<quiqqer xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://www.quiqqer.com/docs/schemas/2.x/package.xsd">
+    <package>
+        <title>
+            <locale group="michaeldanielczok/pwa-starter" var="package.title"/>
+        </title>
+
+        <description>
+            <locale group="michaeldanielczok/pwa-starter" var="package.description"/>
+        </description>
+
+        <provider>
+            <rest src="\MichaelDanielczok\PwaStarter\Rest\Provider"/>
+        </provider>
+    </package>
+</quiqqer>

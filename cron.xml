@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<crons>
+    <!-- Beispiel: nachts dieselbe Arbeit wie ./console pwastarter:hello; inaktiv angelegt -->
+    <cron exec="\MichaelDanielczok\PwaStarter\Console\Hello::cron">
+        <title>
+            <locale group="michaeldanielczok/pwa-starter" var="cron.hello.title"/>
+        </title>
+
+        <description>
+            <locale group="michaeldanielczok/pwa-starter" var="cron.hello.description"/>
+        </description>
+
+        <autocreate>
+            <interval>0 3 * * *</interval>
+            <active>0</active>
+        </autocreate>
+    </cron>
+</crons>

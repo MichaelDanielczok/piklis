@@ -1,0 +1,176 @@
+/*
+ * Zentrale Design-Tokens. Alle Größen und Farben stehen nur hier,
+ * Komponenten nutzen ausschließlich diese Variablen.
+ *
+ * Einheiten:
+ * - Abstände in Viertel-rem (4-px-Raster), Rundungen in Achtel-rem,
+ *   Schriftgrößen in Sechzehntel-rem (1-px-Schritte).
+ * - px nur für 1-px-Ränder.
+ *
+ * Breakpoints (Media Queries können keine Variablen lesen, daher nur als
+ * Referenz; überall dieselben Werte verwenden):
+ * - Tablet   ab 45em  (720 px)
+ * - Desktop  ab 64em  (1024 px): Seitenleiste statt Navigation unten
+ *
+ * Farben anpassen: --color-accent* hier, dazu die Farben in standalone.html
+ * (Loader, theme-color) und THEME_COLOR in vite.config.js.
+ */
+
+:root {
+    color-scheme: dark;
+
+    /* region Farben – Dunkel (Standard) */
+    --color-bg: #14161A;
+    --color-surface-1: #1B1E23;
+    --color-surface-2: #22262C;
+    --color-surface-3: #2B3038;
+    --color-border: rgb(255 255 255 / 0.08);
+    --color-border-strong: rgb(255 255 255 / 0.16);
+
+    --color-text-1: #F2F4F7;
+    --color-text-2: #A7ADB7;
+    --color-text-3: #848B96;
+
+    --color-accent: #4C8DFF;
+    --color-accent-hover: #6A9FFF;
+    --color-accent-press: #3B7BEB;
+    --color-accent-text: #7DAAFF;
+    --color-on-accent: #FFFFFF;
+
+    --color-success: #4CC38A;
+    --color-danger: #F2625D;
+
+    --color-inverse-bg: #F2F4F7;
+    --color-inverse-text: #14161A;
+
+    /* Glas hinter Statusleiste und Navigation (folgt --color-bg) */
+    --bar-glass-bg: color-mix(in srgb, var(--color-bg) 80%, transparent);
+    --nav-glass-bg: rgb(34 38 44 / 0.62);
+    --nav-glass-border: rgb(255 255 255 / 0.14);
+    --glass-blur: blur(1.25rem);
+    /* endregion */
+
+    /* region Schrift: Systemschrift; eigene Schriften lokal unter frontend/fonts/ */
+    --font-text: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --font-display: var(--font-text);
+
+    --font-size-caption: 0.75rem; /* 12 */
+    --font-size-small: 0.8125rem; /* 13 */
+    --font-size-text: 0.9375rem; /* 15 */
+    --font-size-title: 1rem; /* 16 */
+    --font-size-h2: 1.3125rem; /* 21 */
+    --font-size-h1: 1.75rem; /* 28 */
+
+    --font-weight-regular: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+
+    --line-height-heading: 1.15;
+    --line-height-ui: 1.25;
+    --line-height-text: 1.55;
+    /* endregion */
+
+    /* region Abstände (4-px-Raster) */
+    --space-1: 0.25rem; /* 4 */
+    --space-2: 0.5rem; /* 8 */
+    --space-3: 0.75rem; /* 12 */
+    --space-4: 1rem; /* 16 */
+    --space-5: 1.25rem; /* 20 */
+    --space-6: 1.5rem; /* 24 */
+    --space-8: 2rem; /* 32 */
+    --space-10: 2.5rem; /* 40 */
+    --space-14: 3.5rem; /* 56 */
+
+    --page-gutter: var(--space-5);
+    --section-gap: var(--space-8);
+    /* endregion */
+
+    /* region Rundungen */
+    --radius-sm: 0.625rem; /* 10: Eingabefelder */
+    --radius-md: 0.875rem; /* 14: Karten */
+    --radius-lg: 1.25rem; /* 20: Listen, große Karten */
+    --radius-pill: 999rem;
+    /* endregion */
+
+    /* region Größen */
+    --tap-size: 2.75rem; /* 44, Mindestgröße für Tap-Ziele */
+    --control-height: 2.75rem;
+    --input-height: 3.25rem;
+    --icon-size-md: 1.125rem;
+    --icon-size-lg: 1.375rem;
+    --avatar-size-lg: 4rem;
+    --sidebar-width: 15rem;
+    --mobile-nav-height: 4.25rem;
+    --mobile-nav-offset: var(--space-4);
+    /* Abstand zum unteren Rand: im Browser 16 px; mit Home-Balken (installierte App)
+       8 px in den Schutzbereich hinein, wie die schwebenden Leisten von iOS */
+    --mobile-nav-bottom: max(var(--mobile-nav-offset), calc(env(safe-area-inset-bottom, 0px) - var(--space-2)));
+    --mobile-nav-max-width: 30rem;
+    --narrow-content-width: 40rem; /* Profil, Formulare */
+    --login-card-width: 25rem;
+    --content-max-width: 90rem;
+    /* endregion */
+
+    /* region Tiefe, Fokus, Bewegung */
+    --shadow-float: 0 1.125rem 2.5rem -0.75rem rgb(0 0 0 / 0.8);
+    --focus-ring-width: 0.125rem;
+    --focus-ring-offset: 0.125rem;
+    --duration-fast: 120ms;
+    --duration-medium: 200ms;
+    --ease-out: ease-out;
+    --press-scale: 0.97;
+    /* endregion */
+}
+
+/* Hell: Systemeinstellung, solange kein Motiv fest gewählt ist */
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+        color-scheme: light;
+        --color-bg: #F6F6F3;
+        --color-surface-1: #FFFFFF;
+        --color-surface-2: #EEEFEC;
+        --color-surface-3: #E3E5E1;
+        --color-border: rgb(0 0 0 / 0.1);
+        --color-border-strong: rgb(0 0 0 / 0.2);
+        --color-text-1: #15171A;
+        --color-text-2: #545A63;
+        --color-text-3: #6A707A;
+        --color-accent: #2F6FE0;
+        --color-accent-hover: #4581EB;
+        --color-accent-press: #2560C9;
+        --color-accent-text: #1F58BD;
+        --color-success: #1F8A55;
+        --color-danger: #C8352F;
+        --color-inverse-bg: #15171A;
+        --color-inverse-text: #F2F4F7;
+        --nav-glass-bg: rgb(255 255 255 / 0.72);
+        --nav-glass-border: rgb(0 0 0 / 0.1);
+        --shadow-float: 0 1.125rem 2.5rem -0.75rem rgb(0 0 0 / 0.25);
+    }
+}
+
+/* Hell: fest gewählt (Profil → Darstellung) */
+:root[data-theme="light"] {
+    color-scheme: light;
+    --color-bg: #F6F6F3;
+    --color-surface-1: #FFFFFF;
+    --color-surface-2: #EEEFEC;
+    --color-surface-3: #E3E5E1;
+    --color-border: rgb(0 0 0 / 0.1);
+    --color-border-strong: rgb(0 0 0 / 0.2);
+    --color-text-1: #15171A;
+    --color-text-2: #545A63;
+    --color-text-3: #6A707A;
+    --color-accent: #2F6FE0;
+    --color-accent-hover: #4581EB;
+    --color-accent-press: #2560C9;
+    --color-accent-text: #1F58BD;
+    --color-success: #1F8A55;
+    --color-danger: #C8352F;
+    --color-inverse-bg: #15171A;
+    --color-inverse-text: #F2F4F7;
+    --nav-glass-bg: rgb(255 255 255 / 0.72);
+    --nav-glass-border: rgb(0 0 0 / 0.1);
+    --shadow-float: 0 1.125rem 2.5rem -0.75rem rgb(0 0 0 / 0.25);
+}

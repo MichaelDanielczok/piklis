@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<quiqqer xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://www.quiqqer.com/docs/schemas/2.x/locale.xsd">
+    <locales>
+        <groups name="michaeldanielczok/pwa-starter" datatype="php,js">
+            <locale name="package.title">
+                <en><![CDATA[PWA Starter]]></en>
+            </locale>
+            <locale name="package.description">
+                <en><![CDATA[Web app (PWA) based on QUIQQER.]]></en>
+            </locale>
+
+            <!-- region permissions -->
+            <locale name="permission.pwastarter._header">
+                <en><![CDATA[PWA Starter]]></en>
+            </locale>
+            <locale name="permission.pwastarter.manage">
+                <en><![CDATA[May manage the app]]></en>
+            </locale>
+            <!-- endregion -->
+
+            <!-- region cron -->
+            <locale name="cron.hello.title">
+                <en><![CDATA[PWA Starter: example cron]]></en>
+            </locale>
+            <locale name="cron.hello.description">
+                <en><![CDATA[Writes a line to the log. Template for your own crons.]]></en>
+            </locale>
+            <!-- endregion -->
+        </groups>
+    </locales>
+</quiqqer>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<quiqqer xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://www.quiqqer.com/docs/schemas/2.x/user.xsd">
+    <user>
+        <!-- App-Einstellungen, geändert über PATCH /api/pwa-starter/v1/me/settings -->
+        <attributes>
+            <attribute>pwastarter.theme</attribute>
+            <attribute>pwastarter.language</attribute>
+        </attributes>
+    </user>
+</quiqqer>

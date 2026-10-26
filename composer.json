@@ -1,0 +1,24 @@
+{
+    "name": "michaeldanielczok/pwa-starter",
+    "type": "quiqqer-module",
+    "description": "PWA based on QUIQQER: Vue 3 + Ionic app as standalone start page, REST API with session login.",
+    "license": "proprietary",
+    "authors": [
+        {
+            "name": "Michael Danielczok",
+            "email": "m.danielczok@pcsg.de",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "quiqqer/core": "^2",
+        "quiqqer/rest": "^3.5",
+        "quiqqer/sitetypes": "^2"
+    },
+    "autoload": {
+        "psr-4": {
+            "MichaelDanielczok\\PwaStarter\\": "src/MichaelDanielczok/PwaStarter"
+        }
+    }
+}

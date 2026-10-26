@@ -1,0 +1,153 @@
+/*
+ * Grundstile und Abbildung der Ionic-Variablen auf die Tokens.
+ * Ionic liefert nur Kern-CSS (core.css); Aussehen kommt aus tokens.css.
+ */
+
+:root {
+    --ion-background-color: var(--color-bg);
+    --ion-text-color: var(--color-text-1);
+    --ion-font-family: var(--font-text);
+    --ion-color-primary: var(--color-accent);
+    --ion-color-primary-contrast: var(--color-on-accent);
+    --ion-color-success: var(--color-success);
+    --ion-color-danger: var(--color-danger);
+    --ion-item-background: var(--color-surface-1);
+    --ion-border-color: var(--color-border);
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    background: var(--color-bg);
+    color: var(--color-text-1);
+    font-family: var(--font-text);
+    font-size: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-tap-highlight-color: transparent;
+}
+
+a {
+    color: var(--color-accent-text);
+    text-decoration: none;
+}
+
+button {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+h1,
+h2,
+h3,
+p {
+    margin: 0;
+}
+
+ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+img {
+    display: block;
+    max-width: 100%;
+}
+
+/*
+ * Installierte App (iPhone, Statusleiste black-translucent): Der Inhalt beginnt
+ * unter der Statusleiste, der Viewport ist aber um deren Höhe zu kurz. ion-app
+ * (absolute, inset 0) endete deshalb über dem unteren Rand, und die Navigation,
+ * die an ion-app hängt, saß zu hoch. 100vh ist dort die volle Bildschirmhöhe.
+ */
+@media (display-mode: standalone) {
+    html ion-app {
+        bottom: auto;
+        height: 100vh;
+    }
+}
+
+:focus-visible {
+    outline: var(--focus-ring-width) solid var(--color-accent);
+    outline-offset: var(--focus-ring-offset);
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* „Bewegung reduzieren“: nur noch Ein-/Ausblenden, nichts bewegt sich */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        transition-property: opacity, background-color, color, border-color !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Toast (Ionic): invertierte Pille unten, Aktion als Textknopf */
+ion-toast.app-toast {
+    --background: var(--color-inverse-bg);
+    --color: var(--color-inverse-text);
+    --button-color: var(--color-inverse-text);
+    --border-radius: var(--radius-pill);
+    --box-shadow: var(--shadow-float);
+    --width: fit-content;
+    --max-width: calc(100% - 2 * var(--space-4));
+    --start: 0;
+    --end: 0;
+    font-family: var(--font-text);
+}
+
+ion-toast.app-toast::part(wrapper) {
+    margin-inline: auto;
+    /* über der schwebenden Navigation; kein transform, das animiert Ionic selbst */
+    margin-bottom: calc(var(--mobile-nav-height) + var(--mobile-nav-offset));
+}
+
+ion-toast.app-toast::part(message) {
+    font-size: var(--font-size-text);
+    font-weight: var(--font-weight-medium);
+}
+
+ion-toast.app-toast::part(button) {
+    border-radius: var(--radius-pill);
+    font-weight: var(--font-weight-semibold);
+    text-transform: none;
+}
+
+ion-toast.app-toast--top::part(wrapper) {
+    margin-top: var(--space-4);
+    margin-bottom: 0;
+}
+
+@media (min-width: 64em) {
+    ion-toast.app-toast::part(wrapper) {
+        margin-bottom: var(--space-6);
+    }
+
+    ion-toast.app-toast--top::part(wrapper) {
+        margin-bottom: 0;
+    }
+}

@@ -1,0 +1,51 @@
+<!doctype html>
+<!-- Inhalt des Feldes „Standalone Content“ der Startseite (Seitentyp
+     quiqqer/sitetypes:types/standalone, Ausgabetyp text/html). Bleibt nach
+     einem Build unverändert, weil app.js und app.css feste Namen haben.
+     frontend/index.html spiegelt diese Datei für den Vite-Server. -->
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="theme-color" content="#14161A" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#F6F6F3" media="(prefers-color-scheme: light)">
+    <title>PWA Starter</title>
+    <!-- PWA: Manifest und Service Worker liefert das Paket unter der Wurzel aus (Pwa\EventHandler) -->
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" href="/packages/michaeldanielczok/pwa-starter/bin/app/icons/favicon-32.png" sizes="32x32" type="image/png">
+    <link rel="apple-touch-icon" href="/packages/michaeldanielczok/pwa-starter/bin/app/icons/apple-touch-icon.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="PWA Starter">
+    <!-- Inhalt reicht unter die Statusleiste (safe-area-inset-top in AppPage) -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <!-- Motiv vor dem ersten Zeichnen (wie applyStoredTheme in useSession.js) -->
+    <script>try{var t=localStorage.getItem('pwastarter.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>
+    <!-- Loader bis zum Start der App; Vue ersetzt den Inhalt von #app beim Mount.
+         Farben wie --color-bg/--color-accent in tokens.css -->
+    <style>
+        html, body { margin: 0; min-height: 100%; background: #14161A; }
+        @media (prefers-color-scheme: light) {
+            html:not([data-theme="dark"]), html:not([data-theme="dark"]) body { background: #F6F6F3; }
+        }
+        html[data-theme="light"], html[data-theme="light"] body { background: #F6F6F3; }
+        .boot { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; opacity: 0; animation: boot-in 0.3s ease-out 0.2s forwards; }
+        .boot__bar { position: relative; width: 72px; height: 3px; overflow: hidden; border-radius: 3px; background: rgb(76 141 255 / 0.2); }
+        .boot__bar::after { content: ""; position: absolute; inset: 0; width: 40%; border-radius: inherit; background: #4C8DFF; animation: boot-bar 1.2s ease-in-out infinite; }
+        @keyframes boot-in { to { opacity: 1; } }
+        @keyframes boot-bar { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+        @media (prefers-reduced-motion: reduce) {
+            .boot__bar::after { animation: none; }
+        }
+    </style>
+    <link rel="stylesheet" href="/packages/michaeldanielczok/pwa-starter/bin/app/app.css">
+    <script type="module" src="/packages/michaeldanielczok/pwa-starter/bin/app/app.js"></script>
+</head>
+<body>
+<div id="app">
+    <div class="boot" role="status" aria-label="Wird geladen …">
+        <div class="boot__bar"></div>
+    </div>
+</div>
+</body>
+</html>

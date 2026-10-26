@@ -1,0 +1,18 @@
+parameters:
+    level: 8
+    phpVersion:
+        min: 80200 # 8.2.0
+        max: 80599 # 8.5.x
+    paths:
+        - src
+    bootstrapFiles:
+        - tests/phpstan-bootstrap.php
+    tipsOfTheDay: false
+    dynamicConstantNames:
+        - DEVELOPMENT
+        - DEBUG_MODE
+        - CMS_DIR
+        - URL_DIR
+        - VAR_DIR
+        - OPT_DIR
+        - QUIQQER_CONSOLE

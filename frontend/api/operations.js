@@ -35,7 +35,8 @@ export const OPERATION_TYPES = Object.freeze({
     ENTRY_SET_STATUS: 'entry.setStatus',
     ENTRY_REMOVE: 'entry.remove',
     ENTRY_RESTORE: 'entry.restore',
-    ENTRY_TRANSFER: 'entry.transfer'
+    ENTRY_TRANSFER: 'entry.transfer',
+    PRODUCT_CREATE: 'product.create'
 });
 
 const T = OPERATION_TYPES;
@@ -132,6 +133,17 @@ export const operations = {
 
     transferEntry(entry, targetListId) {
         return { type: T.ENTRY_TRANSFER, listId: entry.listId, entryId: entry.id, transferredTo: targetListId };
+    },
+
+    /**
+     * Offline angelegtes Produkt (ohne Liste): vor dem `entry.add` einreihen,
+     * das es benutzt. Idempotent über die Produkt-ID.
+     *
+     * @param {{ id?: string, name: string, category?: string|null, icon?: string|null,
+     *   description?: string|null, packageSize?: string|null }} product
+     */
+    createProduct({ id = uuid(), ...fields }) {
+        return { type: T.PRODUCT_CREATE, productId: id, product: fields };
     }
 };
 

@@ -29,8 +29,15 @@ under `design/piklis-designpaket/`.
   “all since revision N” (`GET /lists/{id}?since=N`), conflict rules per
   field; sort keys between neighbours and quantities with the same logic
   in PHP and JS; operation queue in the frontend (`api/operations.js`)
+- Product catalog: search with suggestions while typing, list with image
+  or icon, detail, create (only the name is required) and edit, searchable
+  icon picker by category; product maintenance in two columns on desktop;
+  rights: everybody creates and edits their own products, maintainers edit
+  all and hide them
 - REST API `/api/piklis/v1` (`GET /me`, `PATCH /me/settings`, `POST /ops`,
-  `GET /lists`, `GET /lists/{id}`)
+  `GET /lists`, `GET /lists/{id}`, `GET|POST /products`,
+  `GET /products/search`, `GET|PATCH /products/{id}`,
+  `POST /products/{id}/hide|unhide`)
 - PHPStan level 8, PHPCS, PHPUnit; JS tests with `node --test`
 
 ## Quick start
@@ -45,5 +52,6 @@ npm test        # JS tests (node --test, shared fixtures with PHPUnit)
 ## Documentation
 
 - [Architecture](docs/architecture.md): structure, design, components,
-  data model, sync and conflict rules, PWA, REST, login, texts
+  data model, sync and conflict rules, product catalog, PWA, REST, login,
+  texts
 - [Development](docs/development.md): instance, mock backend, Vite, tools

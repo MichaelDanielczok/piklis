@@ -24,6 +24,11 @@ defineProps({
     back: {
         type: Boolean,
         default: false
+    },
+    // Ziel des Zurück-Knopfs, wenn es keinen Verlauf gibt (direkt geöffnet)
+    backTo: {
+        type: String,
+        default: '/'
     }
 });
 
@@ -37,7 +42,7 @@ const ionRouter = useIonRouter();
             type="button"
             class="app-header__back"
             :aria-label="t('common.back')"
-            @click="navigateBack(ionRouter, '/')"
+            @click="navigateBack(ionRouter, backTo)"
         >
             <ChevronLeft class="app-header__back-icon" aria-hidden="true" />
         </button>

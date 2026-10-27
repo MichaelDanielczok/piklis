@@ -27,6 +27,9 @@ final class InMemoryListStore implements ListStore
     /** @var array<string, list<string>> Liste => eingeladene Benutzer */
     public array $guests = [];
 
+    /** @var list<string> Produkt-IDs, die es nicht gibt (alle anderen gibt es) */
+    public array $unknownProducts = [];
+
     public function transactional(callable $callback): mixed
     {
         return $callback();
@@ -79,6 +82,11 @@ final class InMemoryListStore implements ListStore
         }
 
         return null;
+    }
+
+    public function productExists(string $productId): bool
+    {
+        return !in_array($productId, $this->unknownProducts, true);
     }
 
     public function save(ListState $list, ChangeRecord $change): void

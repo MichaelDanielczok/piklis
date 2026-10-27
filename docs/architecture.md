@@ -33,8 +33,9 @@
 
 PHP under `src/MichaelDanielczok/Piklis/`, grouped by area: `Rest/`
 (endpoints), `Sync/` (operations, conflict rules, without database),
-`Lists/` (sort keys, quantities, `ListRepository`), `Database/` (table
-names), `Users/`, `Pwa/`, `Console/`.
+`Lists/` (sort keys, quantities, `ListRepository`), `Products/` (catalog:
+input, rights, search, `ProductRepository`), `Database/` (table names),
+`Users/`, `Pwa/`, `Console/`.
 
 ## Frontend
 
@@ -46,22 +47,26 @@ committed because the server does not build (no Node there).
 | `app.js`, `App.vue`, `router.js` | entry, shell, routes |
 | `api/index.js` | the only module that talks to the server (REST and core Ajax) |
 | `api/operations.js` | operations: builders, queue, sending, pull since revision (see [Sync](#sync)) |
-| `composables/` | shared state: session, toast, page transition |
+| `composables/` | shared state: session, toast, page transition, product catalog (`useProducts.js`), media query |
 | `components/layout/` | page frame and header, sidebar, mobile navigation, nav items, user menu |
-| `components/ui/` | button, sheet, section label, theme switch, avatar, logo, empty state |
+| `components/ui/` | button, sheet, section label, theme switch, avatar, logo, empty state, search field |
 | `components/list/` | list row, row group, skeleton row, quantity, add tile |
-| `components/products/` | product image (photo or fallback icon), fallback icon |
+| `components/products/` | product image (photo or fallback icon), fallback icon, catalog row and its skeleton, detail, form, icon picker |
+| `products/` | fixed categories (`categories.js`), fallback icons with their category (`catalog.js`) |
 | `icons/` | fallback icon sprite (`ersatzicons.svg`, embedded once at start) |
 | `utils/quantity.js` | quantities with unit (`2 ×`, `2 Packungen`, `1,5 kg`), input with comma, checks |
 | `utils/sortKey.js` | sort keys between two neighbours (same logic as `Lists\SortKey`) |
+| `utils/productSearch.js` | catalog search: normalising and ranking (same logic as `Products\ProductSearch`) |
 | `views/` | one view per route |
 | `styles/tokens.css` | all colours, sizes and spacing as CSS variables |
+| `styles/forms.css` | form fields (`form-field`, label, input, hint, error) |
 | `i18n/` | `t()`, texts in `locales/de.js`, `Intl` for numbers, dates and plurals |
 | `public/icons/` | PWA icons and favicons (from `build/*.svg`) |
 | `dev/samples/` | sample photos for the pattern page, dev server only |
 
 - Routes (hash): `/login` (`meta.public`); navigation `/` (Listen),
-  `/products` (Produkte), `/templates` (Vorlagen); from the user menu
+  `/products` (Produkte), `/templates` (Vorlagen); product pages
+  `/products/new?name=…`, `/products/:id`, `/products/:id/edit`; from the user menu
   `/profile`, `/household`, `/settings`; `/components` (pattern page) only in
   the dev server (`import.meta.env.DEV`, missing in the build). Everything
   except public routes requires a session; `meta.manageProducts`
@@ -132,7 +137,7 @@ data and sample photos cut from the design package's drawn placeholders.
 
 | Component | Purpose |
 | --- | --- |
-| `products/ProductImage.vue` | photo or fallback icon with the same size and radius (`row` 44 px, `tile` 48 px, `lg` 80 px); `muted` for done rows; a broken photo falls back to the icon |
+| `products/ProductImage.vue` | photo or fallback icon with the same size and radius (`row` 44 px, `tile` 48 px, `lg` 80 px, `hero` square up to 240 px in the detail); `muted` for done rows and hidden products; a broken photo falls back to the icon |
 | `products/ProductIcon.vue` | one fallback icon from the sprite (`#pk-<name>`, unknown names show `allgemein`) |
 | `list/ListRow.vue` | list row with three separate touch areas: handle (32 px wide, full row height), details (image, name max. 2 lines, note or status, quantity), check zone (60 px wide, full row height, ring 28 px). States `open` · `done` · `notGot` (transfer button instead of the ring), plus `unsynced` |
 | `list/RowGroup.vue` | card for rows, separators instead of single cards |
@@ -260,7 +265,7 @@ users.
 | --- | --- | --- |
 | `id` | string(36), primary | UUID from the browser |
 | `name` | string(255) | the only required field; package size may be part of it (“Milch 1,5 l”) |
-| `search_name` | string(255), index | name in lower case without accents, for search (step 3) |
+| `search_name` | string(255), index | name normalised for search (`Products\SearchText`), rebuilt on every write |
 | `category` | string(32), null | → `pk_categories.id`; suggested from the name (step 8) |
 | `icon` | string(64), null | fallback icon from the sprite (`#pk-<icon>`); null = general icon |
 | `description` | text, null | long, permanent description (“die blaue Packung”) |
@@ -279,13 +284,11 @@ users.
   `off_data` (JSON: ingredients, nutrition per 100 g/ml and per portion, with
   their reference), `off_language`, `off_fetched_at`. Own name, photo and
   description are never overwritten.
-- **Rights** (step 3): everybody may create products and edit their own
-  (`created_by`); `piklis.products.manage` may edit all and hide products.
-  A list share never grants product rights.
+- **Rights:** see [Product catalog](#product-catalog).
 - **Hiding instead of deleting:** hidden products disappear from catalog
   search and suggestions; entries keep pointing to them and show the current
   name and image. Merging products comes later.
-- **Catalog sync:** `GET /products` (step 3) returns the whole catalog
+- **Catalog sync:** `GET /products` returns the whole catalog
   including hidden products (flagged `hidden`), with ETag/304; it is small
   enough for a full download. No revision.
 
@@ -421,10 +424,15 @@ the order is the arrival at the server.
 | `entry.restore` | – | undo a removal, same position |
 | `entry.transfer` | `transferredTo` (list id or null) | mark a not-got entry as taken over (step 7) |
 
-Planned: `product.create` (step 3, no `listId`, idempotent through the
-product ID) so products can be created offline; the queue sends it before the
-`entry.add` that uses it. From step 3 on, `entry.add` with an unknown product
-is rejected (`product_not_found`).
+| `product.create` | `productId`, `product` `{name, category, icon, description, packageSize}`; no `listId` | new catalog product (`Sync\ProductOperation`) |
+
+`product.create` lets the app create products offline; the queue sends it
+before the `entry.add` that uses it. It is idempotent through the product ID,
+not through the change log: the same ID from the same user answers
+`unchanged` with the stored product (nothing overwritten), from another user
+`rejected` `product_exists`; it adds no list revision and is not logged in
+`pk_list_changes`. `entry.add` with an unknown product is rejected
+(`product_not_found`); hidden products may still be added.
 
 Checks (`Sync\Operation`): UUIDs, list name 1–100 characters, date
 `YYYY-MM-DD`, note at most 500 characters, valid sort key, valid quantity.
@@ -457,6 +465,8 @@ entry became open again), `afterCompletion` (applied to a completed list).
 | `forbidden` | role may not do this (guest renames) | drop, revert locally |
 | `entry_not_found` | entry unknown in this list | drop |
 | `list_exists` | `list.create` with an ID of someone else's list | drop |
+| `product_not_found` | `entry.add` with a product that is not in the catalog | send the `product.create` first; else drop |
+| `product_exists` | `product.create` with the ID of someone else's product | drop, create with a new ID |
 
 HTTP errors only for the whole request: `400 invalid_request` (no `ops`
 array), `413 too_many_operations`, `401`, and `500 save_failed` (processing
@@ -617,15 +627,80 @@ idempotency and rights in `OperationProcessorTest.php`.
   exact. Package size (“1,5 l”) belongs to the product; the quantity counts
   packages.
 
+## Product catalog
+
+One catalog for all signed-in users (Obsidian “Piklis Konzept” ›
+“Produktkatalog”). PHP in `Products/`, REST in `Rest\ProductsEndpoint`, view
+`views/ProductsView.vue` with `ProductDetailView.vue` and `ProductEditView.vue`.
+
+- **Product** (`Products\Product`, JSON camelCase): `id`, `name`, `category`,
+  `icon`, `description`, `packageSize`, `barcode`, `imageUrl` (null until
+  step 4), `hidden`, `hiddenAt`, `createdBy`, `createdAt`, `updatedAt`.
+- **Input** (`Products\ProductInput`): only `name` is required (1–120
+  characters, whitespace collapsed); `category` one of the fixed keys or
+  null; `icon` a sprite key (`a-z0-9-`), null or `allgemein` = general icon
+  (stored as null; the server does not know the sprite, unknown keys show the
+  general icon); `description` up to 2000, `packageSize` up to 50 characters;
+  empty optional fields become null. `400 invalid_product` names `field` and
+  `reason` (`required`, `too_long`, `invalid`).
+- **Rights** (`Products\ProductPermissions`, same rule in
+  `useProducts.canEditProduct()`): everybody creates products; the creator
+  edits their own as long as it is not hidden; `piklis.products.manage` edits
+  all and hides or shows them again. A list share never grants product
+  rights. The app offers only what is allowed, the server decides (`403
+  forbidden`). The right is checked before the input.
+- **Categories:** fixed keys in `Products\Categories` and
+  `frontend/products/categories.js` (checked against
+  `tests/fixtures/categories.json`): `fruit`, `vegetables`, `bread`, `dairy`,
+  `cheese`, `meat`, `fish`, `grains`, `canned`, `frozen`, `sweets`, `drinks`,
+  `coffee_tea`, `baking`, `drugstore`, `household`, `baby`, `pets`, `other`.
+  Names in `i18n` (`categories.<key>`). Colours and the table
+  `pk_categories` come with step 8.
+- **Fallback icons:** `products/catalog.js` gives every sprite icon a
+  category for the icon picker (sheet, searchable by icon or category name,
+  grouped by category). For now the 16 icons of the design package; the
+  general icon is the default.
+- **Search** (`Products\SearchText`, `Products\ProductSearch`, JS
+  `utils/productSearch.js`, cases in `tests/fixtures/product-search.json`):
+  text in lower case without accents, `ß` → `ss`, `ł` → `l`, everything but
+  letters and digits separates words. Every search word must occur in the
+  name, also inside a word (“brot” finds “Vollkornbrot”). Order: same name ·
+  name starts with the input · every word starts a word · other hits;
+  then alphabetically (byte order of the normalised name, then ID). Hidden
+  products only on request (maintainers). “kaese” does not find “Käse”
+  (no transliteration of umlauts).
+- **Suggestions while typing** come from the loaded catalog in the browser
+  (`useProducts.search()`), so they are instant and work offline later;
+  `GET /products/search` gives the same order on the server. Similar names
+  are never merged: the list always offers “„…“ neu anlegen”, the form shows
+  “Schon im Katalog” with the existing products to open instead.
+- **View:** search field (placeholder with the number of products), filter
+  Alle · Von mir · Ausgeblendet (maintainers), rows with image or icon, name
+  and category · package size (64 px like list rows, skeleton rows of the
+  same height); while searching the subtitle shows the number of hits. Phone:
+  a row opens the detail page, “+” the form page. Desktop (from `64em`):
+  product maintenance in two columns like design screen 11, list on the left,
+  detail or form on the right (sticky) without changing the page.
+- **Detail:** large image or icon (`hero`), category chip, name, package
+  size, description, “Ausgeblendet” with symbol and text; buttons only when
+  allowed (Bearbeiten; Ausblenden or Wieder einblenden for maintainers, with
+  undo in the toast), otherwise a hint who may edit.
+
 ## REST API
 
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `GET` | `/me` | own user: `id`, `name`, `initials` (first and last name), `avatarUrl`, `settings.theme`, `permissions.manageProducts` |
 | `PATCH` | `/me/settings` | `theme` (`auto`/`light`/`dark`); answers like `GET /me` |
-| `POST` | `/ops` | operations on lists and entries, see [Sync](#sync) |
+| `POST` | `/ops` | operations on lists and entries, and `product.create`, see [Sync](#sync) |
 | `GET` | `/lists` | accessible lists without entries, with `role` and `counts` (ETag) |
 | `GET` | `/lists/{id}?since=N` | one list: all visible entries, or with `since` only entries changed after revision N (ETag) |
+| `GET` | `/products` | whole catalog including hidden products (ETag) |
+| `GET` | `/products/search?q=&limit=` | suggestions without hidden products, best first (limit 20, at most 100; `hidden=1` for maintainers) |
+| `GET` | `/products/{id}` | one product |
+| `POST` | `/products` | create with the browser's UUID: `201` `{status: 'created', product}`, again `200` `unchanged` |
+| `PATCH` | `/products/{id}` | change the sent fields (creator or maintainer) |
+| `POST` | `/products/{id}/hide`, `/unhide` | hide or show again (maintainers only) |
 
 - Every route in the group requires a QUIQQER session
   (`Rest\SessionAuthentication`), without: `401 unauthorized`. Public routes

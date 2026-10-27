@@ -7,7 +7,8 @@
  *
  * Dekorativ (alt=""): Der Produktname steht immer daneben.
  *
- * size: row (44 px, Listenzeile) · tile (48 px, Hinzufügen-Kachel) · lg (80 px)
+ * size: row (44 px, Listenzeile) · tile (48 px, Hinzufügen-Kachel) · lg (80 px) ·
+ * hero (Produktdetail: quadratisch, volle Breite bis 240 px)
  * muted: erledigte Zeile (Foto mit Überlagerung, Icon gedämpft)
  */
 import { ref, watch } from 'vue';
@@ -25,7 +26,7 @@ const props = defineProps({
     size: {
         type: String,
         default: 'row',
-        validator: (value) => ['row', 'tile', 'lg'].includes(value)
+        validator: (value) => ['row', 'tile', 'lg', 'hero'].includes(value)
     },
     muted: {
         type: Boolean,
@@ -87,6 +88,19 @@ watch(() => props.imageUrl, () => {
 .product-image--lg {
     --product-image-size: var(--thumb-size-lg);
     border-radius: var(--radius-md);
+}
+
+.product-image--hero {
+    width: 100%;
+    max-width: var(--product-hero-size);
+    height: auto;
+    aspect-ratio: 1;
+    border-radius: var(--radius-md);
+}
+
+.product-image--hero .product-image__icon {
+    width: var(--product-hero-icon-ratio);
+    height: var(--product-hero-icon-ratio);
 }
 
 .product-image__photo {

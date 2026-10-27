@@ -3,10 +3,13 @@
 namespace MichaelDanielczok\Piklis\Rest;
 
 use MichaelDanielczok\Piklis\Lists\ListRepository;
+use MichaelDanielczok\Piklis\Products\ProductRepository;
+use MichaelDanielczok\Piklis\Products\ProductService;
 use MichaelDanielczok\Piklis\Sync\InvalidOperationException;
 use MichaelDanielczok\Piklis\Sync\Operation;
 use MichaelDanielczok\Piklis\Sync\OperationProcessor;
 use MichaelDanielczok\Piklis\Sync\OperationResult;
+use MichaelDanielczok\Piklis\Sync\ProductOperation;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use QUI;
@@ -24,6 +27,9 @@ use function is_array;
  * Operationen stehen als `rejected` in den Ergebnissen, nicht als HTTP-Fehler.
  * Bei einem Serverfehler bricht die Verarbeitung mit 500 ab; die App schickt
  * den Rest erneut (bereits verarbeitete Operationen kommen als `duplicate`).
+ *
+ * `product.create` (ohne Liste) geht an `ProductOperation`, alle anderen an
+ * den `OperationProcessor` der Listen.
  */
 class OperationsEndpoint
 {
@@ -50,9 +56,22 @@ class OperationsEndpoint
 
         $userId = SessionUser::id();
         $Processor = new OperationProcessor(new ListRepository());
+        $Products = new ProductOperation(new ProductService(new ProductRepository()));
         $results = [];
 
         foreach ($operations as $raw) {
+            if (ProductOperation::isProductOperation($raw)) {
+                try {
+                    $results[] = $Products->process($raw, $userId)->toArray();
+                } catch (Throwable $Exception) {
+                    QUI\System\Log::writeException($Exception);
+
+                    return Json::error($Response, 'save_failed', 'Operations could not be saved.', 500);
+                }
+
+                continue;
+            }
+
             try {
                 $Operation = Operation::fromArray($raw);
             } catch (InvalidOperationException $Exception) {

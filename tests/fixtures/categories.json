@@ -1,0 +1,24 @@
+{
+    "_comment": "Feste Kategorien des Katalogs in Reihenfolge der Auswahl. Gleich in Products\\Categories (PHP) und frontend/products/categories.js (JS); Namen in frontend/i18n (categories.<key>).",
+    "categories": [
+        "fruit",
+        "vegetables",
+        "bread",
+        "dairy",
+        "cheese",
+        "meat",
+        "fish",
+        "grains",
+        "canned",
+        "frozen",
+        "sweets",
+        "drinks",
+        "coffee_tea",
+        "baking",
+        "drugstore",
+        "household",
+        "baby",
+        "pets",
+        "other"
+    ]
+}

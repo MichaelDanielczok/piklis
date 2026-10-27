@@ -161,6 +161,45 @@ export const api = {
         return request('GET', '/lists/' + encodeURIComponent(listId) + query, undefined, { signal });
     },
 
+    /**
+     * Ganzer Katalog inkl. ausgeblendeter Produkte (`hidden: true`):
+     * { products }. ETag: Der Browser fragt bedingt nach (304 aus dem Cache).
+     */
+    getProducts({ signal } = {}) {
+        return request('GET', '/products', undefined, { signal });
+    },
+
+    /** Suche auf dem Server: { products } ohne ausgeblendete, beste zuerst. */
+    searchProducts(query, { limit, signal } = {}) {
+        const params = new URLSearchParams({ q: query });
+
+        if (limit) {
+            params.set('limit', String(limit));
+        }
+
+        return request('GET', '/products/search?' + params.toString(), undefined, { signal });
+    },
+
+    /**
+     * Produkt anlegen, ID aus dem Browser: { status: 'created'|'unchanged', product }.
+     *
+     * @param {{ id: string, name: string, category?: string|null, icon?: string|null,
+     *   description?: string|null, packageSize?: string|null }} product
+     */
+    createProduct(product) {
+        return request('POST', '/products', product);
+    },
+
+    /** Geänderte Felder speichern: { product }. 403 forbidden ohne Recht. */
+    updateProduct(productId, changes) {
+        return request('PATCH', '/products/' + encodeURIComponent(productId), changes);
+    },
+
+    /** Nur Produktpfleger: { product } */
+    setProductHidden(productId, hidden) {
+        return request('POST', '/products/' + encodeURIComponent(productId) + (hidden ? '/hide' : '/unhide'));
+    },
+
     async login(username, password) {
         const result = await callAjax('ajax_users_login', {
             authenticator: LOGIN_AUTHENTICATOR,

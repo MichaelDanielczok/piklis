@@ -43,6 +43,11 @@ interface ListStore
     public function listIdOfEntry(string $entryId): ?string;
 
     /**
+     * Gibt es das Produkt im Katalog (auch ausgeblendet)?
+     */
+    public function productExists(string $productId): bool;
+
+    /**
      * Schreibt geänderte Liste, geänderte Einträge und die Protokollzeile.
      */
     public function save(ListState $list, ChangeRecord $change): void;

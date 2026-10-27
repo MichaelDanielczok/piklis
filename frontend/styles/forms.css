@@ -1,0 +1,97 @@
+/*
+ * Formularfelder der App (Produkt anlegen und bearbeiten, später Listen und
+ * Vorlagen): Beschriftung über dem Feld, Hinweis darunter, Fehler mit Symbol
+ * und Text in Rot. Eingaben mindestens 16 px, sonst zoomt iOS beim Fokus.
+ *
+ * <label class="form-field">
+ *     <span class="form-field__label">Name <span class="form-field__label-hint">· Hinweis</span></span>
+ *     <input class="form-field__input" …>
+ *     <span class="form-field__hint">…</span>
+ * </label>
+ */
+
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-width: 0;
+}
+
+.form-field__label {
+    color: var(--color-text-1);
+    font-size: var(--font-size-text);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--line-height-qty);
+}
+
+.form-field__label-hint {
+    color: var(--color-text-2);
+    font-weight: var(--font-weight-regular);
+}
+
+.form-field__input {
+    width: 100%;
+    min-height: var(--input-height);
+    padding: 0 var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-1);
+    color: var(--color-text-1);
+    font: inherit;
+    font-size: var(--font-size-title);
+    line-height: var(--line-height-name);
+    transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.form-field__input::placeholder {
+    color: var(--color-text-2);
+    opacity: 1;
+}
+
+textarea.form-field__input {
+    min-height: calc(var(--input-height) * 2);
+    padding: var(--space-3) var(--space-4);
+    resize: vertical;
+}
+
+select.form-field__input {
+    appearance: none;
+    padding-right: var(--space-10);
+    background-image: linear-gradient(45deg, transparent 50%, var(--color-text-2) 50%),
+        linear-gradient(135deg, var(--color-text-2) 50%, transparent 50%);
+    background-position: calc(100% - var(--space-5)) 50%, calc(100% - var(--space-4)) 50%;
+    background-size: 0.375rem 0.375rem;
+    background-repeat: no-repeat;
+}
+
+.form-field__input:focus-visible {
+    border-color: var(--color-accent);
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: 0;
+}
+
+.form-field__input[aria-invalid="true"] {
+    border-color: var(--color-danger);
+}
+
+.form-field__hint {
+    color: var(--color-text-2);
+    font-size: var(--font-size-note);
+    line-height: var(--line-height-note);
+}
+
+.form-field__error {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--color-danger);
+    font-size: var(--font-size-note);
+    font-weight: var(--font-weight-medium);
+    line-height: var(--line-height-note);
+}
+
+.form-field__error svg {
+    flex: none;
+    width: var(--icon-size-sm);
+    height: var(--icon-size-sm);
+}

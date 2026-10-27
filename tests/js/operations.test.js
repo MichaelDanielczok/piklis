@@ -68,6 +68,17 @@ test('builders carry base and seen values from the local entry', () => {
     assert.deepEqual(add.quantity, { amount: 1, unit: null });
 });
 
+test('product.create carries the product id and fields without a list', () => {
+    const op = operations.createProduct({ id: 'cccccccc-0000-4000-8000-000000000001', name: 'Gouda', icon: null });
+
+    assert.deepEqual(op, {
+        type: 'product.create',
+        productId: 'cccccccc-0000-4000-8000-000000000001',
+        product: { name: 'Gouda', icon: null }
+    });
+    assert.match(operations.createProduct({ name: 'Milch' }).productId, /^[0-9a-f-]{36}$/);
+});
+
 test('operations are sent in order and removed after their result', async () => {
     const transport = fakeTransport();
     const queue = createOperationQueue({ transport, autoFlush: false });

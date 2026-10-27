@@ -2,13 +2,15 @@
 
 namespace MichaelDanielczok\Piklis\Rest;
 
+use MichaelDanielczok\Piklis\Users\Profile;
 use QUI;
 use RuntimeException;
 
 use function is_string;
 
 /**
- * UUID des angemeldeten Benutzers für Routen hinter `SessionAuthentication`.
+ * Angemeldeter Benutzer für Routen hinter `SessionAuthentication`: UUID und
+ * Produktpflege-Recht.
  */
 final class SessionUser
 {
@@ -25,5 +27,13 @@ final class SessionUser
         }
 
         return $uuid;
+    }
+
+    /**
+     * Recht `piklis.products.manage`: alle Produkte bearbeiten und ausblenden.
+     */
+    public static function canManageProducts(): bool
+    {
+        return (new Profile(QUI::getUserBySession()))->canManageProducts();
     }
 }

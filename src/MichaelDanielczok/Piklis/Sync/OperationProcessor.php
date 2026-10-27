@@ -18,7 +18,8 @@ use DateTimeImmutable;
  * 3. Liste unbekannt `list_not_found`, gelöscht `list_deleted`, ohne Rolle
  *    `no_access` (z. B. Freigabe entzogen), Rolle reicht nicht `forbidden`.
  * 4. `entry.add` mit einer Eintrags-ID aus einer anderen Liste:
- *    `invalid_operation`.
+ *    `invalid_operation`; mit einem unbekannten Produkt `product_not_found`
+ *    (ausgeblendete Produkte sind erlaubt).
  * 5. Anwenden (`ListOperationApplier`) und mit Protokollzeile speichern.
  *
  * Abgelehnte Operationen werden nicht protokolliert.
@@ -81,6 +82,10 @@ final class OperationProcessor
                     'invalid_operation',
                     'The entry id belongs to another list.'
                 );
+            }
+
+            if (!$this->Store->productExists($op->productId())) {
+                return OperationResult::rejected($op->id, 'product_not_found', 'The product does not exist.');
             }
         }
 

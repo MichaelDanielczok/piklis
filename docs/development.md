@@ -44,6 +44,9 @@ instance has a mock backend in `.claude/` (not part of this repository):
   login).
 - The pattern page of the base components: <http://localhost:5180/#/components>
   (dev server only).
+- The catalog is global: products the test users create in the mock are
+  real rows in `pk_products`. Delete them after testing (`created_by` of
+  `test`, `test2`, `test3`).
 
 ## Frontend
 

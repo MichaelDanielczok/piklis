@@ -155,6 +155,11 @@
     --thumb-size-tile: 3rem; /* 48, Bild/Icon in der Hinzufügen-Kachel */
     --thumb-size-lg: 5rem; /* 80, Musterseite und Details */
     --thumb-icon-ratio: 0.68; /* Ersatzicon im Feld: 30 von 44 px */
+    --product-hero-size: 15rem; /* 240, großes Bild bzw. Icon im Produktdetail */
+    --product-hero-icon-ratio: 40%; /* Ersatzicon im großen Feld */
+    --product-list-width: 24rem; /* Liste neben dem Produktdetail (Desktop) */
+    --icon-option-size: 4.5rem; /* 72, Feld in der Icon-Auswahl */
+    --icon-picker-min-height: min(30rem, 60vh); /* Icon-Auswahl springt beim Suchen nicht */
     --handle-width: 2rem; /* 32, Ziehgriff über die ganze Zeilenhöhe */
     --check-zone-width: 3.75rem; /* 60, Abhaken-Zone über die ganze Zeilenhöhe */
     --check-ring-size: 1.75rem; /* 28 */

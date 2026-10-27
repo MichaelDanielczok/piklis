@@ -7,6 +7,7 @@
  * (black-translucent) liefe der Inhalt sonst sichtbar unter Uhrzeit und Akku
  * durch. Im Browser ist der Sicherheitsabstand 0, der Streifen also auch.
  *
+ * `backTo`: Ziel des Zurück-Knopfs ohne Verlauf (Standard `/`).
  * `bare`: ohne Kopf und Navigation (Anmeldeseite), kein Platz unten.
  * `width`: Breite des Inhalts – wide (Standard) · list (Einkaufslisten) ·
  * narrow (Formulare, Profil).
@@ -27,6 +28,10 @@ defineProps({
         type: Boolean,
         default: false
     },
+    backTo: {
+        type: String,
+        default: '/'
+    },
     bare: {
         type: Boolean,
         default: false
@@ -44,7 +49,7 @@ defineProps({
         <div class="app-page__statusbar" aria-hidden="true"></div>
         <IonContent class="app-page" :class="{ 'app-page--bare': bare }">
             <div class="app-page__inner" :class="'app-page__inner--' + width">
-                <AppHeader v-if="!bare" :title="title" :subtitle="subtitle" :back="back">
+                <AppHeader v-if="!bare" :title="title" :subtitle="subtitle" :back="back" :back-to="backTo">
                     <template v-if="$slots.actions" #actions>
                         <slot name="actions" />
                     </template>

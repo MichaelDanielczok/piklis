@@ -250,6 +250,19 @@ class OperationProcessorTest extends TestCase
         $this->assertSame('unchanged', $unchanged->result['status']);
     }
 
+    public function testAddingAnUnknownProductIsRejected(): void
+    {
+        $this->send(self::MICHAEL, Ops::createList());
+        $this->Store->unknownProducts[] = Ops::MILK;
+
+        $Result = $this->send(self::MICHAEL, Ops::add(self::MILK_ENTRY, Ops::MILK, 1));
+
+        $this->assertTrue($Result->isRejected());
+        $this->assertSame('product_not_found', $Result->get('error'));
+        $this->assertSame(1, $this->Store->lists[Ops::LIST_ID]->revision);
+        $this->assertCount(1, $this->Store->changes);
+    }
+
     private function send(string $userId, Operation $Operation): OperationResult
     {
         return $this->Processor->process($Operation, $userId);

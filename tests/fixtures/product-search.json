@@ -1,0 +1,83 @@
+{
+    "_comment": "Produktsuche: gleiche Fälle für Products\\SearchText/ProductSearch (PHP) und frontend/utils/productSearch.js (JS). Produkte als Name oder { name, hidden }; expected in Trefferreihenfolge.",
+    "normalize": [
+        { "input": "Käse", "expected": "kase" },
+        { "input": "Bio-Äpfel", "expected": "bio apfel" },
+        { "input": "Weißbrot", "expected": "weissbrot" },
+        { "input": "  Milch 1,5 %  ", "expected": "milch 1 5" },
+        { "input": "Żurek łódzki", "expected": "zurek lodzki" },
+        { "input": "Crème fraîche", "expected": "creme fraiche" },
+        { "input": "GOUDA  jung", "expected": "gouda jung" },
+        { "input": "", "expected": "" }
+    ],
+    "search": [
+        {
+            "name": "Vorschläge zu Gouda: Name beginnt vor Wort beginnt, sonst alphabetisch",
+            "query": "Gouda",
+            "products": ["Gouda mittelalt in Scheiben", "Gouda jung am Stück", "Butter", "Käse Gouda", "Gouda gerieben"],
+            "expected": ["Gouda gerieben", "Gouda jung am Stück", "Gouda mittelalt in Scheiben", "Käse Gouda"]
+        },
+        {
+            "name": "gleicher Name zuerst, Wortteil zuletzt",
+            "query": "milch",
+            "products": ["Milchreis", "Hafermilch", "Frische Milch 1,5 %", "Milch"],
+            "expected": ["Milch", "Milchreis", "Frische Milch 1,5 %", "Hafermilch"]
+        },
+        {
+            "name": "zusammengesetzte Wörter: brot findet Vollkornbrot",
+            "query": "brot",
+            "products": ["Vollkornbrot", "Brötchen", "Toastbrot", "Brot", "Butter"],
+            "expected": ["Brot", "Brötchen", "Toastbrot", "Vollkornbrot"]
+        },
+        {
+            "name": "ohne Umlaut gesucht",
+            "query": "kase",
+            "products": ["Käse gerieben", "Frischkäse", "Kaffee"],
+            "expected": ["Käse gerieben", "Frischkäse"]
+        },
+        {
+            "name": "mit Umlaut gesucht",
+            "query": "Käse",
+            "products": ["Kaese", "Käse gerieben"],
+            "expected": ["Käse gerieben"]
+        },
+        {
+            "name": "mehrere Wörter in beliebiger Reihenfolge",
+            "query": "jung gouda",
+            "products": ["Gouda jung am Stück", "Gouda alt", "Junger Spinat"],
+            "expected": ["Gouda jung am Stück"]
+        },
+        {
+            "name": "leere Eingabe ergibt keine Vorschläge",
+            "query": "  ",
+            "products": ["Milch"],
+            "expected": []
+        },
+        {
+            "name": "ausgeblendete Produkte fehlen",
+            "query": "gouda",
+            "products": [{ "name": "Gouda alt", "hidden": true }, "Gouda jung"],
+            "expected": ["Gouda jung"]
+        },
+        {
+            "name": "ausgeblendete Produkte für Produktpfleger auf Wunsch",
+            "query": "gouda",
+            "includeHidden": true,
+            "products": [{ "name": "Gouda alt", "hidden": true }, "Gouda jung"],
+            "expected": ["Gouda alt", "Gouda jung"]
+        },
+        {
+            "name": "Begrenzung der Treffer",
+            "query": "a",
+            "limit": 2,
+            "products": ["Banane", "Apfel", "Mehl", "Ananas"],
+            "expected": ["Ananas", "Apfel"]
+        },
+        {
+            "name": "Packungsgröße im Namen",
+            "query": "milch 1,5",
+            "products": ["Milch 3,5 %", "Milch 1,5 % 1 l", "Buttermilch"],
+            "expected": ["Milch 1,5 % 1 l"]
+        }
+    ]
+}

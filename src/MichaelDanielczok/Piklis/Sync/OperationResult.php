@@ -61,6 +61,22 @@ final class OperationResult
         return new self([...$data, ...$extra]);
     }
 
+    /**
+     * Ergebnis von `product.create`: Produkte haben keine Revision, deshalb
+     * `applied` (angelegt) oder `unchanged` (gab es schon) ausdrücklich.
+     *
+     * @param array<string, mixed> $product
+     */
+    public static function product(string $operationId, bool $created, array $product): self
+    {
+        return new self([
+            'id' => $operationId,
+            'status' => $created ? self::APPLIED : self::UNCHANGED,
+            'revision' => null,
+            'product' => $product
+        ]);
+    }
+
     public static function rejected(string $operationId, string $error, string $message): self
     {
         return new self([

@@ -4,6 +4,7 @@ import { IonicVue } from '@ionic/vue';
 import '@ionic/vue/css/core.css';
 import './styles/tokens.css';
 import './styles/base.css';
+import './styles/forms.css';
 
 import App from './App.vue';
 import router from './router.js';

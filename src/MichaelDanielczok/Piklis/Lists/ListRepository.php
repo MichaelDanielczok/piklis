@@ -155,6 +155,22 @@ class ListRepository implements ListStore
     /**
      * @throws DBALException
      */
+    public function productExists(string $productId): bool
+    {
+        $found = $this->Connection->createQueryBuilder()
+            ->select('id')
+            ->from(Tables::name(Tables::PRODUCTS))
+            ->where('id = :id')
+            ->setParameter('id', $productId)
+            ->executeQuery()
+            ->fetchOne();
+
+        return $found !== false;
+    }
+
+    /**
+     * @throws DBALException
+     */
     public function save(ListState $list, ChangeRecord $change): void
     {
         if ($list->isNew) {

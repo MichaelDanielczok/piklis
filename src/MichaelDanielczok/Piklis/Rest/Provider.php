@@ -30,6 +30,14 @@ class Provider implements ProviderInterface
                 $Group->post('/ops', [OperationsEndpoint::class, 'post']);
                 $Group->get('/lists', [ListsEndpoint::class, 'index']);
                 $Group->get('/lists/{id}', [ListsEndpoint::class, 'get']);
+
+                $Group->get('/products', [ProductsEndpoint::class, 'index']);
+                $Group->post('/products', [ProductsEndpoint::class, 'create']);
+                $Group->get('/products/search', [ProductsEndpoint::class, 'search']);
+                $Group->get('/products/{id}', [ProductsEndpoint::class, 'get']);
+                $Group->patch('/products/{id}', [ProductsEndpoint::class, 'update']);
+                $Group->post('/products/{id}/hide', [ProductsEndpoint::class, 'hide']);
+                $Group->post('/products/{id}/unhide', [ProductsEndpoint::class, 'unhide']);
             }
         )->add(new SessionAuthentication());
     }

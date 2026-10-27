@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { IonApp, IonRouterOutlet } from '@ionic/vue';
+import { setLucideProps } from '@lucide/vue';
 import SideNav from '@/components/layout/SideNav.vue';
 import MobileNav from '@/components/layout/MobileNav.vue';
 import { useSession } from '@/composables/useSession.js';
@@ -9,6 +10,9 @@ import { pageTransitionAnimated } from '@/composables/usePageTransition.js';
 
 const route = useRoute();
 const { isAuthenticated } = useSession();
+
+// Oberflächen-Icons mit derselben Strichstärke wie die Ersatzicons (1,75)
+setLucideProps({ strokeWidth: 1.75 });
 
 // Anmeldeseite ohne Navigation
 const showNavigation = computed(() => isAuthenticated.value && !route.meta.public);

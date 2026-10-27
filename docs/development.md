@@ -54,12 +54,18 @@ instance has a mock backend in `.claude/` (not part of this repository):
   login).
 - The pattern page of the base components: <http://localhost:5180/#/components>
   (dev server only).
+- Loading states: the cookie `pk_mock_delay` (milliseconds, at most 5000)
+  delays every REST answer of the mock, e.g.
+  `document.cookie = 'pk_mock_delay=3000; path=/'`; remove it with
+  `max-age=0`. Used to measure skeletons against the loaded view.
 - The router sets `_url` for `/media/cache/…` like the `.htaccess`, so
   missing WebP sizes are created in the mock as well.
 - The catalog is global: products the test users create in the mock are
   real rows in `pk_products`, their images real media in “Produktbilder”.
   Delete them after testing (`created_by` of `test`, `test2`, `test3`;
-  remove the image first or delete the media in the backend).
+  remove the image first or delete the media in the backend). Entries on
+  lists of the test users may keep pointing to deleted products: the list
+  shows them as “Unbekanntes Produkt”.
 
 ## Frontend
 

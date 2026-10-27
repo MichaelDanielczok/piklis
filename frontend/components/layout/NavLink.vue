@@ -15,6 +15,11 @@ const props = defineProps({
     exact: {
         type: Boolean,
         default: false
+    },
+    // weitere Pfade, unter denen der Eintrag aktiv ist (z. B. /lists für „Listen“)
+    prefixes: {
+        type: Array,
+        default: () => []
     }
 });
 
@@ -25,6 +30,10 @@ const ionRouter = useIonRouter();
 const href = computed(() => router.resolve(props.to).href);
 
 const isActive = computed(() => {
+    if (props.prefixes.some((prefix) => route.path.startsWith(prefix + '/'))) {
+        return true;
+    }
+
     if (props.exact) {
         return route.path === props.to;
     }

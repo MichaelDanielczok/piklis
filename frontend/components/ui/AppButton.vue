@@ -1,13 +1,14 @@
 <script setup>
 /**
- * Knopf der App. variant: primary (grün, Hauptaktion) · secondary (Fläche 2).
- * Höhe 52 px, Rundung 14 px. `block`: volle Breite.
+ * Knopf der App. variant: primary (grün, Hauptaktion) · secondary (Fläche 2) ·
+ * danger (Löschen, Entfernen: Kontur und roter Text; bestätigt wird mit
+ * danger-solid). Höhe 52 px, Rundung 14 px. `block`: volle Breite.
  */
 defineProps({
     variant: {
         type: String,
         default: 'primary',
-        validator: (value) => ['primary', 'secondary'].includes(value)
+        validator: (value) => ['primary', 'secondary', 'danger', 'danger-solid'].includes(value)
     },
     type: {
         type: String,
@@ -65,6 +66,17 @@ defineProps({
     color: var(--color-text-1);
 }
 
+.app-button--danger {
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-danger);
+}
+
+.app-button--danger-solid {
+    background: var(--color-danger);
+    color: var(--color-on-danger);
+}
+
 @media (hover: hover) {
     .app-button--primary:hover {
         background: var(--color-accent-hover);
@@ -72,6 +84,10 @@ defineProps({
 
     .app-button--secondary:hover {
         background: var(--color-surface-3);
+    }
+
+    .app-button--danger:hover {
+        background: var(--color-surface-2);
     }
 }
 

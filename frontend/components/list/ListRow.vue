@@ -16,10 +16,11 @@
  * Wolke vor der Notiz bzw. Text „noch nicht übertragen“.
  * Status nie nur über Farbe: immer Symbol und Text dazu.
  *
- * Sortieren selbst (Ziehen, Platzhalter) kommt mit der Einkaufsliste; der
- * Griff meldet nur `handle-pointerdown`.
+ * Sortieren selbst (Ziehen, Platzhalter) übernimmt die Liste
+ * (`useDragSort`): Der Griff meldet `handle-pointerdown`, mit der Tastatur
+ * (Pfeil hoch/runter am Griff) `move` mit -1 bzw. 1.
  */
-import { computed } from 'vue';
+import { computed, useId } from 'vue';
 import { ArrowRight, Check, CloudUpload, GripVertical, X } from '@lucide/vue';
 import ProductImage from '@/components/products/ProductImage.vue';
 import QuantityLabel from './QuantityLabel.vue';
@@ -61,8 +62,9 @@ const props = defineProps({
     }
 });
 
-const emit = defineEmits(['details', 'toggle', 'transfer', 'handle-pointerdown']);
+const emit = defineEmits(['details', 'toggle', 'transfer', 'handle-pointerdown', 'move']);
 
+const handleHintId = useId();
 const isDone = computed(() => props.status === 'done');
 const isNotGot = computed(() => props.status === 'notGot');
 </script>
@@ -80,10 +82,15 @@ const isNotGot = computed(() => props.status === 'notGot');
                 v-if="status === 'open'"
                 type="button"
                 class="list-row__handle"
+                data-name="handle"
                 :aria-label="t('row.handle', { name })"
+                :aria-describedby="handleHintId"
                 @pointerdown="emit('handle-pointerdown', $event)"
+                @keydown.up.prevent="emit('move', -1)"
+                @keydown.down.prevent="emit('move', 1)"
             >
                 <GripVertical class="list-row__handle-icon" aria-hidden="true" />
+                <span :id="handleHintId" class="visually-hidden">{{ t('row.handleHint') }}</span>
             </button>
         </div>
 

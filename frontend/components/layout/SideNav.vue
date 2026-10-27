@@ -19,7 +19,7 @@ import { navItems } from './navItems.js';
         <nav class="side-nav__nav" :aria-label="t('nav.main')">
             <ul class="side-nav__list">
                 <li v-for="item in navItems" :key="item.to">
-                    <NavLink :to="item.to" :exact="item.exact" class="side-nav__link">
+                    <NavLink :to="item.to" :exact="item.exact" :prefixes="item.prefixes" class="side-nav__link">
                         <component :is="item.icon" class="side-nav__icon" aria-hidden="true" />
                         {{ t(item.labelKey) }}
                     </NavLink>

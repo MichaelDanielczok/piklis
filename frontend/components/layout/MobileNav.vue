@@ -13,7 +13,7 @@ import { navItems } from './navItems.js';
     <nav class="mobile-nav" :aria-label="t('nav.main')">
         <ul class="mobile-nav__list" :style="{ '--nav-count': navItems.length }">
             <li v-for="item in navItems" :key="item.to">
-                <NavLink :to="item.to" :exact="item.exact" class="mobile-nav__link">
+                <NavLink :to="item.to" :exact="item.exact" :prefixes="item.prefixes" class="mobile-nav__link">
                     <span class="mobile-nav__pill">
                         <component :is="item.icon" class="mobile-nav__icon" aria-hidden="true" />
                     </span>

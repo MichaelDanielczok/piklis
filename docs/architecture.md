@@ -48,16 +48,19 @@ committed because the server does not build (no Node there).
 | `app.js`, `App.vue`, `router.js` | entry, shell, routes |
 | `api/index.js` | the only module that talks to the server (REST and core Ajax) |
 | `api/operations.js` | operations: builders, queue, sending, pull since revision (see [Sync](#sync)) |
-| `composables/` | shared state: session, toast, page transition, product catalog (`useProducts.js`), server settings (`useConfig.js`), media query |
+| `composables/` | shared state: session, toast, page transition, product catalog (`useProducts.js`), server settings (`useConfig.js`), media query, shopping lists (`useLists.js`), sorting by the drag handle (`useDragSort.js`) |
 | `components/layout/` | page frame and header, sidebar, mobile navigation, nav items, user menu |
 | `components/ui/` | button, sheet, section label, theme switch, avatar, logo, empty state, search field |
 | `components/list/` | list row, row group, skeleton row, quantity, add tile |
+| `components/lists/` | overview card and its skeleton, sheet “Neue Liste / Liste bearbeiten”, sheet for quantity and note of an entry |
 | `components/products/` | product image (photo or fallback icon), fallback icon, catalog row and its skeleton, detail, form, icon picker, photo field, crop dialog, large view |
 | `products/` | fixed categories (`categories.js`), fallback icons with their category (`catalog.js`) |
 | `icons/` | fallback icon sprite (`ersatzicons.svg`, embedded once at start) |
 | `utils/quantity.js` | quantities with unit (`2 ×`, `2 Packungen`, `1,5 kg`), input with comma, checks |
 | `utils/sortKey.js` | sort keys between two neighbours (same logic as `Lists\SortKey`) |
 | `utils/productSearch.js` | catalog search: normalising and ranking (same logic as `Products\ProductSearch`) |
+| `utils/listState.js` | local state of a list: server state plus own operations, counts, append key, move plan (tested with `node --test`) |
+| `utils/shopDate.js` | optional shopping date relative to today (“heute”, “Mo”, “Sa., 24. Okt.”) |
 | `utils/imageCrop.js`, `utils/imageUpload.js` | crop and zoom maths, file checks against the limits, pasted images (tested with `node --test`) |
 | `utils/imageEncode.js` | load an image, draw crop and reduced original into a canvas, encode as JPEG |
 | `views/` | one view per route |
@@ -68,7 +71,10 @@ committed because the server does not build (no Node there).
 | `dev/samples/` | sample photos for the pattern page, dev server only |
 
 - Routes (hash): `/login` (`meta.public`); navigation `/` (Listen),
-  `/products` (Produkte), `/templates` (Vorlagen); product pages
+  `/products` (Produkte), `/templates` (Vorlagen); shopping list
+  `/lists/:id`, its preliminary product search `/lists/:id/add` and an entry
+  in the list context `/lists/:id/entries/:entryId` (all highlight
+  “Listen”); product pages
   `/products/new?name=…`, `/products/:id`, `/products/:id/edit`; from the user menu
   `/profile`, `/household`, `/settings`; `/components` (pattern page) only in
   the dev server (`import.meta.env.DEV`, missing in the build). Everything
@@ -149,7 +155,7 @@ data and sample photos cut from the design package's drawn placeholders.
 | `list/AddTile.vue` | tile in “Produkte hinzufügen”: fixed height 124 px, plus button turns into “− 1 +” with the plus at the same place, inset outline when selected, minus at 1 removes |
 | `ui/SectionLabel.vue` | section heading in capitals (“ERLEDIGT · 8”), capitals by CSS only |
 | `ui/AppSheet.vue` | bottom sheet (see above) |
-| `ui/AppButton.vue`, `ui/ThemeSwitch.vue`, `ui/UserAvatar.vue`, `ui/AppLogo.vue`, `ui/EmptyState.vue` | button, theme choice, avatar or initials, app icon with name, placeholder of a view |
+| `ui/AppButton.vue`, `ui/ThemeSwitch.vue`, `ui/UserAvatar.vue`, `ui/AppLogo.vue`, `ui/EmptyState.vue` | button (`primary`, `secondary`, `danger`, `danger-solid`), theme choice, avatar or initials, app icon with name, placeholder of a view |
 
 Deviations from the design package, chosen for the phone:
 
@@ -482,8 +488,10 @@ again and gets `duplicate` for the others).
 
 ### Reading
 
-- `GET /lists`: lists of the user without entries, each with `role` and
-  `counts` (`open`, `done`, `notGot`, `total` of visible entries). ETag/304.
+- `GET /lists`: lists of the user without entries, each with `role`,
+  `counts` (`open`, `done`, `notGot`, `total` of visible entries) and
+  `preview` (product IDs of the first four open entries in list order,
+  `Lists\ListPreview`, for the images in the overview). ETag/304.
   Now: own personal lists; household lists (9) and shares (11) follow.
 - `GET /lists/{id}`: `{ list (with role), revision, full: true, entries }`
   with all visible entries.
@@ -588,6 +596,16 @@ idempotency and rights in `OperationProcessorTest.php`.
   into a local map.
 - Display state = last server state + pending operations applied on top
   (re-applied after every pull), so own changes never flicker back.
+- `composables/useLists.js` holds the one queue of the app and the loaded
+  lists: display state = server state + pending operations
+  (`utils/listState.js`, `applyOperations`), so a rejected operation simply
+  disappears (toast “Eine Änderung hat der Server abgelehnt.”). Answers
+  update the server state (`entry`, `list`); a revision that is not exactly
+  +1 means someone else changed the list, then it pulls “since N” once
+  nothing is pending. Sending again on `online` and when the app becomes
+  visible. While sending fails, pending entries show “noch nicht
+  übertragen” and the list a blue offline note with the number of waiting
+  changes.
 - Storage: in memory now (`createMemoryStorage()`); step 13 adds IndexedDB
   with the same interface `{ load(), save(ops) }`, plus the offline copies of
   lists, catalog and images.
@@ -633,6 +651,61 @@ idempotency and rights in `OperationProcessorTest.php`.
 - Stored as `decimal(10,3)`; PHP compares in thousandths, so `equals()` is
   exact. Package size (“1,5 l”) belongs to the product; the quantity counts
   packages.
+
+## Shopping lists
+
+Concept in Obsidian “Piklis Konzept” › “Einkaufslisten”; design package
+screens 01, 03–06 and 10.
+
+- **Overview** (`ListsView.vue`, `ListCard.vue`): active lists, newest
+  first by creation (the order does not change while shopping). Card: name,
+  date (`utils/shopDate.js`), origin chip (now always “nur ich”), progress
+  bar with “8 von 30”, images of the first open products and “+ N” for the
+  other open ones. The card has a fixed structure, the skeleton
+  (`ListCardSkeleton.vue`) the same heights. “Neue Liste” at the bottom
+  opens `ListFormSheet.vue` (name required, at most 100 characters; date
+  optional: Ohne Datum · Heute · Morgen · date field); the new list opens
+  at once, also before the server answered.
+- **List** (`ListView.vue`): title with origin and date, plus button
+  (add) and “…” (edit: name, date, delete with confirmation in the same
+  sheet). Progress “8 von 30 erledigt · 22 offen”, open entries in sort-key
+  order, a dashed “Produkte hinzufügen” row, “Nicht bekommen” (shown when
+  present; actions follow in step 7) and “Erledigt · N”, collapsible
+  (remembered per device in `localStorage`, `pk.listDoneOpen`). Without
+  the user menu in the header (room for the actions).
+- **Adding:** a new entry gets quantity 1 and a key behind all entries
+  (`appendKey`, also behind done and removed ones), so a fresh list follows
+  the order of adding. A product that is already open on the list is not
+  added twice; plus raises its quantity. Preliminary view
+  `ListAddView.vue` (search in the loaded catalog, no keyboard on open);
+  step 6 replaces it with the real picker.
+- **Sorting** only at the handle (`useDragSort.js`, Pointer Events, no
+  library): the lifted row follows the finger with a shadow, the others
+  move aside, a green dashed placeholder marks the target, the page scrolls
+  at the top and bottom edge. During the drag only the DOM is changed
+  (transforms), not Vue state; on release `planMove()` computes the new key
+  (`entry.move`, usually one operation; if both neighbours share a key the
+  right one moves first), and once the new order is rendered the row glides
+  from the finger into its place. Arrow up/down on the focused handle move
+  by one; a live region announces the new position.
+- **Checking** on the check area: the row closes with a short height
+  animation (the rows below follow evenly, nothing jumps), then
+  `entry.setStatus` done with `seen`; toast “„Milch“ erledigt” with
+  “Rückgängig”. Unchecking (toast or the check mark under “Erledigt”) opens
+  the row again at its old place: the sort key never changes on checking.
+  `prefers-reduced-motion` skips the animations.
+- **Entry in the list context** (`ListEntryView.vue`): the product detail
+  (`ProductDetail.vue`, slot `context`) with a card “In der Liste …”:
+  quantity, note, done state; “Menge oder Notiz ändern” opens
+  `EntrySheet.vue` (minus/plus in steps of 1, 50 for g/ml and 0.5 for
+  kg/l, input with comma, unit from the fixed list, note up to 500
+  characters “Gilt nur für diesen Einkauf.”); only changed fields are sent
+  (`entry.set` with `base`). “Von der Liste entfernen” removes with
+  “Rückgängig” (`entry.restore`). A product missing from the catalog is
+  shown as “Unbekanntes Produkt”, the entry stays usable.
+- **Skeletons** in end height: list rows 64 px (`SkeletonRow`), progress
+  block 46 px, overview cards like the card; title and subtitle keep their
+  height while the list name is loading.
 
 ## Product catalog
 
@@ -766,7 +839,7 @@ picture of SmartPicker.
 | `PATCH` | `/me/settings` | `theme` (`auto`/`light`/`dark`); answers like `GET /me` |
 | `GET` | `/config` | `images`: `maxPixels`, `maxBytes` (project settings), `cropSize` |
 | `POST` | `/ops` | operations on lists and entries, and `product.create`, see [Sync](#sync) |
-| `GET` | `/lists` | accessible lists without entries, with `role` and `counts` (ETag) |
+| `GET` | `/lists` | accessible lists without entries, with `role`, `counts` and `preview` (ETag) |
 | `GET` | `/lists/{id}?since=N` | one list: all visible entries, or with `since` only entries changed after revision N (ETag) |
 | `GET` | `/products` | whole catalog including hidden products (ETag) |
 | `GET` | `/products/search?q=&limit=` | suggestions without hidden products, best first (limit 20, at most 100; `hidden=1` for maintainers) |

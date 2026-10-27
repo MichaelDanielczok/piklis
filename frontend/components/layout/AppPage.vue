@@ -11,6 +11,7 @@
  * `bare`: ohne Kopf und Navigation (Anmeldeseite), kein Platz unten.
  * `width`: Breite des Inhalts – wide (Standard) · list (Einkaufslisten) ·
  * narrow (Formulare, Profil).
+ * `userMenu`: Benutzerbild im Kopf (Handy); aus in der Einkaufsliste.
  */
 import { IonContent, IonPage } from '@ionic/vue';
 import AppHeader from './AppHeader.vue';
@@ -36,6 +37,10 @@ defineProps({
         type: Boolean,
         default: false
     },
+    userMenu: {
+        type: Boolean,
+        default: true
+    },
     width: {
         type: String,
         default: 'wide',
@@ -49,7 +54,7 @@ defineProps({
         <div class="app-page__statusbar" aria-hidden="true"></div>
         <IonContent class="app-page" :class="{ 'app-page--bare': bare }">
             <div class="app-page__inner" :class="'app-page__inner--' + width">
-                <AppHeader v-if="!bare" :title="title" :subtitle="subtitle" :back="back" :back-to="backTo">
+                <AppHeader v-if="!bare" :title="title" :subtitle="subtitle" :back="back" :back-to="backTo" :user-menu="userMenu">
                     <template v-if="$slots.actions" #actions>
                         <slot name="actions" />
                     </template>

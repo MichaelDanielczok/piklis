@@ -23,6 +23,21 @@ const routes = [
         component: ListsView
     },
     {
+        path: '/lists/:id',
+        name: 'list',
+        component: () => import('./views/ListView.vue')
+    },
+    {
+        path: '/lists/:id/add',
+        name: 'list-add',
+        component: () => import('./views/ListAddView.vue')
+    },
+    {
+        path: '/lists/:id/entries/:entryId',
+        name: 'list-entry',
+        component: () => import('./views/ListEntryView.vue')
+    },
+    {
         path: '/products',
         name: 'products',
         component: () => import('./views/ProductsView.vue')

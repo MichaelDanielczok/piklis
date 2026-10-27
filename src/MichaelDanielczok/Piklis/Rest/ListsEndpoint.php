@@ -23,7 +23,8 @@ use function is_string;
 class ListsEndpoint
 {
     /**
-     * `GET /lists`: zugängliche Listen ohne Einträge, mit Rolle und Zählern.
+     * `GET /lists`: zugängliche Listen ohne Einträge, mit Rolle, Zählern und
+     * den Produkt-IDs der ersten offenen Einträge (`preview`).
      *
      * @param array<string, string> $args
      */
@@ -46,7 +47,8 @@ class ListsEndpoint
             static fn(array $item): array => [
                 ...$item['list']->toArray(),
                 'role' => $item['role']->value,
-                'counts' => $item['counts']
+                'counts' => $item['counts'],
+                'preview' => $item['preview']
             ],
             $lists
         );

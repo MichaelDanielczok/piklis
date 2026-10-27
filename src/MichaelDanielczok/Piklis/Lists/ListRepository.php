@@ -209,9 +209,10 @@ class ListRepository implements ListStore
 
     /**
      * Listen, auf die der Benutzer Zugriff hat (vorerst: eigene persönliche),
-     * ohne gelöschte, mit Zählern der sichtbaren Einträge je Zustand.
+     * ohne gelöschte, mit Zählern der sichtbaren Einträge je Zustand und den
+     * Produkten der ersten offenen Einträge (Vorschau in der Übersicht).
      *
-     * @return list<array{list: ListState, role: ListRole, counts: array<string, int>}>
+     * @return list<array{list: ListState, role: ListRole, counts: array<string, int>, preview: list<string>}>
      * @throws DBALException
      */
     public function listsForUser(string $userId): array
@@ -234,13 +235,15 @@ class ListRepository implements ListStore
         }
 
         $counts = $this->countEntries(array_keys($lists));
+        $previews = $this->previewProducts(array_keys($lists));
         $result = [];
 
         foreach ($lists as $listId => $List) {
             $result[] = [
                 'list' => $List,
                 'role' => ListRole::Owner,
-                'counts' => $counts[$listId] ?? self::emptyCounts()
+                'counts' => $counts[$listId] ?? self::emptyCounts(),
+                'preview' => $previews[$listId] ?? []
             ];
         }
 
@@ -282,6 +285,45 @@ class ListRepository implements ListStore
         }
 
         return $counts;
+    }
+
+    /**
+     * Produkte der ersten offenen Einträge je Liste (`ListPreview`).
+     *
+     * @param list<string> $listIds
+     * @return array<string, list<string>>
+     * @throws DBALException
+     */
+    private function previewProducts(array $listIds): array
+    {
+        if (count($listIds) === 0) {
+            return [];
+        }
+
+        $rows = $this->Connection->createQueryBuilder()
+            ->select('list_id', 'id', 'product_id', 'sort_key')
+            ->from(Tables::name(Tables::LIST_ENTRIES))
+            ->where('list_id IN (:lists)')
+            ->andWhere('status = :status')
+            ->andWhere('removed_at IS NULL')
+            ->andWhere('merged_into IS NULL')
+            ->setParameter('lists', $listIds, ArrayParameterType::STRING)
+            ->setParameter('status', EntryStatus::Open->value)
+            ->executeQuery()
+            ->fetchAllAssociative();
+
+        $entries = [];
+
+        foreach ($rows as $row) {
+            $entries[] = [
+                'list_id' => (string)$row['list_id'],
+                'id' => (string)$row['id'],
+                'product_id' => (string)$row['product_id'],
+                'sort_key' => (string)$row['sort_key']
+            ];
+        }
+
+        return ListPreview::firstProducts($entries);
     }
 
     /**

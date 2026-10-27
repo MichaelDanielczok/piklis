@@ -41,6 +41,16 @@ under `design/piklis-designpaket/`.
   “Produktbilder”, originals in “Originale”, random UUID names); shown as
   WebP in 128/640/1600 px from the media cache (`quiqqer/cache`); replace,
   re-crop from the original, remove; large view with zoom from the detail
+- Shopping lists: overview of the active lists (name, date, origin “nur
+  ich”, progress, first products), create with a free name and optional
+  date, rename, delete; the list in the shop with quantity, unit and note
+  per entry (edited in a sheet), new entries in the order they were added,
+  sorting only by the drag handle (finger, mouse, arrow keys), checking on
+  its own area (the row closes without jumping, toast with “Rückgängig”),
+  collapsible “Erledigt” section, unchecked entries return to their old
+  place; product details in the list context with quantity and note;
+  a preliminary product search to add entries (the real picker follows);
+  every change goes through the operations (`POST /ops`), shown at once
 - REST API `/api/piklis/v1` (`GET /me`, `PATCH /me/settings`, `GET /config`,
   `POST /ops`, `GET /lists`, `GET /lists/{id}`, `GET|POST /products`,
   `GET /products/search`, `GET|PATCH /products/{id}`,

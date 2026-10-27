@@ -6,6 +6,7 @@
  * nach unten, Tippen daneben und Escape. Ab Tablet mittig und rundum gerundet.
  *
  * v-model:open · Slots: default (Inhalt), footer (Knöpfe unten)
+ * Emits: presented (Sheet steht, z. B. um ein Feld zu fokussieren)
  */
 import { IonModal } from '@ionic/vue';
 import { X } from '@lucide/vue';
@@ -24,6 +25,7 @@ defineProps({
 });
 
 const open = defineModel('open', { type: Boolean, default: false });
+const emit = defineEmits(['presented']);
 const titleId = useId();
 </script>
 
@@ -34,6 +36,7 @@ const titleId = useId();
         :initial-breakpoint="1"
         :breakpoints="[0, 1]"
         :aria-labelledby="titleId"
+        @did-present="emit('presented')"
         @did-dismiss="open = false"
     >
         <div class="app-sheet__body">

@@ -8,8 +8,10 @@
  * Produktpfleger alle) und Aus-/Einblenden (nur Produktpfleger). Ohne Recht
  * steht dort ein Hinweis statt der Knöpfe.
  *
- * Genutzt auf der Detailseite (Handy) und rechts in der Produktpflege
- * (Desktop). `headingLevel` passt die Überschrift an die Umgebung an.
+ * Genutzt auf der Detailseite (Handy), rechts in der Produktpflege
+ * (Desktop) und im Kontext einer Einkaufsliste: Der Slot `context` steht
+ * nach der Beschreibung (Menge und Notiz in dieser Liste). `headingLevel`
+ * passt die Überschrift an die Umgebung an.
  * Emits: edit
  */
 import { computed, ref } from 'vue';
@@ -104,6 +106,8 @@ async function toggleHidden(hidden) {
         </p>
 
         <p v-if="product.hidden" class="product-detail__note">{{ t('products.hiddenHint') }}</p>
+
+        <slot name="context" />
 
         <div class="product-detail__actions">
             <AppButton v-if="canEdit" variant="primary" @click="$emit('edit')">

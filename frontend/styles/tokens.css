@@ -60,6 +60,7 @@
     --color-offline-text: #2F4C87;
     --color-success: var(--color-done);
     --color-danger: #B3261E;
+    --color-on-danger: #FFFFFF;
 
     --color-focus: #3A5BA0; /* Fokusring */
     --focus-ring-color: var(--color-focus);
@@ -172,6 +173,7 @@
     --handle-width: 2rem; /* 32, Ziehgriff über die ganze Zeilenhöhe */
     --check-zone-width: 3.75rem; /* 60, Abhaken-Zone über die ganze Zeilenhöhe */
     --check-ring-size: 1.75rem; /* 28 */
+    --progress-height: 0.375rem; /* 6, Fortschrittsbalken */
     --tile-height: 7.75rem; /* 124, Hinzufügen-Kachel */
     --tile-min-width: 9.5rem;
     --stepper-button-size: 2.75rem; /* 44, Plus und Minus */
@@ -240,6 +242,7 @@
         --color-offline-bg: #1E2A40;
         --color-offline-text: #B7C8F0;
         --color-danger: #F2857E;
+        --color-on-danger: #2A0D0B;
         --color-focus: #8FA9E8;
         --color-scrim: rgb(0 0 0 / 0.6);
         --color-toast-bg: #2E3230;
@@ -286,6 +289,7 @@
     --color-offline-bg: #1E2A40;
     --color-offline-text: #B7C8F0;
     --color-danger: #F2857E;
+    --color-on-danger: #2A0D0B;
     --color-focus: #8FA9E8;
     --color-scrim: rgb(0 0 0 / 0.6);
     --color-toast-bg: #2E3230;

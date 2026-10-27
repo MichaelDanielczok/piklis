@@ -29,6 +29,11 @@ defineProps({
     backTo: {
         type: String,
         default: '/'
+    },
+    // Benutzerbild auf dem Handy; aus, wo die Kopfzeile eigene Aktionen braucht (Einkaufsliste)
+    userMenu: {
+        type: Boolean,
+        default: true
     }
 });
 
@@ -54,7 +59,7 @@ const ionRouter = useIonRouter();
 
         <div class="app-header__end">
             <slot name="actions" />
-            <UserMenu class="app-header__user" placement="header" />
+            <UserMenu v-if="userMenu" class="app-header__user" placement="header" />
         </div>
     </header>
 </template>

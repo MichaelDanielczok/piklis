@@ -662,7 +662,12 @@ screens 01, 03–06 and 10.
   date (`utils/shopDate.js`), origin chip (now always “nur ich”), progress
   bar with “8 von 30”, images of the first open products and “+ N” for the
   other open ones. The card has a fixed structure, the skeleton
-  (`ListCardSkeleton.vue`) the same heights. “Neue Liste” at the bottom
+  (`ListCardSkeleton.vue`) the same heights. The device remembers the last
+  loaded number of active lists per user (`localStorage`,
+  `pk.activeListCount.<user>`, at most 8) and shows that many skeleton
+  cards; with 0 an invisible empty state keeps the height, so “Neue Liste”
+  does not move when the lists arrive (only if the number changed on
+  another device). “Neue Liste” at the bottom
   opens `ListFormSheet.vue` (name required, at most 100 characters; date
   optional: Ohne Datum · Heute · Morgen · date field); the new list opens
   at once, also before the server answered.
@@ -704,7 +709,7 @@ screens 01, 03–06 and 10.
   “Rückgängig” (`entry.restore`). A product missing from the catalog is
   shown as “Unbekanntes Produkt”, the entry stays usable.
 - **Skeletons** in end height: list rows 64 px (`SkeletonRow`), progress
-  block 46 px, overview cards like the card; title and subtitle keep their
+  block 46 px, overview cards like the card and as many as last time; title and subtitle keep their
   height while the list name is loading.
 
 ## Product catalog

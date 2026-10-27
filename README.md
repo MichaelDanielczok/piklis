@@ -24,8 +24,14 @@ under `design/piklis-designpaket/`.
   server (`/#/components`)
 - Permission `piklis.products.manage` for product maintainers
 - PWA: manifest, service worker (precache, start page stale-while-revalidate)
-- REST API `/api/piklis/v1` (`GET /me`, `PATCH /me/settings`)
-- PHPStan level 8, PHPCS, PHPUnit
+- Data model and sync: lists, entries and change log in the database;
+  all changes as operations with ID (`POST /ops`), revision per list,
+  “all since revision N” (`GET /lists/{id}?since=N`), conflict rules per
+  field; sort keys between neighbours and quantities with the same logic
+  in PHP and JS; operation queue in the frontend (`api/operations.js`)
+- REST API `/api/piklis/v1` (`GET /me`, `PATCH /me/settings`, `POST /ops`,
+  `GET /lists`, `GET /lists/{id}`)
+- PHPStan level 8, PHPCS, PHPUnit; JS tests with `node --test`
 
 ## Quick start
 
@@ -33,10 +39,11 @@ under `design/piklis-designpaket/`.
 npm install
 npm run dev     # Vite, proxies the API to APP_BACKEND
 npm run build   # before every commit; bin/app/ is committed
+npm test        # JS tests (node --test, shared fixtures with PHPUnit)
 ```
 
 ## Documentation
 
 - [Architecture](docs/architecture.md): structure, design, components,
-  PWA, REST, login, texts
+  data model, sync and conflict rules, PWA, REST, login, texts
 - [Development](docs/development.md): instance, mock backend, Vite, tools

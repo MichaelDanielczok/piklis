@@ -1,0 +1,283 @@
+{
+    "_comment": "Gemeinsame Testfälle für Lists\\SortKey (PHP) und frontend/utils/sortKey.js. Erwartete Werte nie anpassen, ohne beide Implementierungen zu ändern.",
+    "between": [
+        {
+            "before": null,
+            "after": null,
+            "key": "i"
+        },
+        {
+            "before": "i",
+            "after": null,
+            "key": "j"
+        },
+        {
+            "before": "y",
+            "after": null,
+            "key": "z"
+        },
+        {
+            "before": "z",
+            "after": null,
+            "key": "zi"
+        },
+        {
+            "before": "zz",
+            "after": null,
+            "key": "zzi"
+        },
+        {
+            "before": "zi",
+            "after": null,
+            "key": "zj"
+        },
+        {
+            "before": "k3x",
+            "after": null,
+            "key": "l"
+        },
+        {
+            "before": "1",
+            "after": null,
+            "key": "2"
+        },
+        {
+            "before": null,
+            "after": "i",
+            "key": "9"
+        },
+        {
+            "before": null,
+            "after": "1",
+            "key": "0i"
+        },
+        {
+            "before": null,
+            "after": "01",
+            "key": "00i"
+        },
+        {
+            "before": null,
+            "after": "001",
+            "key": "000i"
+        },
+        {
+            "before": null,
+            "after": "zz",
+            "key": "h"
+        },
+        {
+            "before": "i",
+            "after": "j",
+            "key": "ii"
+        },
+        {
+            "before": "i",
+            "after": "k",
+            "key": "j"
+        },
+        {
+            "before": "a",
+            "after": "b",
+            "key": "ai"
+        },
+        {
+            "before": "a",
+            "after": "a1",
+            "key": "a0i"
+        },
+        {
+            "before": "a1",
+            "after": "b",
+            "key": "ai"
+        },
+        {
+            "before": "ab",
+            "after": "b",
+            "key": "an"
+        },
+        {
+            "before": "az",
+            "after": "b",
+            "key": "azi"
+        },
+        {
+            "before": "zy",
+            "after": "zz",
+            "key": "zyi"
+        },
+        {
+            "before": "1",
+            "after": "2",
+            "key": "1i"
+        },
+        {
+            "before": "0001",
+            "after": "0002",
+            "key": "0001i"
+        },
+        {
+            "before": "ix",
+            "after": "iy",
+            "key": "ixi"
+        },
+        {
+            "before": "i",
+            "after": "i1",
+            "key": "i0i"
+        },
+        {
+            "before": "i1",
+            "after": "i2",
+            "key": "i1i"
+        },
+        {
+            "before": "h",
+            "after": "i",
+            "key": "hi"
+        },
+        {
+            "before": "1",
+            "after": "11",
+            "key": "10i"
+        },
+        {
+            "before": "5",
+            "after": "5z1",
+            "key": "5h"
+        },
+        {
+            "before": "yz",
+            "after": "z",
+            "key": "yzi"
+        },
+        {
+            "before": "abc",
+            "after": "abd",
+            "key": "abci"
+        }
+    ],
+    "manyBetween": [
+        {
+            "before": null,
+            "after": null,
+            "count": 5,
+            "keys": [
+                "i",
+                "j",
+                "k",
+                "l",
+                "m"
+            ]
+        },
+        {
+            "before": "i",
+            "after": null,
+            "count": 3,
+            "keys": [
+                "j",
+                "k",
+                "l"
+            ]
+        },
+        {
+            "before": null,
+            "after": "i",
+            "count": 3,
+            "keys": [
+                "2",
+                "4",
+                "9"
+            ]
+        },
+        {
+            "before": "a",
+            "after": "b",
+            "count": 5,
+            "keys": [
+                "a4",
+                "a9",
+                "ai",
+                "am",
+                "ar"
+            ]
+        },
+        {
+            "before": "i",
+            "after": "j",
+            "count": 3,
+            "keys": [
+                "i9",
+                "ii",
+                "ir"
+            ]
+        },
+        {
+            "before": "1",
+            "after": "z",
+            "count": 4,
+            "keys": [
+                "5",
+                "9",
+                "i",
+                "q"
+            ]
+        },
+        {
+            "before": "a",
+            "after": "b",
+            "count": 0,
+            "keys": []
+        }
+    ],
+    "invalidBetween": [
+        {
+            "before": "b",
+            "after": "a",
+            "reason": "before after after"
+        },
+        {
+            "before": "i",
+            "after": "i",
+            "reason": "equal neighbours"
+        },
+        {
+            "before": "i0",
+            "after": null,
+            "reason": "trailing zero"
+        },
+        {
+            "before": null,
+            "after": "",
+            "reason": "empty key"
+        },
+        {
+            "before": "A",
+            "after": null,
+            "reason": "upper case"
+        },
+        {
+            "before": "i-",
+            "after": null,
+            "reason": "invalid digit"
+        }
+    ],
+    "valid": [
+        "i",
+        "1",
+        "0i",
+        "zzzzi",
+        "a0b"
+    ],
+    "invalid": [
+        "",
+        "0",
+        "i0",
+        "I",
+        "ä",
+        " i",
+        "i ",
+        "-1",
+        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    ]
+}

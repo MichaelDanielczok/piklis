@@ -3,16 +3,136 @@
          xsi:noNamespaceSchemaLocation="https://www.quiqqer.com/docs/schemas/2.x/database.xsd">
     <database>
         <global>
-            <!-- Eigene Tabellen mit Präfix pk_, portable Typen. Beispiel:
-            <table name="pk_items">
-                <field type="integer" autoincrement="true" primary="true">id</field>
-                <field type="string" length="50">user_id</field>
-                <field type="string" length="255">title</field>
-                <field type="datetime">created_at</field>
+            <!-- Tabellen mit Präfix pk_, portable Typen. Modell und Regeln:
+                 docs/architecture.md, „Data model“ und „Sync“. IDs sind UUIDs aus
+                 dem Browser (36 Zeichen), Benutzer QUIQQER-UUIDs (bis 50 Zeichen). -->
 
-                <index>user_id</index>
+            <!-- Kategorien des Katalogs: feste Schlüssel (z. B. fruit), Namen im
+                 Frontend-i18n (categories.<id>), Inhalt ab Schritt 8 beim Setup -->
+            <table name="pk_categories">
+                <field type="string" length="32" primary="true">id</field>
+                <!-- Reihenfolge in Auswahlen -->
+                <field type="integer" default="0">position</field>
+                <!-- Farbfamilie der Ersatzicons (Token-Name, z. B. green) -->
+                <field type="string" length="20" default="neutral">color</field>
             </table>
-            -->
+
+            <!-- Globaler Produktkatalog (alle angemeldeten Benutzer) -->
+            <table name="pk_products">
+                <field type="string" length="36" primary="true">id</field>
+                <field type="string" length="255">name</field>
+                <!-- Name klein und ohne Akzente für die Suche (Schritt 3) -->
+                <field type="string" length="255" default="">search_name</field>
+                <field type="string" length="32" nullable="true" default="null">category</field>
+                <!-- Ersatzicon aus dem Sprite (#pk-<icon>), null = allgemein -->
+                <field type="string" length="64" nullable="true" default="null">icon</field>
+                <field type="text" nullable="true" default="null">description</field>
+                <!-- „1,5 l“, „500 g“: von Hand oder aus Open Food Facts -->
+                <field type="string" length="50" nullable="true" default="null">package_size</field>
+                <field type="string" length="32" nullable="true" default="null">barcode</field>
+                <!-- QUIQQER-Medien im Projekt piklis (Schritt 4) -->
+                <field type="integer" nullable="true" default="null">image_id</field>
+                <field type="integer" nullable="true" default="null">image_original_id</field>
+                <!-- Ausgeblendet von Produktpflegern: nicht mehr in Katalog und
+                     Vorschlägen, alte Einkäufe zeigen es weiter -->
+                <field type="boolean" default="0">hidden</field>
+                <field type="datetime" nullable="true" default="null">hidden_at</field>
+                <field type="string" length="50" nullable="true" default="null">hidden_by</field>
+                <field type="string" length="50">created_by</field>
+                <field type="datetime">created_at</field>
+                <field type="string" length="50">updated_by</field>
+                <field type="datetime">updated_at</field>
+
+                <index>search_name</index>
+                <index>barcode</index>
+                <index>created_by</index>
+                <index>updated_at</index>
+            </table>
+
+            <!-- Einkaufslisten: persönlich (owner_user) oder Haushalt (household_id) -->
+            <table name="pk_lists">
+                <field type="string" length="36" primary="true">id</field>
+                <field type="string" length="100">name</field>
+                <field type="date" nullable="true" default="null">shop_date</field>
+                <field type="string" length="50" nullable="true" default="null">owner_user</field>
+                <field type="string" length="36" nullable="true" default="null">household_id</field>
+                <!-- active | completed -->
+                <field type="string" length="10" default="active">status</field>
+                <field type="datetime" nullable="true" default="null">completed_at</field>
+                <field type="string" length="50" nullable="true" default="null">completed_by</field>
+                <field type="boolean" default="0">changed_after_completion</field>
+                <!-- +1 je wirksamer Operation, Abruf „alles seit Revision N“ -->
+                <field type="bigint" default="0">revision</field>
+                <field type="string" length="50">created_by</field>
+                <field type="datetime">created_at</field>
+                <field type="string" length="50">updated_by</field>
+                <field type="datetime">updated_at</field>
+                <!-- Gelöscht: Grabstein, damit späte Operationen „gelöscht“ erfahren -->
+                <field type="datetime" nullable="true" default="null">deleted_at</field>
+                <field type="string" length="50" nullable="true" default="null">deleted_by</field>
+
+                <index>owner_user</index>
+                <index>household_id</index>
+                <index>status</index>
+            </table>
+
+            <!-- Einträge einer Liste: Produkt mit Menge, Notiz, Position, Zustand -->
+            <table name="pk_list_entries">
+                <field type="string" length="36" primary="true">id</field>
+                <field type="string" length="36">list_id</field>
+                <field type="string" length="36">product_id</field>
+                <field type="decimal" precision="10" scale="3" default="1">amount</field>
+                <!-- piece, pack, … kg, l; null = ohne Einheit -->
+                <field type="string" length="16" nullable="true" default="null">unit</field>
+                <field type="string" length="500" default="">note</field>
+                <!-- Sortierschlüssel (Basis 36), sortiert im Code, Gleichstand nach id -->
+                <field type="string" length="255">sort_key</field>
+                <!-- open | done | notGot -->
+                <field type="string" length="10" default="open">status</field>
+                <!-- beim Abhaken gesehene Menge (Regel „alter Haken“) -->
+                <field type="decimal" precision="10" scale="3" nullable="true" default="null">checked_amount</field>
+                <field type="string" length="16" nullable="true" default="null">checked_unit</field>
+                <field type="datetime" nullable="true" default="null">status_changed_at</field>
+                <field type="string" length="50" nullable="true" default="null">status_changed_by</field>
+                <!-- „nicht bekommen“ in diese Liste übernommen (Schritt 7) -->
+                <field type="string" length="36" nullable="true" default="null">transferred_to</field>
+                <!-- entfernt: Zeile bleibt für „wiederherstellen?“ -->
+                <field type="datetime" nullable="true" default="null">removed_at</field>
+                <field type="string" length="50" nullable="true" default="null">removed_by</field>
+                <!-- gleichzeitig doppelt hinzugefügt: Verweis auf den vorhandenen Eintrag -->
+                <field type="string" length="36" nullable="true" default="null">merged_into</field>
+                <field type="boolean" default="0">changed_after_completion</field>
+                <!-- Revision der Liste bei der letzten Änderung dieses Eintrags -->
+                <field type="bigint" default="0">revision</field>
+                <field type="string" length="50">created_by</field>
+                <field type="datetime">created_at</field>
+                <field type="string" length="50">updated_by</field>
+                <field type="datetime">updated_at</field>
+
+                <index>list_id,revision</index>
+                <index>product_id</index>
+            </table>
+
+            <!-- Änderungsprotokoll: jede verarbeitete Operation mit Ergebnis
+                 (Idempotenz über operation_id, Verlauf je Liste) -->
+            <table name="pk_list_changes">
+                <field type="bigint" autoincrement="true" primary="true">id</field>
+                <field type="string" length="36">operation_id</field>
+                <field type="string" length="36">list_id</field>
+                <!-- null: nichts geändert (unverändert oder Konflikt) -->
+                <field type="bigint" nullable="true" default="null">revision</field>
+                <field type="string" length="32">type</field>
+                <field type="string" length="36" nullable="true" default="null">entry_id</field>
+                <field type="string" length="50">user_id</field>
+                <field type="datetime">created_at</field>
+                <!-- Operation wie gesendet und Antwort als JSON -->
+                <field type="text">payload</field>
+                <field type="text">result</field>
+
+                <unique>operation_id</unique>
+                <index>list_id,revision</index>
+                <index>created_at</index>
+            </table>
         </global>
     </database>
 </quiqqer>

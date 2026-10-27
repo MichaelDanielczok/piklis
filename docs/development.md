@@ -86,7 +86,20 @@ docker compose --env-file envs/<package>.env exec -u www-data -w /package quiqqe
   `tests/`. Local overrides in `phpstan.neon` or `phpunit.xml` (ignored).
 - The bootstraps load the instance (`QUIQQER_BOOTSTRAP` in quiqqer-docker-dev, else
   `../../../../bootstrap.php` when the package lives in a real instance).
-- Unit tests (`tests/unit/`) cover logic without database.
+- Unit tests (`tests/unit/`) cover logic without database; the sync rules
+  run against an in-memory store (`tests/unit/Sync/Fixtures`).
+
+## JS tests
+
+```bash
+npm test
+```
+
+- `node --test` from Node itself, no test library. `tests/js/alias-hooks.js`
+  resolves `@/…` to `frontend/…` like Vite.
+- Sort keys and quantities exist in PHP and JS; both test suites read the
+  same cases from `tests/fixtures/*.json`. Change a case only together with
+  both implementations.
 
 ## Testing notes
 

@@ -138,6 +138,29 @@ export const api = {
         return request('PATCH', '/me/settings', settings);
     },
 
+    /**
+     * Operationen senden (höchstens 200), Antwort `{ results: [...] }` in
+     * derselben Reihenfolge. Nur über `api/operations.js` benutzen.
+     */
+    sendOperations(ops, { signal } = {}) {
+        return request('POST', '/ops', { ops }, { signal });
+    },
+
+    /** Zugängliche Listen ohne Einträge: { lists: [{ ...list, role, counts }] } */
+    getLists({ signal } = {}) {
+        return request('GET', '/lists', undefined, { signal });
+    },
+
+    /**
+     * Eine Liste: { list, revision, full, entries }. Mit `since` nur Einträge,
+     * die sich seit dieser Revision geändert haben (auch entfernte).
+     */
+    getList(listId, since = null, { signal } = {}) {
+        const query = since === null || since === undefined ? '' : '?since=' + encodeURIComponent(since);
+
+        return request('GET', '/lists/' + encodeURIComponent(listId) + query, undefined, { signal });
+    },
+
     async login(username, password) {
         const result = await callAjax('ajax_users_login', {
             authenticator: LOGIN_AUTHENTICATOR,

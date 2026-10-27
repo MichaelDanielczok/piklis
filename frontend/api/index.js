@@ -192,6 +192,14 @@ export const api = {
     },
 
     /**
+     * Vorschläge für „Produkte hinzufügen“: Produkte der letzten 90 Tage,
+     * gewichtet, beste zuerst: { days, suggestions: [{ productId, score, uses, lastUsedAt }] }.
+     */
+    getSuggestions({ signal } = {}) {
+        return request('GET', '/products/suggestions', undefined, { signal });
+    },
+
+    /**
      * Produkt anlegen, ID aus dem Browser: { status: 'created'|'unchanged', product }.
      *
      * @param {{ id: string, name: string, category?: string|null, icon?: string|null,

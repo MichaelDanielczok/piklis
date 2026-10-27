@@ -21,6 +21,7 @@ import { api } from '@/api/index.js';
 import { createOperationQueue, operations, OPERATION_TYPES as T } from '@/api/operations.js';
 import { showToast } from './useToast.js';
 import { onLogout } from './useSession.js';
+import { addLocalProduct, confirmProduct, dropLocalProduct } from './useProducts.js';
 import {
     activeEntryOf,
     appendKey,
@@ -33,6 +34,7 @@ import {
     sortedEntries,
     upsertEntry
 } from '@/utils/listState.js';
+import { MAX_AMOUNT } from '@/utils/quantity.js';
 import { t } from '@/i18n/index.js';
 
 const PREVIEW_SIZE = 4;
@@ -107,6 +109,18 @@ queue.onChange((ops) => {
 });
 
 queue.onResult((result, op) => {
+    if (op.type === T.PRODUCT_CREATE) {
+        if (result.status === 'rejected') {
+            console.warn('Produkt abgelehnt', result.error);
+            dropLocalProduct(op.productId);
+            showToast(t('addProducts.createRejected', { name: op.product?.name ?? '' }), { icon: 'notgot' });
+        } else if (result.product) {
+            confirmProduct(result.product);
+        }
+
+        return;
+    }
+
     if (!op.listId) {
         return;
     }
@@ -365,29 +379,67 @@ export function deleteList(listId) {
 }
 
 /**
- * Produkt hinzufügen: neuer Eintrag mit Menge 1 am Ende. Steht das Produkt
- * schon offen auf der Liste, gibt es keinen zweiten Eintrag; die Menge
- * steigt um eins.
+ * Menge eines Produkts auf der Liste setzen („Produkte hinzufügen“):
+ * 0 → noch nicht drauf: nichts, sonst entfernen; > 0 → noch nicht drauf:
+ * neuer Eintrag am Ende, sonst Menge des offenen Eintrags (Einheit bleibt).
+ * Erledigte Einträge zählen nicht als „drauf“ (zweiter Eintrag, „noch mal
+ * Milch“). Wirkt sofort auf den angezeigten Stand, auch bei mehreren Tipps
+ * im selben Takt: kein Produkt doppelt.
  *
- * @returns {Promise<{ entryId: string, added: boolean }>}
+ * @returns {string|null} ID des Eintrags, null wenn keiner (mehr) da ist
  */
-export async function addProduct(listId, productId) {
+export function setProductQuantity(listId, productId, amount) {
     const entries = currentEntries(listId) ?? new Map();
     const existing = activeEntryOf(entries, productId);
+    const target = Math.min(MAX_AMOUNT, Math.max(0, amount));
 
-    if (existing) {
-        await enqueue(operations.setEntry(existing, {
-            quantity: { amount: existing.quantity.amount + 1, unit: existing.quantity.unit }
-        }));
+    if (!existing) {
+        if (target <= 0) {
+            return null;
+        }
 
-        return { entryId: existing.id, added: false };
+        const op = operations.addEntry({
+            listId,
+            productId,
+            quantity: { amount: target, unit: null },
+            sortKey: appendKey(entries)
+        });
+
+        enqueue(op).catch((error) => console.error(error));
+
+        return op.entryId;
     }
 
-    const op = operations.addEntry({ listId, productId, sortKey: appendKey(entries) });
+    if (target <= 0) {
+        enqueue(operations.removeEntry(existing)).catch((error) => console.error(error));
 
-    await enqueue(op);
+        return null;
+    }
 
-    return { entryId: op.entryId, added: true };
+    if (target !== existing.quantity.amount) {
+        enqueue(operations.setEntry(existing, {
+            quantity: { amount: target, unit: existing.quantity.unit }
+        })).catch((error) => console.error(error));
+    }
+
+    return existing.id;
+}
+
+/**
+ * Unbekannten Namen als neues Produkt anlegen und gleich mit Menge 1 auf die
+ * Liste setzen. Beides als Operation (`product.create` vor `entry.add`), das
+ * Produkt steht sofort im Katalog.
+ *
+ * @returns {string} ID des neuen Produkts
+ */
+export function createProductOnList(listId, name) {
+    const op = operations.createProduct({ name: name.trim() });
+
+    addLocalProduct({ id: op.productId, name: op.product.name });
+    enqueue(op).catch((error) => console.error(error));
+    setProductQuantity(listId, op.productId, 1);
+
+    return op.productId;
 }
 
 /** Menge (mit Einheit) und/oder Notiz ändern; `entry` ist der angezeigte Stand. */

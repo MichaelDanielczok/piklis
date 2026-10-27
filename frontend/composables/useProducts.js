@@ -22,14 +22,24 @@ import { onLogout, useSession } from './useSession.js';
 const products = ref([]);
 const status = ref('idle'); // idle · loading · ready · error
 
+/** Vorschläge für „Produkte hinzufügen“ (`GET /products/suggestions`), beste zuerst. */
+const suggestions = ref(null);
+
 let pendingLoad = null;
+let pendingSuggestions = null;
+
+/** Über die Warteschlange angelegt, vom Server noch nicht bestätigt: id → Produkt. */
+const localProducts = new Map();
 
 const { user, canManageProducts } = useSession();
 
 onLogout(() => {
     products.value = [];
     status.value = 'idle';
+    suggestions.value = null;
     pendingLoad = null;
+    pendingSuggestions = null;
+    localProducts.clear();
 });
 
 function sortByName(list) {
@@ -57,7 +67,11 @@ export function loadProducts() {
 
         pendingLoad = api.getProducts()
             .then((data) => {
-                products.value = sortByName(data.products ?? []);
+                const loaded = data.products ?? [];
+                const ids = new Set(loaded.map((product) => product.id));
+                const local = [...localProducts.values()].filter((product) => !ids.has(product.id));
+
+                products.value = sortByName([...loaded, ...local]);
                 status.value = 'ready';
             })
             .catch((error) => {
@@ -73,6 +87,70 @@ export function loadProducts() {
     }
 
     return pendingLoad;
+}
+
+/**
+ * Vorschläge laden: `[{ productId, score, uses, lastUsedAt }]`, beste zuerst.
+ * Scheitert das (offline), bleibt der letzte Stand; ohne ihn `[]`, die
+ * Auswahl zeigt dann den Katalog alphabetisch.
+ *
+ * @returns {Promise<object[]>}
+ */
+export function loadSuggestions() {
+    if (!pendingSuggestions) {
+        pendingSuggestions = api.getSuggestions()
+            .then((data) => {
+                suggestions.value = data.suggestions ?? [];
+
+                return suggestions.value;
+            })
+            .catch((error) => {
+                console.warn('Vorschläge nicht geladen', error);
+
+                return suggestions.value ?? [];
+            })
+            .finally(() => {
+                pendingSuggestions = null;
+            });
+    }
+
+    return pendingSuggestions;
+}
+
+/**
+ * Produkt, das als Operation `product.create` unterwegs ist, sofort im
+ * Katalog zeigen. Die Antwort des Servers ersetzt es (`confirmProduct`),
+ * eine Ablehnung nimmt es wieder heraus (`dropLocalProduct`).
+ */
+export function addLocalProduct(product) {
+    const local = {
+        category: null,
+        icon: null,
+        description: null,
+        packageSize: null,
+        image: null,
+        imageUrl: null,
+        hidden: false,
+        createdBy: user.value?.id ?? null,
+        ...product,
+        local: true
+    };
+
+    localProducts.set(local.id, local);
+
+    return upsert(local);
+}
+
+export function confirmProduct(product) {
+    localProducts.delete(product.id);
+
+    return upsert(product);
+}
+
+export function dropLocalProduct(productId) {
+    if (localProducts.delete(productId)) {
+        products.value = products.value.filter((product) => product.id !== productId);
+    }
 }
 
 /**
@@ -136,6 +214,7 @@ export function useProducts() {
     return {
         products,
         status,
+        suggestions,
         canManageProducts,
         // Katalog für alle: ohne ausgeblendete
         catalog: computed(() => products.value.filter((product) => !product.hidden)),

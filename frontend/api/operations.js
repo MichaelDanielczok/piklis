@@ -204,8 +204,11 @@ export function createOperationQueue({
     const resultListeners = new Set();
     const changeListeners = new Set();
 
+    let loaded = false;
+
     const ready = storage.load().then((ops) => {
         items = ops.map((op) => ({ op, sending: false }));
+        loaded = true;
         notifyChange();
     });
 
@@ -345,9 +348,16 @@ export function createOperationQueue({
         /**
          * Operation einreihen; vergibt `id` und `createdAt`. Gibt die
          * eingereihte (oder mit einer vorigen zusammengefasste) Operation zurück.
+         *
+         * Ist der Speicher geladen, steht die Operation noch im selben Aufruf
+         * in `pending()` und die Abonnenten von `onChange` wissen davon:
+         * Mehrere Tipps im selben Takt (schnelles Plus) sehen so schon die
+         * vorige Änderung und legen kein Produkt doppelt an.
          */
         async enqueue(op) {
-            await ready;
+            if (!loaded) {
+                await ready;
+            }
 
             const full = { id: uuid(), createdAt: now().toISOString(), ...op };
 
@@ -355,8 +365,8 @@ export function createOperationQueue({
                 items.push({ op: full, sending: false });
             }
 
-            await persist();
             notifyChange();
+            await persist();
 
             if (autoFlush) {
                 queue.flush();

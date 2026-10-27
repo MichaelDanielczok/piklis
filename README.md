@@ -49,11 +49,16 @@ under `design/piklis-designpaket/`.
   its own area (the row closes without jumping, toast with “Rückgängig”),
   collapsible “Erledigt” section, unchecked entries return to their old
   place; product details in the list context with quantity and note;
-  a preliminary product search to add entries (the real picker follows);
   every change goes through the operations (`POST /ops`), shown at once
+- Adding products: picker without keyboard on open, two columns of tiles
+  (frequently bought first, weighted over 90 days, then the catalog A–Z,
+  48 tiles and 24 more while scrolling, order fixed while open), plus
+  becomes “− n +” with the plus at the same place, no duplicate entries,
+  filter “Nur nicht ausgewählte”, search with “„Begriff“ neu anlegen”
+  (product and entry as operations), image or name open the product
 - REST API `/api/piklis/v1` (`GET /me`, `PATCH /me/settings`, `GET /config`,
   `POST /ops`, `GET /lists`, `GET /lists/{id}`, `GET|POST /products`,
-  `GET /products/search`, `GET|PATCH /products/{id}`,
+  `GET /products/search`, `GET /products/suggestions`, `GET|PATCH /products/{id}`,
   `POST /products/{id}/hide|unhide`, `POST|DELETE /products/{id}/image`)
 - PHPStan level 8, PHPCS, PHPUnit; JS tests with `node --test`
 

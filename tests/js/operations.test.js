@@ -248,3 +248,19 @@ test('clear drops everything on logout', async () => {
 
     assert.equal(queue.pending().length, 0);
 });
+
+test('a loaded queue knows an operation in the same tick (fast repeated taps)', async () => {
+    const queue = createOperationQueue({ transport: fakeTransport(), autoFlush: false });
+    const seen = [];
+
+    queue.onChange((ops) => seen.push(ops.length));
+    await queue.ready;
+
+    // ohne await: zwei Tipps im selben Takt
+    queue.enqueue(operations.addEntry({ listId: LIST, productId: 'p', sortKey: 'i' }));
+    assert.equal(queue.pending().length, 1);
+
+    queue.enqueue(operations.setEntry(MILK, { quantity: { amount: 3 } }));
+    assert.equal(queue.pending().length, 2);
+    assert.deepEqual(seen.slice(-2), [1, 2]);
+});

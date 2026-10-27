@@ -8,6 +8,10 @@
  * Minus bei 1 entfernt das Produkt wieder (Menge 0).
  *
  * v-model: Menge (0 = nicht ausgewählt).
+ * `meta`: kurzer Text unten links, solange nicht ausgewählt (Packungsgröße,
+ * „erledigt“); ohne ihn die Einheit.
+ * `openLabel`: Bild und Name werden ein eigener Knopf (Ereignis `open`, z. B.
+ * Produktdetail), getrennt vom Hinzufügen.
  */
 import { computed, nextTick } from 'vue';
 import { Minus, Plus } from '@lucide/vue';
@@ -31,13 +35,24 @@ const props = defineProps({
     unit: {
         type: String,
         default: null
+    },
+    meta: {
+        type: String,
+        default: ''
+    },
+    openLabel: {
+        type: String,
+        default: ''
     }
 });
+
+const emit = defineEmits(['open']);
 
 const quantity = defineModel({ type: Number, default: 0 });
 
 const selected = computed(() => quantity.value > 0);
 const unitLabel = computed(() => unitName(props.unit));
+const footText = computed(() => props.meta || unitLabel.value);
 const quantityText = computed(() => formatNumber(quantity.value, {
     maximumFractionDigits: DECIMAL_UNITS.includes(props.unit) ? 3 : 0
 }));
@@ -65,13 +80,17 @@ function decrease() {
 
 <template>
     <div class="add-tile" :class="{ 'add-tile--selected': selected }">
-        <div class="add-tile__head">
+        <button v-if="openLabel" type="button" class="add-tile__head add-tile__head--button" :aria-label="openLabel" @click="emit('open')">
+            <ProductImage size="tile" :image-url="imageUrl" :icon="icon" />
+            <span class="add-tile__name">{{ name }}</span>
+        </button>
+        <div v-else class="add-tile__head">
             <ProductImage size="tile" :image-url="imageUrl" :icon="icon" />
             <span class="add-tile__name">{{ name }}</span>
         </div>
 
         <div class="add-tile__foot">
-            <span v-if="!selected && unitLabel" class="add-tile__unit">{{ unitLabel }}</span>
+            <span v-if="!selected && footText" class="add-tile__unit">{{ footText }}</span>
 
             <div class="add-tile__stepper">
                 <template v-if="selected">
@@ -118,11 +137,28 @@ function decrease() {
     box-shadow: inset 0 0 0 1px var(--color-accent);
 }
 
+/* Abstand Bild–Name 8 px statt 12: in der schmalen Kachel (Handy) passen
+   Wörter wie „Vollkornbrot“ so öfter ohne Trennung in eine Zeile */
 .add-tile__head {
     display: flex;
     align-items: flex-start;
-    gap: var(--space-3);
+    gap: var(--space-2);
     min-width: 0;
+}
+
+/* Bild und Name als Knopf: gleiche Fläche, Fokus sichtbar, Text linksbündig */
+.add-tile__head--button {
+    margin: calc(-1 * var(--space-1));
+    padding: var(--space-1);
+    border-radius: var(--radius-sm);
+    color: inherit;
+    font: inherit;
+    text-align: left;
+}
+
+.add-tile__head--button:focus-visible {
+    outline: var(--focus-ring-width) solid var(--color-accent);
+    outline-offset: 0;
 }
 
 .add-tile__name {

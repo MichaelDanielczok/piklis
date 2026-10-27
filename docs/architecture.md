@@ -72,7 +72,7 @@ committed because the server does not build (no Node there).
 
 - Routes (hash): `/login` (`meta.public`); navigation `/` (Listen),
   `/products` (Produkte), `/templates` (Vorlagen); shopping list
-  `/lists/:id`, its preliminary product search `/lists/:id/add` and an entry
+  `/lists/:id`, its product picker `/lists/:id/add` and an entry
   in the list context `/lists/:id/entries/:entryId` (all highlight
   “Listen”); product pages
   `/products/new?name=…`, `/products/:id`, `/products/:id/edit`; from the user menu
@@ -152,7 +152,8 @@ data and sample photos cut from the design package's drawn placeholders.
 | `list/RowGroup.vue` | card for rows, separators instead of single cards |
 | `list/SkeletonRow.vue` | loading row with exactly the end height (64 px) and the same zones, flat without shimmer |
 | `list/QuantityLabel.vue` | quantity, semibold with tabular figures |
-| `list/AddTile.vue` | tile in “Produkte hinzufügen”: fixed height 124 px, plus button turns into “− 1 +” with the plus at the same place, inset outline when selected, minus at 1 removes |
+| `list/AddTile.vue` | tile in “Produkte hinzufügen”: fixed height 124 px, plus button turns into “− 1 +” with the plus at the same place, inset outline when selected, minus at 1 removes; `meta` (package size, “erledigt”), `openLabel` makes image and name a button (`open`) |
+| `list/AddTileSkeleton.vue` | loading tile in the same height |
 | `ui/SectionLabel.vue` | section heading in capitals (“ERLEDIGT · 8”), capitals by CSS only |
 | `ui/AppSheet.vue` | bottom sheet (see above) |
 | `ui/AppButton.vue`, `ui/ThemeSwitch.vue`, `ui/UserAvatar.vue`, `ui/AppLogo.vue`, `ui/EmptyState.vue` | button (`primary`, `secondary`, `danger`, `danger-solid`), theme choice, avatar or initials, app icon with name, placeholder of a view |
@@ -583,7 +584,10 @@ idempotency and rights in `OperationProcessorTest.php`.
 - `operations.*` builds operations from the local entry, so `base` and
   `seen` are always the values on screen.
 - `createOperationQueue({ transport, storage })`: `enqueue(op)` adds `id`
-  and `createdAt` and sends at once (`autoFlush`); `flush()` sends in order,
+  and `createdAt` and sends at once (`autoFlush`); once the storage is
+  loaded the operation is in `pending()` and `onChange` listeners know it
+  within the same call (before saving), so several taps in one tick see
+  each other and never add a product twice; `flush()` sends in order,
   in batches of 200; network errors, `5xx` and `429` keep the operations and
   retry after 1, 3, 10, 30 s; other errors (`401`) wait for the next `flush()`
   (after login, `online`, app visible again: the app decides).
@@ -681,9 +685,8 @@ screens 01, 03–06 and 10.
 - **Adding:** a new entry gets quantity 1 and a key behind all entries
   (`appendKey`, also behind done and removed ones), so a fresh list follows
   the order of adding. A product that is already open on the list is not
-  added twice; plus raises its quantity. Preliminary view
-  `ListAddView.vue` (search in the loaded catalog, no keyboard on open);
-  step 6 replaces it with the real picker.
+  added twice; plus raises its quantity. The picker is described in
+  [Adding products](#adding-products).
 - **Sorting** only at the handle (`useDragSort.js`, Pointer Events, no
   library): the lifted row follows the finger with a shadow, the others
   move aside, a green dashed placeholder marks the target, the page scrolls
@@ -711,6 +714,66 @@ screens 01, 03–06 and 10.
 - **Skeletons** in end height: list rows 64 px (`SkeletonRow`), progress
   block 46 px, overview cards like the card and as many as last time; title and subtitle keep their
   height while the list name is loading.
+
+## Adding products
+
+Concept in Obsidian “Piklis Konzept” › “Neue Liste und Produktauswahl”,
+decisions “Produktauswahl und Übernahme”; design package screens 08 and 09.
+`ListAddView.vue`, route `/lists/:id/add`.
+
+- **Opens without keyboard:** nothing is focused; the search field only
+  gets the focus (and the keyboard) when tapped.
+- **Tiles** (`AddTile.vue`, two columns on phones, three from 48 em):
+  fixed height 124 px, image and name are one button that opens the
+  product (on the list: `/lists/:id/entries/:entryId` with quantity and
+  note; otherwise `/products/:id`), separate from the plus. First tap on
+  plus: quantity 1; then “− n +” with the plus at the same place; minus at
+  1 takes the product off the list (`entry.remove`). Nothing on the page
+  changes size while tapping: the tile keeps its height, the subtitle
+  “35 ausgewählt · Lidl” stays on one line.
+- **No duplicates:** `setProductQuantity(listId, productId, amount)` in
+  `useLists.js` sets the quantity of the open (or not got) entry, adds one
+  (`entry.add`) or removes it; it acts on the display state at once, also
+  for several taps in the same tick. Done entries do not count as “on the
+  list” (decision from step 2): their tile is unselected and shows
+  “erledigt”, plus adds a second entry (“noch mal Milch”), which the tile
+  then shows with its quantity.
+- **Order** (`utils/pickerOrder.js`): products created here (section
+  “Neu angelegt”), then the suggestions (“Häufig gekauft”), then the rest
+  of the catalog alphabetically (“Weitere Produkte”, without suggestions
+  “Alle Produkte”). The order is frozen when list, catalog and suggestions
+  are loaded and stays while the view is open (also after visiting a
+  product and coming back); products created by others meanwhile go to the
+  end, hidden ones drop out.
+- **Loading more:** 48 tiles first, 24 more whenever an invisible strip
+  over the last 150 vh of the tiles comes into view (`IntersectionObserver`).
+  The catalog itself is already loaded completely (`GET /products`), so
+  “loading more” renders more tiles; no extra request.
+- **Suggestions** (`GET /products/suggestions`,
+  `Products\SuggestionRanking`): every list the user can access in which
+  the product appeared in the last 90 days counts once (entries not
+  removed, lists not deleted, products not hidden); time of use = when it
+  was checked for done entries, else when it was added. Each list weighs
+  1 plus a recency bonus falling linearly from 0.5 (today) to 0 (90 days):
+  frequency decides, recency breaks near ties (three times two months ago
+  ≈ 3.3 beats twice yesterday ≈ 3.0). Ties: last used first, then product
+  ID. Answer `{ days, suggestions: [{ productId, score, uses, lastUsedAt }] }`
+  without names; the app takes them from the catalog. If the request
+  fails, the picker shows the catalog alphabetically.
+- **Filter “Nur nicht ausgewählte”:** hides the products that were
+  selected when the filter was switched on; tiles selected afterwards stay
+  where they are, so a quick second tap still hits the same product. Works
+  in the search, too.
+- **Search** in the loaded catalog (`utils/productSearch.js`, up to 60
+  hits as tiles, “N Treffer”); at the end always “„Begriff“ neu anlegen”:
+  `createProductOnList()` queues `product.create` and then `entry.add`
+  (quantity 1), shows the product at once (`addLocalProduct`, replaced by
+  the server's product, removed again with a toast on rejection), clears
+  the field and keeps the focus for the next name. Names up to 120
+  characters.
+- **Skeleton:** 8 tiles and the section label in end height (tiles start
+  at the same offset as the loaded ones).
+- **“Fertig”** goes back to the list.
 
 ## Product catalog
 
@@ -848,6 +911,7 @@ picture of SmartPicker.
 | `GET` | `/lists/{id}?since=N` | one list: all visible entries, or with `since` only entries changed after revision N (ETag) |
 | `GET` | `/products` | whole catalog including hidden products (ETag) |
 | `GET` | `/products/search?q=&limit=` | suggestions without hidden products, best first (limit 20, at most 100; `hidden=1` for maintainers) |
+| `GET` | `/products/suggestions` | weighted products of the last 90 days for “Produkte hinzufügen”, see [Adding products](#adding-products) |
 | `GET` | `/products/{id}` | one product |
 | `POST` | `/products` | create with the browser's UUID: `201` `{status: 'created', product}`, again `200` `unchanged` |
 | `PATCH` | `/products/{id}` | change the sent fields (creator or maintainer) |

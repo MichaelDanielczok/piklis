@@ -251,6 +251,59 @@ class ListRepository implements ListStore
     }
 
     /**
+     * Nutzung von Produkten für die Vorschläge (`Products\SuggestionRanking`):
+     * sichtbare Einträge aller Listen, auf die der Benutzer Zugriff hat
+     * (vorerst eigene persönliche, wie `listsForUser`), ohne gelöschte Listen
+     * und ohne ausgeblendete Produkte. Zeitpunkt: abgehakt = wann gekauft,
+     * sonst wann hinzugefügt; nur ab `$since`.
+     *
+     * @return list<array{product_id: string, list_id: string, used_at: DateTimeImmutable}>
+     * @throws DBALException
+     */
+    public function productUsagesForUser(string $userId, DateTimeImmutable $since): array
+    {
+        $sinceText = $since->format(Tables::DATETIME_FORMAT);
+
+        $rows = $this->Connection->createQueryBuilder()
+            ->select('e.product_id', 'e.list_id', 'e.status', 'e.status_changed_at', 'e.created_at')
+            ->from(Tables::name(Tables::LIST_ENTRIES), 'e')
+            ->innerJoin('e', Tables::name(Tables::LISTS), 'l', 'l.id = e.list_id')
+            ->innerJoin('e', Tables::name(Tables::PRODUCTS), 'p', 'p.id = e.product_id')
+            ->where('l.owner_user = :user')
+            ->andWhere('l.deleted_at IS NULL')
+            ->andWhere('e.removed_at IS NULL')
+            ->andWhere('e.merged_into IS NULL')
+            ->andWhere('p.hidden = 0')
+            ->andWhere('(e.created_at >= :since OR e.status_changed_at >= :since)')
+            ->setParameter('user', $userId)
+            ->setParameter('since', $sinceText)
+            ->executeQuery()
+            ->fetchAllAssociative();
+
+        $usages = [];
+
+        foreach ($rows as $row) {
+            $usedAt = self::date($row['created_at']);
+
+            if ($row['status'] === EntryStatus::Done->value) {
+                $usedAt = self::date($row['status_changed_at'] ?? null) ?? $usedAt;
+            }
+
+            if ($usedAt === null || $usedAt < $since) {
+                continue;
+            }
+
+            $usages[] = [
+                'product_id' => (string)$row['product_id'],
+                'list_id' => (string)$row['list_id'],
+                'used_at' => $usedAt
+            ];
+        }
+
+        return $usages;
+    }
+
+    /**
      * Sichtbare Einträge je Liste und Zustand.
      *
      * @param list<string> $listIds

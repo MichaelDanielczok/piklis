@@ -35,6 +35,7 @@ class Provider implements ProviderInterface
                 $Group->get('/products', [ProductsEndpoint::class, 'index']);
                 $Group->post('/products', [ProductsEndpoint::class, 'create']);
                 $Group->get('/products/search', [ProductsEndpoint::class, 'search']);
+                $Group->get('/products/suggestions', [ProductsEndpoint::class, 'suggestions']);
                 $Group->get('/products/{id}', [ProductsEndpoint::class, 'get']);
                 $Group->patch('/products/{id}', [ProductsEndpoint::class, 'update']);
                 $Group->post('/products/{id}/hide', [ProductsEndpoint::class, 'hide']);

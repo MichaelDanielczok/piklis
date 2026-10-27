@@ -2,11 +2,14 @@
 
 namespace MichaelDanielczok\Piklis\Rest;
 
+use DateTimeImmutable;
+use DateTimeInterface;
 use Doctrine\DBAL\Exception as DBALException;
 use MichaelDanielczok\Piklis\Images\ImageLimits;
 use MichaelDanielczok\Piklis\Images\InvalidImageException;
 use MichaelDanielczok\Piklis\Images\QuiqqerImageMedia;
 use MichaelDanielczok\Piklis\Images\UploadedImage;
+use MichaelDanielczok\Piklis\Lists\ListRepository;
 use MichaelDanielczok\Piklis\Products\InvalidProductException;
 use MichaelDanielczok\Piklis\Products\ProductException;
 use MichaelDanielczok\Piklis\Products\ProductImageService;
@@ -14,11 +17,13 @@ use MichaelDanielczok\Piklis\Products\ProductPresenter;
 use MichaelDanielczok\Piklis\Products\ProductRepository;
 use MichaelDanielczok\Piklis\Products\ProductSearch;
 use MichaelDanielczok\Piklis\Products\ProductService;
+use MichaelDanielczok\Piklis\Products\SuggestionRanking;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UploadedFileInterface;
 use QUI;
 
+use function array_map;
 use function is_array;
 use function is_string;
 
@@ -36,6 +41,7 @@ use const UPLOAD_ERR_OK;
  * | --- | --- | --- |
  * | GET | /products | `{ products }`, ganzer Katalog inkl. ausgeblendeter (ETag) |
  * | GET | /products/search?q=&limit= | `{ products }`, Treffer ohne ausgeblendete |
+ * | GET | /products/suggestions | `{ days, suggestions }`, Gewichtung für „Produkte hinzufügen“ |
  * | GET | /products/{id} | `{ product }` |
  * | POST | /products | `{ status, product }`, 201 angelegt, 200 schon vorhanden |
  * | PATCH | /products/{id} | `{ product }` |
@@ -97,6 +103,51 @@ class ProductsEndpoint
 
         return Json::respond($Response, [
             'products' => $products
+        ]);
+    }
+
+    /**
+     * Vorschläge für „Produkte hinzufügen“: Produkte, die in den letzten
+     * 90 Tagen auf zugänglichen Listen standen, nach `SuggestionRanking`
+     * gewichtet (beste zuerst), ohne ausgeblendete. Nur IDs und Gewicht;
+     * Namen und Bilder hat die App aus dem Katalog, der restliche Katalog
+     * folgt dort alphabetisch.
+     *
+     * Antwort `{ days: 90, suggestions: [{ productId, score, uses, lastUsedAt }] }`.
+     *
+     * @param array<string, string> $args
+     */
+    public function suggestions(
+        ServerRequestInterface $Request,
+        ResponseInterface $Response,
+        array $args
+    ): ResponseInterface {
+        $now = new DateTimeImmutable();
+
+        try {
+            $usages = (new ListRepository())->productUsagesForUser(
+                SessionUser::id(),
+                SuggestionRanking::since($now)
+            );
+        } catch (DBALException | QUI\Exception $Exception) {
+            QUI\System\Log::writeException($Exception);
+
+            return Json::error($Response, 'load_failed', 'Suggestions could not be loaded.', 500);
+        }
+
+        $suggestions = array_map(
+            static fn(array $item): array => [
+                'productId' => $item['productId'],
+                'score' => $item['score'],
+                'uses' => $item['uses'],
+                'lastUsedAt' => $item['lastUsedAt']->format(DateTimeInterface::ATOM)
+            ],
+            SuggestionRanking::rank($usages, $now)
+        );
+
+        return Json::respond($Response, [
+            'days' => SuggestionRanking::DAYS,
+            'suggestions' => $suggestions
         ]);
     }
 

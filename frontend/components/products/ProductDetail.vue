@@ -1,7 +1,9 @@
 <script setup>
 /**
- * Produktdetail (Designpaket 10): großes Bild bzw. Ersatzicon, Kategorie als
- * Chip, vollständiger Name, Packungsgröße, dauerhafte Beschreibung.
+ * Produktdetail (Designpaket 10): großes Bild (640 px) bzw. Ersatzicon,
+ * Kategorie als Chip, vollständiger Name, Packungsgröße, dauerhafte
+ * Beschreibung. Ein Foto öffnet per Tippen die Großansicht mit Zoom
+ * (`ImageViewer`, 1600 px).
  * Darunter die Aktionen, die der Benutzer darf: Bearbeiten (eigene Produkte,
  * Produktpfleger alle) und Aus-/Einblenden (nur Produktpfleger). Ohne Recht
  * steht dort ein Hinweis statt der Knöpfe.
@@ -11,8 +13,9 @@
  * Emits: edit
  */
 import { computed, ref } from 'vue';
-import { Eye, EyeOff, Pencil } from '@lucide/vue';
+import { Eye, EyeOff, Maximize2, Pencil } from '@lucide/vue';
 import AppButton from '@/components/ui/AppButton.vue';
+import ImageViewer from './ImageViewer.vue';
 import ProductImage from './ProductImage.vue';
 import { canEditProduct, setProductHidden, useProducts } from '@/composables/useProducts.js';
 import { showToast } from '@/composables/useToast.js';
@@ -36,6 +39,7 @@ const { canManageProducts, isOwn } = useProducts();
 
 const canEdit = computed(() => canEditProduct(props.product));
 const pending = ref(false);
+const viewerOpen = ref(false);
 
 async function toggleHidden(hidden) {
     pending.value = true;
@@ -59,9 +63,22 @@ async function toggleHidden(hidden) {
 
 <template>
     <article class="product-detail">
+        <button
+            v-if="product.image"
+            type="button"
+            class="product-detail__image product-detail__zoom"
+            :aria-label="t('productImage.open', { name: product.name })"
+            aria-haspopup="dialog"
+            @click="viewerOpen = true"
+        >
+            <ProductImage :image-url="product.image.medium" :icon="iconOf(product)" size="hero" :muted="product.hidden" />
+            <span class="product-detail__zoom-badge" aria-hidden="true">
+                <Maximize2 />
+            </span>
+        </button>
         <ProductImage
+            v-else
             class="product-detail__image"
-            :image-url="product.imageUrl"
             :icon="iconOf(product)"
             size="hero"
             :muted="product.hidden"
@@ -107,6 +124,8 @@ async function toggleHidden(hidden) {
 
         <p v-if="!canEdit" class="product-detail__note">{{ t('products.readOnly') }}</p>
         <p v-else-if="isOwn(product) && !canManageProducts" class="product-detail__note">{{ t('products.own') }}</p>
+
+        <ImageViewer v-if="product.image" v-model:open="viewerOpen" :src="product.image.large" :alt="product.name" />
     </article>
 </template>
 
@@ -119,6 +138,42 @@ async function toggleHidden(hidden) {
 
 .product-detail__image {
     align-self: center;
+}
+
+.product-detail__zoom {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    max-width: var(--product-hero-size);
+    border-radius: var(--radius-md);
+    cursor: zoom-in;
+    transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.product-detail__zoom:active {
+    transform: scale(var(--press-scale));
+}
+
+.product-detail__zoom-badge {
+    position: absolute;
+    right: var(--space-2);
+    bottom: var(--space-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--space-8);
+    height: var(--space-8);
+    border-radius: 50%;
+    background: var(--viewer-button-bg);
+    color: var(--viewer-text);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+}
+
+.product-detail__zoom-badge :deep(svg) {
+    width: var(--icon-size-sm);
+    height: var(--icon-size-sm);
 }
 
 .product-detail__head {

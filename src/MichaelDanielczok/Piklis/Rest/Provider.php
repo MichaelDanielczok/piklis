@@ -26,6 +26,7 @@ class Provider implements ProviderInterface
             function (RouteCollectorProxyInterface $Group): void {
                 $Group->get('/me', [MeEndpoint::class, 'get']);
                 $Group->patch('/me/settings', [MeEndpoint::class, 'patchSettings']);
+                $Group->get('/config', [ConfigEndpoint::class, 'get']);
 
                 $Group->post('/ops', [OperationsEndpoint::class, 'post']);
                 $Group->get('/lists', [ListsEndpoint::class, 'index']);
@@ -38,6 +39,8 @@ class Provider implements ProviderInterface
                 $Group->patch('/products/{id}', [ProductsEndpoint::class, 'update']);
                 $Group->post('/products/{id}/hide', [ProductsEndpoint::class, 'hide']);
                 $Group->post('/products/{id}/unhide', [ProductsEndpoint::class, 'unhide']);
+                $Group->post('/products/{id}/image', [ProductsEndpoint::class, 'setImage']);
+                $Group->delete('/products/{id}/image', [ProductsEndpoint::class, 'removeImage']);
             }
         )->add(new SessionAuthentication());
     }

@@ -10,6 +10,8 @@ namespace MichaelDanielczok\Piklis\Products;
  *   ausgeblendet ist.
  * - Produktpfleger (`piklis.products.manage`) bearbeiten alle Produkte und
  *   blenden sie aus oder wieder ein.
+ * - Das Produktbild (setzen, ersetzen, neu zuschneiden, entfernen) gehört zu
+ *   den Produktdaten: dieselbe Regel wie Bearbeiten.
  * - Eine Listenfreigabe gibt keine Produktrechte.
  *
  * Das Frontend wendet dieselbe Regel an (`composables/useProducts.js`), um
@@ -24,6 +26,11 @@ final class ProductPermissions
         }
 
         return !$Product->hidden && $Product->createdBy === $userId;
+    }
+
+    public static function canChangeImage(Product $Product, string $userId, bool $isManager): bool
+    {
+        return self::canEdit($Product, $userId, $isManager);
     }
 
     public static function canHide(bool $isManager): bool

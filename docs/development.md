@@ -10,8 +10,8 @@ The repository is a `git` source in `etc/source.list.ini.php` (QUIQQER
 rebuilds `var/composer/composer.json` from it and forces
 `preferred-install: dist`; a `vcs` source would try the GitHub zip, which
 gives 404 for the private repo). The clone needs the remotes `origin` and
-`composer`. The instance also requires `quiqqer/rest` and
-`quiqqer/rest-dummy-authentication`.
+`composer`. The instance also requires `quiqqer/rest`,
+`quiqqer/rest-dummy-authentication` and `quiqqer/cache`.
 
 - **Commit and push before every Composer update**: the update resets the
   clone to the state on GitHub (`discard-changes: true`).
@@ -21,6 +21,16 @@ gives 404 for the private repo). The clone needs the remotes `origin` and
 - After changing `standalone.html`: paste it into “Standalone Content” of
   the start page (site 1, type `quiqqer/sitetypes:types/standalone`) again.
 - Design package “Leinen”: `design/piklis-designpaket/` in the instance root.
+- `quiqqer/cache` (Einstellungen › QUIQQER › Cache,
+  `etc/plugins/quiqqer/cache.ini.php`): `webp=1`; `cache`, `htmlcache`,
+  `jscache` and `lazyloading` are `0`, so the start page, the REST API and
+  the service worker go through untouched. `cwebp` must be in the `PATH`
+  of PHP-FPM (`env[PATH]` in `php-fpm.d/www.conf`, Homebrew:
+  `/opt/homebrew/bin`).
+- Project settings of `piklis` (Medien): `media_maxUploadSize` = 2048
+  (pixels, at least 1600 = crop size) and `media_maxUploadFileSize` =
+  15728640 (15 MB). PHP-FPM 8.4 (`/opt/homebrew/etc/php/8.4/php.ini`):
+  `upload_max_filesize` and `post_max_size` 25M.
 - [quiqqer-docker-dev](https://github.com/MichaelDanielczok/quiqqer-docker-dev)
   still works for a disposable instance (`install-package.sh`).
 
@@ -44,9 +54,12 @@ instance has a mock backend in `.claude/` (not part of this repository):
   login).
 - The pattern page of the base components: <http://localhost:5180/#/components>
   (dev server only).
+- The router sets `_url` for `/media/cache/…` like the `.htaccess`, so
+  missing WebP sizes are created in the mock as well.
 - The catalog is global: products the test users create in the mock are
-  real rows in `pk_products`. Delete them after testing (`created_by` of
-  `test`, `test2`, `test3`).
+  real rows in `pk_products`, their images real media in “Produktbilder”.
+  Delete them after testing (`created_by` of `test`, `test2`, `test3`;
+  remove the image first or delete the media in the backend).
 
 ## Frontend
 
@@ -90,7 +103,12 @@ docker compose --env-file envs/<package>.env exec -u www-data -w /package quiqqe
 - The bootstraps load the instance (`QUIQQER_BOOTSTRAP` in quiqqer-docker-dev, else
   `../../../../bootstrap.php` when the package lives in a real instance).
 - Unit tests (`tests/unit/`) cover logic without database; the sync rules
-  run against an in-memory store (`tests/unit/Sync/Fixtures`).
+  run against an in-memory store (`tests/unit/Sync/Fixtures`), product
+  images against an in-memory media store (`tests/unit/Images/Fixtures`).
+- Integration tests (`tests/integration/`) use the real QUIQQER media of
+  the standard project (folders, names, cache addresses compared with the
+  core, deleting) and remove everything they create; skipped without a
+  project.
 
 ## JS tests
 

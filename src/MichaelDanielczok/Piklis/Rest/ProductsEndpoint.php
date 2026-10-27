@@ -3,23 +3,34 @@
 namespace MichaelDanielczok\Piklis\Rest;
 
 use Doctrine\DBAL\Exception as DBALException;
+use MichaelDanielczok\Piklis\Images\ImageLimits;
+use MichaelDanielczok\Piklis\Images\InvalidImageException;
+use MichaelDanielczok\Piklis\Images\QuiqqerImageMedia;
+use MichaelDanielczok\Piklis\Images\UploadedImage;
 use MichaelDanielczok\Piklis\Products\InvalidProductException;
-use MichaelDanielczok\Piklis\Products\Product;
 use MichaelDanielczok\Piklis\Products\ProductException;
+use MichaelDanielczok\Piklis\Products\ProductImageService;
+use MichaelDanielczok\Piklis\Products\ProductPresenter;
 use MichaelDanielczok\Piklis\Products\ProductRepository;
 use MichaelDanielczok\Piklis\Products\ProductSearch;
 use MichaelDanielczok\Piklis\Products\ProductService;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Message\UploadedFileInterface;
 use QUI;
 
-use function array_map;
 use function is_array;
 use function is_string;
 
+use const UPLOAD_ERR_FORM_SIZE;
+use const UPLOAD_ERR_INI_SIZE;
+use const UPLOAD_ERR_NO_FILE;
+use const UPLOAD_ERR_OK;
+
 /**
- * Produktkatalog: lesen, suchen, anlegen, bearbeiten, ausblenden.
- * Rechte siehe `Products\ProductPermissions`.
+ * Produktkatalog: lesen, suchen, anlegen, bearbeiten, ausblenden, Bild.
+ * Rechte siehe `Products\ProductPermissions`. Produkte tragen ihre
+ * Bildadressen (`image`, `imageUrl`, siehe `Images\ProductImageUrls`).
  *
  * | Methode | Pfad | Antwort |
  * | --- | --- | --- |
@@ -29,8 +40,11 @@ use function is_string;
  * | POST | /products | `{ status, product }`, 201 angelegt, 200 schon vorhanden |
  * | PATCH | /products/{id} | `{ product }` |
  * | POST | /products/{id}/hide, /unhide | `{ product }` |
+ * | POST | /products/{id}/image | `{ product }`, multipart: `image` (Zuschnitt), `original` (optional) |
+ * | DELETE | /products/{id}/image | `{ product }` |
  *
- * Fehler: `400 invalid_product` (mit `field`, `reason`), `403 forbidden`,
+ * Fehler: `400 invalid_product` (mit `field`, `reason`), `400 invalid_image`
+ * und `413 too_large` (mit `field`, `reason`), `403 forbidden`,
  * `404 product_not_found`, `409 product_exists`, `500 save_failed`.
  */
 class ProductsEndpoint
@@ -44,15 +58,15 @@ class ProductsEndpoint
         array $args
     ): ResponseInterface {
         try {
-            $products = (new ProductRepository())->all();
-        } catch (DBALException $Exception) {
+            $products = self::presenter()->many((new ProductRepository())->all());
+        } catch (DBALException | QUI\Exception $Exception) {
             QUI\System\Log::writeException($Exception);
 
             return Json::error($Response, 'load_failed', 'Products could not be loaded.', 500);
         }
 
         return Json::respondWithEtag($Request, $Response, [
-            'products' => self::toArrays($products)
+            'products' => $products
         ]);
     }
 
@@ -72,15 +86,17 @@ class ProductsEndpoint
         $includeHidden = ($params['hidden'] ?? '') === '1' && SessionUser::canManageProducts();
 
         try {
-            $products = self::service()->search($query, ProductSearch::limit($params['limit'] ?? null), $includeHidden);
-        } catch (DBALException $Exception) {
+            $products = self::presenter()->many(
+                self::service()->search($query, ProductSearch::limit($params['limit'] ?? null), $includeHidden)
+            );
+        } catch (DBALException | QUI\Exception $Exception) {
             QUI\System\Log::writeException($Exception);
 
             return Json::error($Response, 'load_failed', 'Products could not be loaded.', 500);
         }
 
         return Json::respond($Response, [
-            'products' => self::toArrays($products)
+            'products' => $products
         ]);
     }
 
@@ -94,7 +110,7 @@ class ProductsEndpoint
     ): ResponseInterface {
         return self::run($Response, static function () use ($args): array {
             return [
-                'product' => self::service()->load((string)($args['id'] ?? ''))->toArray()
+                'product' => self::presenter()->one(self::service()->load((string)($args['id'] ?? '')))
             ];
         });
     }
@@ -123,7 +139,7 @@ class ProductsEndpoint
 
                 return [
                     'status' => $result['status'],
-                    'product' => $result['product']->toArray()
+                    'product' => self::presenter()->one($result['product'])
                 ];
             },
             static fn(array $data): int => $data['status'] === ProductService::CREATED ? 201 : 200
@@ -155,7 +171,7 @@ class ProductsEndpoint
             );
 
             return [
-                'product' => $Product->toArray()
+                'product' => self::presenter()->one($Product)
             ];
         });
     }
@@ -182,6 +198,119 @@ class ProductsEndpoint
         return self::setHidden($Response, (string)($args['id'] ?? ''), false);
     }
 
+    /**
+     * Setzt oder ersetzt das Bild (multipart/form-data): `image` ist der
+     * quadratische Zuschnitt, `original` das verkleinerte Original. Ohne
+     * `original` bleibt das bisherige (neu zuschneiden). Beide JPEG, im
+     * Browser neu kodiert.
+     *
+     * @param array<string, string> $args
+     */
+    public function setImage(
+        ServerRequestInterface $Request,
+        ResponseInterface $Response,
+        array $args
+    ): ResponseInterface {
+        $files = $Request->getUploadedFiles();
+
+        try {
+            $crop = self::uploadedContent($files[UploadedImage::FIELD_CROP] ?? null, UploadedImage::FIELD_CROP);
+            $original = self::uploadedContent(
+                $files[UploadedImage::FIELD_ORIGINAL] ?? null,
+                UploadedImage::FIELD_ORIGINAL
+            );
+        } catch (InvalidImageException $Exception) {
+            return self::imageError($Response, $Exception);
+        }
+
+        if ($crop === null) {
+            return self::imageError($Response, new InvalidImageException(UploadedImage::FIELD_CROP, 'required'));
+        }
+
+        return self::run($Response, static function () use ($args, $crop, $original): array {
+            $Product = self::imageService()->setImage(
+                (string)($args['id'] ?? ''),
+                $crop,
+                $original,
+                SessionUser::id(),
+                SessionUser::canManageProducts()
+            );
+
+            return [
+                'product' => self::presenter()->one($Product)
+            ];
+        });
+    }
+
+    /**
+     * Entfernt das Bild (die App zeigt wieder das Ersatzicon).
+     *
+     * @param array<string, string> $args
+     */
+    public function removeImage(
+        ServerRequestInterface $Request,
+        ResponseInterface $Response,
+        array $args
+    ): ResponseInterface {
+        return self::run($Response, static function () use ($args): array {
+            $Product = self::imageService()->removeImage(
+                (string)($args['id'] ?? ''),
+                SessionUser::id(),
+                SessionUser::canManageProducts()
+            );
+
+            return [
+                'product' => self::presenter()->one($Product)
+            ];
+        });
+    }
+
+    /**
+     * Inhalt einer hochgeladenen Datei; null, wenn das Feld fehlt.
+     *
+     * @throws InvalidImageException
+     */
+    private static function uploadedContent(mixed $File, string $field): ?string
+    {
+        if ($File === null) {
+            return null;
+        }
+
+        if (!($File instanceof UploadedFileInterface)) {
+            throw new InvalidImageException($field, 'not_jpeg');
+        }
+
+        $error = $File->getError();
+
+        if ($error === UPLOAD_ERR_NO_FILE) {
+            return null;
+        }
+
+        if ($error === UPLOAD_ERR_INI_SIZE || $error === UPLOAD_ERR_FORM_SIZE) {
+            throw new InvalidImageException($field, 'too_large');
+        }
+
+        if ($error !== UPLOAD_ERR_OK) {
+            throw new InvalidImageException($field, 'required');
+        }
+
+        return (string)$File->getStream();
+    }
+
+    private static function imageError(ResponseInterface $Response, InvalidImageException $Exception): ResponseInterface
+    {
+        return Json::respond(
+            $Response,
+            [
+                'error' => $Exception->getHttpStatus() === 413 ? 'too_large' : 'invalid_image',
+                'message' => $Exception->getMessage(),
+                'field' => $Exception->getField(),
+                'reason' => $Exception->getReason()
+            ],
+            $Exception->getHttpStatus()
+        );
+    }
+
     private static function setHidden(ResponseInterface $Response, string $id, bool $hidden): ResponseInterface
     {
         return self::run($Response, static function () use ($id, $hidden): array {
@@ -193,7 +322,7 @@ class ProductsEndpoint
             );
 
             return [
-                'product' => $Product->toArray()
+                'product' => self::presenter()->one($Product)
             ];
         });
     }
@@ -225,6 +354,8 @@ class ProductsEndpoint
                 ],
                 400
             );
+        } catch (InvalidImageException $Exception) {
+            return self::imageError($Response, $Exception);
         } catch (ProductException $Exception) {
             return Json::error(
                 $Response,
@@ -232,7 +363,7 @@ class ProductsEndpoint
                 $Exception->getMessage(),
                 $Exception->getHttpStatus()
             );
-        } catch (DBALException $Exception) {
+        } catch (DBALException | QUI\Exception $Exception) {
             QUI\System\Log::writeException($Exception);
 
             return Json::error($Response, 'save_failed', 'The product could not be saved.', 500);
@@ -245,11 +376,18 @@ class ProductsEndpoint
     }
 
     /**
-     * @param list<Product> $products
-     * @return list<array<string, mixed>>
+     * @throws QUI\Exception
      */
-    private static function toArrays(array $products): array
+    private static function imageService(): ProductImageService
     {
-        return array_map(static fn(Product $Product): array => $Product->toArray(), $products);
+        return new ProductImageService(new ProductRepository(), new QuiqqerImageMedia(), ImageLimits::fromProject());
+    }
+
+    /**
+     * @throws QUI\Exception
+     */
+    private static function presenter(): ProductPresenter
+    {
+        return new ProductPresenter(new QuiqqerImageMedia());
     }
 }

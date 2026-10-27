@@ -34,7 +34,8 @@
 PHP under `src/MichaelDanielczok/Piklis/`, grouped by area: `Rest/`
 (endpoints), `Sync/` (operations, conflict rules, without database),
 `Lists/` (sort keys, quantities, `ListRepository`), `Products/` (catalog:
-input, rights, search, `ProductRepository`), `Database/` (table names),
+input, rights, search, images, `ProductRepository`), `Images/` (limits,
+upload checks, media storage, cache addresses), `Database/` (table names),
 `Users/`, `Pwa/`, `Console/`.
 
 ## Frontend
@@ -47,16 +48,18 @@ committed because the server does not build (no Node there).
 | `app.js`, `App.vue`, `router.js` | entry, shell, routes |
 | `api/index.js` | the only module that talks to the server (REST and core Ajax) |
 | `api/operations.js` | operations: builders, queue, sending, pull since revision (see [Sync](#sync)) |
-| `composables/` | shared state: session, toast, page transition, product catalog (`useProducts.js`), media query |
+| `composables/` | shared state: session, toast, page transition, product catalog (`useProducts.js`), server settings (`useConfig.js`), media query |
 | `components/layout/` | page frame and header, sidebar, mobile navigation, nav items, user menu |
 | `components/ui/` | button, sheet, section label, theme switch, avatar, logo, empty state, search field |
 | `components/list/` | list row, row group, skeleton row, quantity, add tile |
-| `components/products/` | product image (photo or fallback icon), fallback icon, catalog row and its skeleton, detail, form, icon picker |
+| `components/products/` | product image (photo or fallback icon), fallback icon, catalog row and its skeleton, detail, form, icon picker, photo field, crop dialog, large view |
 | `products/` | fixed categories (`categories.js`), fallback icons with their category (`catalog.js`) |
 | `icons/` | fallback icon sprite (`ersatzicons.svg`, embedded once at start) |
 | `utils/quantity.js` | quantities with unit (`2 ×`, `2 Packungen`, `1,5 kg`), input with comma, checks |
 | `utils/sortKey.js` | sort keys between two neighbours (same logic as `Lists\SortKey`) |
 | `utils/productSearch.js` | catalog search: normalising and ranking (same logic as `Products\ProductSearch`) |
+| `utils/imageCrop.js`, `utils/imageUpload.js` | crop and zoom maths, file checks against the limits, pasted images (tested with `node --test`) |
+| `utils/imageEncode.js` | load an image, draw crop and reduced original into a canvas, encode as JPEG |
 | `views/` | one view per route |
 | `styles/tokens.css` | all colours, sizes and spacing as CSS variables |
 | `styles/forms.css` | form fields (`form-field`, label, input, hint, error) |
@@ -161,6 +164,10 @@ Deviations from the design package, chosen for the phone:
 Quantities (`utils/quantity.js`): number plus optional unit from a fixed list;
 rules in [Quantities](#quantities). Texts and plurals in `i18n` (`units.*`,
 `unitNames.*`).
+
+Interface icons (Lucide) use the same line width 1.75 as the fallback
+icons (`setLucideProps` in `App.vue`); only status symbols (check mark,
+plus in tiles, toast) are drawn thicker on purpose.
 
 Fallback icons: the 16 icons of the design package (24 grid, line 1.75,
 round caps, `currentColor`) as sprite in `icons/ersatzicons.svg`, embedded
@@ -279,7 +286,7 @@ users.
   product stores the key. Category and icon are independent.
 - **Images** are QUIQQER media, not a table: the product points to the square
   image and the reduced original. Sizes 128/640/1600 px come as `.webp`
-  addresses of the media cache (step 4).
+  addresses of the media cache, see [Product images](#product-images).
 - **Open Food Facts** (step 14) adds columns to `pk_products`: `brand`,
   `off_data` (JSON: ingredients, nutrition per 100 g/ml and per portion, with
   their reference), `off_language`, `off_fetched_at`. Own name, photo and
@@ -633,9 +640,12 @@ One catalog for all signed-in users (Obsidian “Piklis Konzept” ›
 “Produktkatalog”). PHP in `Products/`, REST in `Rest\ProductsEndpoint`, view
 `views/ProductsView.vue` with `ProductDetailView.vue` and `ProductEditView.vue`.
 
-- **Product** (`Products\Product`, JSON camelCase): `id`, `name`, `category`,
-  `icon`, `description`, `packageSize`, `barcode`, `imageUrl` (null until
-  step 4), `hidden`, `hiddenAt`, `createdBy`, `createdAt`, `updatedAt`.
+- **Product** (`Products\Product`, JSON camelCase through
+  `Products\ProductPresenter`): `id`, `name`, `category`, `icon`,
+  `description`, `packageSize`, `barcode`, `imageUrl` (128 px or null),
+  `image` (`{ small, medium, large, original }` or null, see
+  [Product images](#product-images)), `hidden`, `hiddenAt`, `createdBy`,
+  `createdAt`, `updatedAt`.
 - **Input** (`Products\ProductInput`): only `name` is required (1–120
   characters, whitespace collapsed); `category` one of the fixed keys or
   null; `icon` a sprite key (`a-z0-9-`), null or `allgemein` = general icon
@@ -686,12 +696,75 @@ One catalog for all signed-in users (Obsidian “Piklis Konzept” ›
   allowed (Bearbeiten; Ausblenden or Wieder einblenden for maintainers, with
   undo in the toast), otherwise a hint who may edit.
 
+## Product images
+
+Obsidian “Piklis Konzept” › “Produktkatalog” › “Bilder und Zuschnitt” and
+“Piklis Entscheidungen” › “Produktbilder”. Model for the crop: the user
+picture of SmartPicker.
+
+- **In the browser** (`ProductImageField.vue` in the product form): take a
+  photo (`capture`, phones), choose a file, or paste a copied image on the
+  desktop (⌘ V / Strg + V anywhere in the form, or the button “Einfügen”
+  with `navigator.clipboard.read()`). Before cropping, the file is checked
+  against `GET /config` (`maxBytes` from `media_maxUploadFileSize`; JPEG,
+  PNG, WebP; Safari delivers HEIC as JPEG); too large files show the
+  size and the limit.
+- **Crop** (`ImageCropDialog.vue`, `utils/imageCrop.js`): square viewport,
+  move by dragging, zoom with two fingers, wheel, slider or buttons, keys
+  (arrows, plus/minus); full screen on phones, centred from `45em`.
+  “Übernehmen” draws the crop with exactly `cropSize` (1600) px and the
+  whole image reduced to `maxPixels` (`media_maxUploadSize`, 2048) as JPEG
+  (`utils/imageEncode.js`). Re-encoding drops EXIF with location and camera
+  data; browsers apply the EXIF orientation when drawing.
+- **Saving**: the form keeps the change (new image, removal) until
+  “Speichern”, then sends the product data first and the image after it
+  (`POST /products/{id}/image` multipart: `image` = crop, `original`
+  optional; `DELETE /products/{id}/image`). A failed image upload leaves
+  the saved product and shows a toast.
+- **Re-crop**: loads `image.original` (JPEG from the media cache) and sends
+  only a new crop; the original stays.
+- **Storage** (`Images\QuiqqerImageMedia`): QUIQQER media of the standard
+  project `piklis`, folder “Produktbilder”, originals in
+  “Produktbilder/Originale”, created by the system user, file names are
+  random UUIDs (v4) per upload (new address, no stale browser cache). No
+  own image cache.
+- **Rules** (`Products\ProductImageService`): rights like the product data
+  (`ProductPermissions::canChangeImage`); checks first
+  (`Images\UploadedImage`: crop JPEG 1600 × 1600, original JPEG at most
+  `maxPixels`, both at most `maxBytes`), then store the new media, save
+  the product, delete the old media (replace: crop and original; re-crop:
+  only the crop; remove: both). If saving fails, the new media are deleted
+  again. Deleting also removes the cache files and the WebP files that
+  `Image::deleteCache()` misses (`quiqqer/cache` 3.6 writes one next to the
+  source in `media/sites/` when resizing).
+- **Addresses** (`Images\ProductImageUrls`): `<cache>/Produktbilder/<uuid>__128x128.webp`,
+  `__640x640.webp`, `__1600x1600.webp` (list and tile · detail · large
+  view) and the original as `<cache>/Produktbilder/Originale/<uuid>.jpg`.
+  Because the crop always has 1600 px, the names are fixed and equal to
+  the core's `Image::getSizeCachePath()` (integration test). One query
+  reads the file paths of all images of a response.
+- **WebP from the media cache**: a missing `.webp` goes through
+  `index.php` (`onRequestImageNotFound` of `quiqqer/cache`), which creates
+  the size and converts it with `cwebp`; afterwards Apache serves the file
+  directly (no PHP). Requires `media_maxUploadSize` ≥ 1600 and
+  `quiqqer/cache` with `webp=1` (HTML cache, JS cache and lazy loading
+  off, see docs/development.md).
+- **Protection**: whoever knows an address sees the image without login
+  (decision “Schutz”). `/media/` is not cached by the service worker yet
+  (offline images come with step 13).
+- **Display**: `ProductImage` takes `imageUrl` (128 px) in rows and tiles,
+  `image.medium` in the detail; done rows show photos with an overlay
+  (`muted`). The detail opens the large view (`ImageViewer.vue`,
+  `image.large`): dark full screen, zoom 1–4× with two fingers, wheel,
+  double tap or buttons, panning while zoomed, Escape closes.
+
 ## REST API
 
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `GET` | `/me` | own user: `id`, `name`, `initials` (first and last name), `avatarUrl`, `settings.theme`, `permissions.manageProducts` |
 | `PATCH` | `/me/settings` | `theme` (`auto`/`light`/`dark`); answers like `GET /me` |
+| `GET` | `/config` | `images`: `maxPixels`, `maxBytes` (project settings), `cropSize` |
 | `POST` | `/ops` | operations on lists and entries, and `product.create`, see [Sync](#sync) |
 | `GET` | `/lists` | accessible lists without entries, with `role` and `counts` (ETag) |
 | `GET` | `/lists/{id}?since=N` | one list: all visible entries, or with `since` only entries changed after revision N (ETag) |
@@ -701,6 +774,8 @@ One catalog for all signed-in users (Obsidian “Piklis Konzept” ›
 | `POST` | `/products` | create with the browser's UUID: `201` `{status: 'created', product}`, again `200` `unchanged` |
 | `PATCH` | `/products/{id}` | change the sent fields (creator or maintainer) |
 | `POST` | `/products/{id}/hide`, `/unhide` | hide or show again (maintainers only) |
+| `POST` | `/products/{id}/image` | multipart `image` (crop, JPEG 1600 px) and optional `original`; `400 invalid_image` / `413 too_large` with `field` and `reason` |
+| `DELETE` | `/products/{id}/image` | remove the image (fallback icon again) |
 
 - Every route in the group requires a QUIQQER session
   (`Rest\SessionAuthentication`), without: `401 unauthorized`. Public routes

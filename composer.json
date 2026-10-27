@@ -12,6 +12,7 @@
     ],
     "require": {
         "php": "^8.2",
+        "quiqqer/cache": "^3.6",
         "quiqqer/core": "^2",
         "quiqqer/rest": "^3.5",
         "quiqqer/sitetypes": "^2"

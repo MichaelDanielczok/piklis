@@ -4,6 +4,7 @@ namespace MichaelDanielczok\Piklis\Sync;
 
 use MichaelDanielczok\Piklis\Products\InvalidProductException;
 use MichaelDanielczok\Piklis\Products\ProductException;
+use MichaelDanielczok\Piklis\Products\ProductPresenter;
 use MichaelDanielczok\Piklis\Products\ProductService;
 
 use function is_array;
@@ -26,8 +27,16 @@ final class ProductOperation
 {
     public const TYPE = 'product.create';
 
-    public function __construct(private readonly ProductService $Service)
-    {
+    private ProductPresenter $Presenter;
+
+    /**
+     * @param ProductPresenter|null $Presenter mit Bildadressen (ohne: Bilder null)
+     */
+    public function __construct(
+        private readonly ProductService $Service,
+        ?ProductPresenter $Presenter = null
+    ) {
+        $this->Presenter = $Presenter ?? new ProductPresenter();
     }
 
     public static function isProductOperation(mixed $raw): bool
@@ -58,7 +67,7 @@ final class ProductOperation
         return OperationResult::product(
             $operationId,
             $result['status'] === ProductService::CREATED,
-            $result['product']->toArray()
+            $this->Presenter->one($result['product'])
         );
     }
 }

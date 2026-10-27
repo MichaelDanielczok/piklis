@@ -38,7 +38,7 @@ export function onUnauthorized(handler) {
 /**
  * @param {string} method
  * @param {string} path
- * @param {object} [body]
+ * @param {object|FormData} [body] JSON, oder FormData für Dateien (multipart)
  * @param {{ signal?: AbortSignal }} [options] signal bricht die Anfrage ab (AbortError)
  */
 async function request(method, path, body = undefined, { signal } = {}) {
@@ -46,8 +46,9 @@ async function request(method, path, body = undefined, { signal } = {}) {
         Accept: 'application/json',
         'Accept-Language': locale.value
     };
+    const isForm = body instanceof FormData;
 
-    if (body !== undefined) {
+    if (body !== undefined && !isForm) {
         headers['Content-Type'] = 'application/json';
     }
 
@@ -58,7 +59,7 @@ async function request(method, path, body = undefined, { signal } = {}) {
             method,
             headers,
             credentials: 'same-origin',
-            body: body === undefined ? undefined : JSON.stringify(body),
+            body: body === undefined || isForm ? body : JSON.stringify(body),
             signal
         });
     } catch (error) {
@@ -73,6 +74,8 @@ async function request(method, path, body = undefined, { signal } = {}) {
 
     if (!response.ok) {
         const error = new ApiError(response.status, data?.error ?? 'http_' + response.status, data?.message);
+
+        error.reason = data?.reason ?? null;
 
         if (response.status === 401 && unauthorizedHandler) {
             unauthorizedHandler(error);
@@ -139,6 +142,14 @@ export const api = {
     },
 
     /**
+     * Einstellungen vom Server: { images: { maxPixels, maxBytes, cropSize } }
+     * (Grenzen der Produktbilder aus den Projekteinstellungen).
+     */
+    getConfig() {
+        return request('GET', '/config');
+    },
+
+    /**
      * Operationen senden (höchstens 200), Antwort `{ results: [...] }` in
      * derselben Reihenfolge. Nur über `api/operations.js` benutzen.
      */
@@ -198,6 +209,31 @@ export const api = {
     /** Nur Produktpfleger: { product } */
     setProductHidden(productId, hidden) {
         return request('POST', '/products/' + encodeURIComponent(productId) + (hidden ? '/hide' : '/unhide'));
+    },
+
+    /**
+     * Produktbild setzen oder ersetzen: { product }. `image` ist der
+     * quadratische Zuschnitt (JPEG, cropSize px), `original` das verkleinerte
+     * Original; ohne `original` bleibt das bisherige (neu zuschneiden).
+     *
+     * @param {string} productId
+     * @param {{ image: Blob, original?: Blob|null }} files
+     */
+    uploadProductImage(productId, { image, original = null }) {
+        const form = new FormData();
+
+        form.append('image', image, 'image.jpg');
+
+        if (original) {
+            form.append('original', original, 'original.jpg');
+        }
+
+        return request('POST', '/products/' + encodeURIComponent(productId) + '/image', form);
+    },
+
+    /** Produktbild entfernen (wieder das Ersatzicon): { product } */
+    removeProductImage(productId) {
+        return request('DELETE', '/products/' + encodeURIComponent(productId) + '/image');
     },
 
     async login(username, password) {

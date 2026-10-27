@@ -22,6 +22,7 @@ final class Product
         public ?string $packageSize,
         public ?string $barcode,
         public ?int $imageId,
+        public ?int $imageOriginalId,
         public bool $hidden,
         public ?DateTimeImmutable $hiddenAt,
         public ?string $hiddenBy,
@@ -45,6 +46,7 @@ final class Product
             $Input->icon,
             $Input->description,
             $Input->packageSize,
+            null,
             null,
             null,
             false,
@@ -99,6 +101,23 @@ final class Product
     }
 
     /**
+     * Setzt Zuschnitt und Original (QUIQQER-Medien) oder entfernt beide (null).
+     * Gibt zurück, ob sich etwas geändert hat.
+     */
+    public function setImage(?int $imageId, ?int $originalId, string $userId, DateTimeImmutable $now): bool
+    {
+        if ($this->imageId === $imageId && $this->imageOriginalId === $originalId) {
+            return false;
+        }
+
+        $this->imageId = $imageId;
+        $this->imageOriginalId = $imageId === null ? null : $originalId;
+        $this->touch($userId, $now);
+
+        return true;
+    }
+
+    /**
      * Gibt zurück, ob sich etwas geändert hat.
      */
     public function setHidden(bool $hidden, string $userId, DateTimeImmutable $now): bool
@@ -116,12 +135,14 @@ final class Product
     }
 
     /**
-     * Form für die API (camelCase). `imageUrl` kommt mit den Produktbildern
-     * (Schritt 4) und ist bis dahin immer null.
+     * Form für die API (camelCase). `image` sind die Bildadressen aus
+     * `Images\ProductImageUrls` (null ohne Bild), `imageUrl` die kleine Größe
+     * für Listen und Kacheln.
      *
+     * @param array{small: string, medium: string, large: string, original: string|null}|null $image
      * @return array<string, mixed>
      */
-    public function toArray(): array
+    public function toArray(?array $image = null): array
     {
         return [
             'id' => $this->id,
@@ -131,7 +152,8 @@ final class Product
             'description' => $this->description,
             'packageSize' => $this->packageSize,
             'barcode' => $this->barcode,
-            'imageUrl' => null,
+            'imageUrl' => $image['small'] ?? null,
+            'image' => $image,
             'hidden' => $this->hidden,
             'hiddenAt' => $this->hiddenAt?->format(DATE_ATOM),
             'createdBy' => $this->createdBy,

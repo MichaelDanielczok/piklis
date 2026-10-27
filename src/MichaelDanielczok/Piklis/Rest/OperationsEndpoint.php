@@ -2,7 +2,9 @@
 
 namespace MichaelDanielczok\Piklis\Rest;
 
+use MichaelDanielczok\Piklis\Images\QuiqqerImageMedia;
 use MichaelDanielczok\Piklis\Lists\ListRepository;
+use MichaelDanielczok\Piklis\Products\ProductPresenter;
 use MichaelDanielczok\Piklis\Products\ProductRepository;
 use MichaelDanielczok\Piklis\Products\ProductService;
 use MichaelDanielczok\Piklis\Sync\InvalidOperationException;
@@ -56,7 +58,10 @@ class OperationsEndpoint
 
         $userId = SessionUser::id();
         $Processor = new OperationProcessor(new ListRepository());
-        $Products = new ProductOperation(new ProductService(new ProductRepository()));
+        $Products = new ProductOperation(
+            new ProductService(new ProductRepository()),
+            new ProductPresenter(new QuiqqerImageMedia())
+        );
         $results = [];
 
         foreach ($operations as $raw) {

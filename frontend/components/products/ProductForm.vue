@@ -1,7 +1,9 @@
 <script setup>
 /**
- * Produkt anlegen oder bearbeiten (Designpaket 11, ohne Foto, Kurzname,
- * Zutaten und Nährwerte). Nur der Name ist Pflicht.
+ * Produkt anlegen oder bearbeiten (Designpaket 11, ohne Kurzname, Zutaten
+ * und Nährwerte). Nur der Name ist Pflicht. Das Foto (`ProductImageField`)
+ * wird nach den Produktdaten hochgeladen, beim Anlegen also erst, wenn das
+ * Produkt existiert.
  *
  * Beim Anlegen schlägt das Formular passende Produkte aus dem gemeinsamen
  * Katalog vor („Gouda“ → „Gouda jung“). Ein vorhandenes lässt sich öffnen,
@@ -17,7 +19,14 @@ import { CircleAlert } from '@lucide/vue';
 import AppButton from '@/components/ui/AppButton.vue';
 import IconPicker from './IconPicker.vue';
 import ProductImage from './ProductImage.vue';
-import { createProduct, updateProduct, useProducts } from '@/composables/useProducts.js';
+import ProductImageField from './ProductImageField.vue';
+import {
+    createProduct,
+    removeProductImage,
+    setProductImage,
+    updateProduct,
+    useProducts
+} from '@/composables/useProducts.js';
 import { showToast } from '@/composables/useToast.js';
 import { CATEGORIES, DEFAULT_ICON, iconOf } from '@/products/catalog.js';
 import { t } from '@/i18n/index.js';
@@ -56,6 +65,7 @@ const form = reactive({
     description: props.product?.description ?? ''
 });
 
+const imageChange = ref(null);
 const pickerOpen = ref(false);
 const pending = ref(false);
 const submitted = ref(false);
@@ -128,24 +138,64 @@ async function submit() {
 
     try {
         if (isNew.value) {
-            const product = await createProduct(fieldsFromForm());
+            const created = await createProduct(fieldsFromForm());
+            const product = await saveImage(created);
 
-            showToast(t('products.createdToast', { name: product.name }), { icon: 'done' });
-            emit('saved', product);
+            if (product) {
+                showToast(t('products.createdToast', { name: product.name }), { icon: 'done' });
+            }
+
+            emit('saved', product ?? created);
             return;
         }
 
         const changes = changedFields();
-        const product = Object.keys(changes).length > 0
+        const updated = Object.keys(changes).length > 0
             ? await updateProduct(props.product.id, changes)
             : props.product;
+        const product = await saveImage(updated);
 
-        showToast(t('products.savedToast'), { icon: 'done' });
-        emit('saved', product);
+        if (product) {
+            showToast(t('products.savedToast'), { icon: 'done' });
+        }
+
+        emit('saved', product ?? updated);
     } catch (error) {
         serverError.value = t(error?.status === 403 ? 'products.forbidden' : 'products.saveError');
     } finally {
         pending.value = false;
+    }
+}
+
+/**
+ * Lädt das Foto hoch oder entfernt es, nachdem die Produktdaten gespeichert
+ * sind. Scheitert das, ist das Produkt trotzdem gespeichert: Hinweis, null.
+ */
+async function saveImage(product) {
+    const imageChangeValue = imageChange.value;
+
+    if (!imageChangeValue) {
+        return product;
+    }
+
+    try {
+        const saved = imageChangeValue.type === 'remove'
+            ? await removeProductImage(product.id)
+            : await setProductImage(product.id, {
+                image: imageChangeValue.image,
+                original: imageChangeValue.original
+            });
+
+        imageChange.value = null;
+
+        return saved;
+    } catch (error) {
+        console.error(error);
+        showToast(t(error?.status === 413 ? 'productImage.errors.uploadTooLarge' : 'productImage.errors.upload'), {
+            icon: 'notgot'
+        });
+
+        return null;
     }
 }
 
@@ -227,6 +277,8 @@ onMounted(async () => {
                 <option v-for="key in CATEGORIES" :key="key" :value="key">{{ t('categories.' + key) }}</option>
             </select>
         </div>
+
+        <ProductImageField v-model="imageChange" :product="product" :icon="form.icon" />
 
         <div class="form-field">
             <span class="form-field__label">

@@ -75,6 +75,13 @@
     /* Fotos in erledigten Zeilen gedämpft (45 % Überlagerung im Seitenton) */
     --photo-done-overlay: rgb(255 255 255 / 0.45);
 
+    /* Zuschnitt (Raster und Kante über dem Foto) und Großansicht (in beiden Motiven dunkel) */
+    --crop-grid: rgb(255 255 255 / 0.35);
+    --crop-edge: rgb(255 255 255 / 0.75);
+    --viewer-bg: #0E0F0F;
+    --viewer-text: #ECEDEA;
+    --viewer-button-bg: rgb(38 42 40 / 0.72);
+
     /* Glas hinter Statusleiste und Navigation (folgt --color-bg) */
     --bar-glass-bg: color-mix(in srgb, var(--color-bg) 80%, transparent);
     --nav-glass-bg: rgb(255 255 255 / 0.72);
@@ -159,6 +166,8 @@
     --product-hero-icon-ratio: 40%; /* Ersatzicon im großen Feld */
     --product-list-width: 24rem; /* Liste neben dem Produktdetail (Desktop) */
     --icon-option-size: 4.5rem; /* 72, Feld in der Icon-Auswahl */
+    --crop-viewport-max: 26rem; /* Zuschnitt: Quadrat höchstens 416 px */
+    --crop-dialog-width: 32rem; /* Zuschnitt ab Tablet */
     --icon-picker-min-height: min(30rem, 60vh); /* Icon-Auswahl springt beim Suchen nicht */
     --handle-width: 2rem; /* 32, Ziehgriff über die ganze Zeilenhöhe */
     --check-zone-width: 3.75rem; /* 60, Abhaken-Zone über die ganze Zeilenhöhe */

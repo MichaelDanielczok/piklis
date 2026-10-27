@@ -34,10 +34,17 @@ under `design/piklis-designpaket/`.
   icon picker by category; product maintenance in two columns on desktop;
   rights: everybody creates and edits their own products, maintainers edit
   all and hide them
-- REST API `/api/piklis/v1` (`GET /me`, `PATCH /me/settings`, `POST /ops`,
-  `GET /lists`, `GET /lists/{id}`, `GET|POST /products`,
+- Product images: take a photo, choose a file or paste a copied image on
+  the desktop, square crop in the browser without a library (move, zoom),
+  upload of the crop and the original reduced to the project limit, both
+  re-encoded (no EXIF/GPS); stored as QUIQQER media (folder
+  “Produktbilder”, originals in “Originale”, random UUID names); shown as
+  WebP in 128/640/1600 px from the media cache (`quiqqer/cache`); replace,
+  re-crop from the original, remove; large view with zoom from the detail
+- REST API `/api/piklis/v1` (`GET /me`, `PATCH /me/settings`, `GET /config`,
+  `POST /ops`, `GET /lists`, `GET /lists/{id}`, `GET|POST /products`,
   `GET /products/search`, `GET|PATCH /products/{id}`,
-  `POST /products/{id}/hide|unhide`)
+  `POST /products/{id}/hide|unhide`, `POST|DELETE /products/{id}/image`)
 - PHPStan level 8, PHPCS, PHPUnit; JS tests with `node --test`
 
 ## Quick start
@@ -52,6 +59,6 @@ npm test        # JS tests (node --test, shared fixtures with PHPUnit)
 ## Documentation
 
 - [Architecture](docs/architecture.md): structure, design, components,
-  data model, sync and conflict rules, product catalog, PWA, REST, login,
-  texts
+  data model, sync and conflict rules, product catalog, product images,
+  PWA, REST, login, texts
 - [Development](docs/development.md): instance, mock backend, Vite, tools

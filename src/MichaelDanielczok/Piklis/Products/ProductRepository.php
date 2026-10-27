@@ -117,7 +117,8 @@ class ProductRepository implements ProductStore
             self::nullableString($row['description'] ?? null),
             self::nullableString($row['package_size'] ?? null),
             self::nullableString($row['barcode'] ?? null),
-            is_numeric($row['image_id'] ?? null) ? (int)$row['image_id'] : null,
+            self::nullableInt($row['image_id'] ?? null),
+            self::nullableInt($row['image_original_id'] ?? null),
             (bool)$row['hidden'],
             self::date($row['hidden_at'] ?? null),
             self::nullableString($row['hidden_by'] ?? null),
@@ -129,7 +130,7 @@ class ProductRepository implements ProductStore
     }
 
     /**
-     * Ohne `barcode` und Bild-Spalten: die setzen Schritt 4 und 14.
+     * Ohne `barcode`: den setzt Schritt 14.
      *
      * @return array<string, mixed>
      */
@@ -143,6 +144,8 @@ class ProductRepository implements ProductStore
             'icon' => $Product->icon,
             'description' => $Product->description,
             'package_size' => $Product->packageSize,
+            'image_id' => $Product->imageId,
+            'image_original_id' => $Product->imageOriginalId,
             'hidden' => $Product->hidden ? 1 : 0,
             'hidden_at' => $Product->hiddenAt?->format(Tables::DATETIME_FORMAT),
             'hidden_by' => $Product->hiddenBy,
@@ -160,6 +163,11 @@ class ProductRepository implements ProductStore
         }
 
         return new DateTimeImmutable($value);
+    }
+
+    private static function nullableInt(mixed $value): ?int
+    {
+        return is_numeric($value) ? (int)$value : null;
     }
 
     private static function nullableString(mixed $value): ?string

@@ -1,8 +1,12 @@
 /**
  * Produktkatalog: einmal ganz geladen (`GET /products`, mit ETag fast
  * kostenlos erneut), gesucht wird lokal (`utils/productSearch.js`), damit
- * Vorschläge beim Tippen sofort kommen. Anlegen, Bearbeiten und Ausblenden
- * gehen direkt an die REST-API; die Antwort ersetzt das Produkt im Zustand.
+ * Vorschläge beim Tippen sofort kommen. Anlegen, Bearbeiten, Ausblenden und
+ * das Produktbild gehen direkt an die REST-API; die Antwort ersetzt das
+ * Produkt im Zustand.
+ *
+ * Bilder: `product.image` = { small (128 px), medium (640), large (1600),
+ * original } als Adressen im Media-Cache (WebP), `product.imageUrl` = small.
  *
  * Rechte wie im Server (`Products\ProductPermissions`): bearbeiten darf, wer
  * ein Produkt angelegt hat (solange es nicht ausgeblendet ist), und jeder
@@ -93,6 +97,23 @@ export async function updateProduct(productId, changes) {
 
 export async function setProductHidden(productId, hidden) {
     const { product } = await api.setProductHidden(productId, hidden);
+
+    return upsert(product);
+}
+
+/**
+ * Bild setzen, ersetzen oder neu zuschneiden (ohne `original`).
+ *
+ * @param {{ image: Blob, original?: Blob|null }} files
+ */
+export async function setProductImage(productId, files) {
+    const { product } = await api.uploadProductImage(productId, files);
+
+    return upsert(product);
+}
+
+export async function removeProductImage(productId) {
+    const { product } = await api.removeProductImage(productId);
 
     return upsert(product);
 }

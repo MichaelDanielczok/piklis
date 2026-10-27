@@ -5,7 +5,7 @@ import { installPageTransitionHandling } from './composables/usePageTransition.j
 
 // Hash-Routing (/#/profile): QUIQQER kennt keine Seiten für App-Pfade.
 // Alle Ansichten außer `meta.public` verlangen eine Anmeldung;
-// `meta.manage` zusätzlich das Recht pwastarter.manage.
+// `meta.manage` zusätzlich das Recht pk.manage.
 const routes = [
     {
         path: '/login',

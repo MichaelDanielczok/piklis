@@ -3,6 +3,6 @@
          xsi:noNamespaceSchemaLocation="https://www.quiqqer.com/docs/schemas/2.x/events.xsd">
     <events>
         <!-- Service Worker und Manifest unter /sw.js und /manifest.webmanifest -->
-        <event on="onRequest" fire="\MichaelDanielczok\PwaStarter\Pwa\EventHandler::onRequest"/>
+        <event on="onRequest" fire="\MichaelDanielczok\Piklis\Pwa\EventHandler::onRequest"/>
     </events>
 </quiqqer>

@@ -1,5 +1,5 @@
 {
-    "name": "michaeldanielczok/pwa-starter",
+    "name": "michaeldanielczok/piklis",
     "type": "quiqqer-module",
     "description": "PWA based on QUIQQER: Vue 3 + Ionic app as standalone start page, REST API with session login.",
     "license": "proprietary",
@@ -18,7 +18,7 @@
     },
     "autoload": {
         "psr-4": {
-            "MichaelDanielczok\\PwaStarter\\": "src/MichaelDanielczok/PwaStarter"
+            "MichaelDanielczok\\Piklis\\": "src/MichaelDanielczok/Piklis"
         }
     }
 }

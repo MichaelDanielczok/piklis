@@ -2,10 +2,10 @@
 <quiqqer xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="https://www.quiqqer.com/docs/schemas/2.x/user.xsd">
     <user>
-        <!-- App-Einstellungen, geändert über PATCH /api/pwa-starter/v1/me/settings -->
+        <!-- App-Einstellungen, geändert über PATCH /api/piklis/v1/me/settings -->
         <attributes>
-            <attribute>pwastarter.theme</attribute>
-            <attribute>pwastarter.language</attribute>
+            <attribute>pk.theme</attribute>
+            <attribute>pk.language</attribute>
         </attributes>
     </user>
 </quiqqer>

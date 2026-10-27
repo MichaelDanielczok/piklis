@@ -1,9 +1,9 @@
 <?php
 
-namespace MichaelDanielczok\PwaStarter\Rest;
+namespace MichaelDanielczok\Piklis\Rest;
 
-use MichaelDanielczok\PwaStarter\Users\InvalidSettingException;
-use MichaelDanielczok\PwaStarter\Users\Profile;
+use MichaelDanielczok\Piklis\Users\InvalidSettingException;
+use MichaelDanielczok\Piklis\Users\Profile;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use QUI;

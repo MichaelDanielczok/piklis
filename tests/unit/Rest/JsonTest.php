@@ -1,9 +1,9 @@
 <?php
 
-namespace MichaelDanielczok\PwaStarter\Tests\Unit\Rest;
+namespace MichaelDanielczok\Piklis\Tests\Unit\Rest;
 
 use GuzzleHttp\Psr7\ServerRequest;
-use MichaelDanielczok\PwaStarter\Rest\Json;
+use MichaelDanielczok\Piklis\Rest\Json;
 use PHPUnit\Framework\TestCase;
 use QUI\REST\Response;
 

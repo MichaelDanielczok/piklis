@@ -3,8 +3,8 @@
          xsi:noNamespaceSchemaLocation="https://www.quiqqer.com/docs/schemas/2.x/database.xsd">
     <database>
         <global>
-            <!-- Eigene Tabellen mit Präfix pwastarter_, portable Typen. Beispiel:
-            <table name="pwastarter_items">
+            <!-- Eigene Tabellen mit Präfix pk_, portable Typen. Beispiel:
+            <table name="pk_items">
                 <field type="integer" autoincrement="true" primary="true">id</field>
                 <field type="string" length="50">user_id</field>
                 <field type="string" length="255">title</field>

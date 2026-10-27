@@ -1,6 +1,6 @@
 export default {
     common: {
-        appName: 'PWA Starter',
+        appName: 'Piklis',
         loading: 'Loading …',
         error: 'Something went wrong. Please try again.',
         offline: 'No connection to the server.'

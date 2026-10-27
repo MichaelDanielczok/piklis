@@ -22,7 +22,7 @@ npm install
 npm run dev
 ```
 
-- Vite proxies `/api/pwa-starter/`, `/ajax.php` and `/media/cache/` to the
+- Vite proxies `/api/piklis/`, `/ajax.php` and `/media/cache/` to the
   instance (`APP_BACKEND`, default `http://localhost:8080`) and rewrites
   `Origin`, otherwise the core rejects the login.
 - No service worker in the dev server; test the PWA with a build.

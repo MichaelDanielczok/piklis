@@ -2,7 +2,7 @@
 // mit den Kategorien von Intl.PluralRules, z. B. { one: '{count} Tag', other: '{count} Tage' }.
 export default {
     common: {
-        appName: 'PWA Starter',
+        appName: 'Piklis',
         loading: 'Wird geladen …',
         error: 'Etwas ist schiefgelaufen. Bitte noch einmal versuchen.',
         offline: 'Keine Verbindung zum Server.'

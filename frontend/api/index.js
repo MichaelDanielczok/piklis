@@ -2,7 +2,7 @@
  * Einziger Weg der App zum Server. Später bekommt nur dieses Modul den
  * Bearer-Token (native App, OAuth); die Komponenten bleiben unverändert.
  *
- * - REST: quiqqer/rest unter /api/pwa-starter/v1, Anmeldung über die
+ * - REST: quiqqer/rest unter /api/piklis/v1, Anmeldung über die
  *   QUIQQER-Session (Cookie). Fehler: { error: 'code', message: '…' }.
  * - Anmelden/Abmelden: Core-Funktionen ajax_users_login und
  *   ajax_user_logout über /ajax.php (IP-Sperre, Fehlversuche, 2FA bleiben
@@ -13,7 +13,7 @@
  */
 import { locale } from '@/i18n/index.js';
 
-const REST_BASE = '/api/pwa-starter/v1';
+const REST_BASE = '/api/piklis/v1';
 const AJAX_URL = '/ajax.php';
 const LOGIN_AUTHENTICATOR = 'QUI\\Users\\Auth\\QUIQQER';
 

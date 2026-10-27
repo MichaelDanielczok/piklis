@@ -2,8 +2,8 @@
 
 ## Overview
 
-- QUIQQER package `michaeldanielczok/pwa-starter`, namespace
-  `MichaelDanielczok\PwaStarter`. One QUIQQER instance per app. No core
+- QUIQQER package `michaeldanielczok/piklis`, namespace
+  `MichaelDanielczok\Piklis`. One QUIQQER instance per app. No core
   changes; everything lives in this package.
 - The app is the start page `/` of the instance: a
   `quiqqer/sitetypes:types/standalone` page without template. Its content
@@ -12,7 +12,7 @@
 - Frontend: Vue 3, Ionic Vue (`mode: 'ios'`), vue-router (hash mode),
   `@lucide/vue` for icons. No Pinia, state lives in composables. No
   Tailwind, no i18n library.
-- Backend: `quiqqer/rest` under `/api/pwa-starter/v1`, authenticated by the
+- Backend: `quiqqer/rest` under `/api/piklis/v1`, authenticated by the
   QUIQQER session.
 
 ## Package files
@@ -20,15 +20,15 @@
 | File | Purpose |
 | --- | --- |
 | `package.xml` | registers the REST provider |
-| `database.xml` | own tables, prefix `pwastarter_`, portable types |
-| `permissions.xml` | `pwastarter.manage` (sent as `permissions.manage` in `GET /me`) |
-| `user.xml` | app settings as user attributes (`pwastarter.theme`, `pwastarter.language`) |
+| `database.xml` | own tables, prefix `pk_`, portable types |
+| `permissions.xml` | `pk.manage` (sent as `permissions.manage` in `GET /me`) |
+| `user.xml` | app settings as user attributes (`pk.theme`, `pk.language`) |
 | `events.xml` | `onRequest`: service worker and manifest |
-| `console.xml`, `cron.xml` | example command `pwastarter:hello`, the same code as cron (created inactive) |
+| `console.xml`, `cron.xml` | example command `pk:hello`, the same code as cron (created inactive) |
 | `locale.xml`, `locale/*.xml` | backend texts (see [Texts](#texts)) |
 | `standalone.html` | content of the start page |
 
-PHP under `src/MichaelDanielczok/PwaStarter/`, grouped by area (`Rest/`,
+PHP under `src/MichaelDanielczok/Piklis/`, grouped by area (`Rest/`,
 `Users/`, `Pwa/`, `Console/`). Add repositories per table and a formatter
 for JSON output when the app grows.
 
@@ -50,9 +50,9 @@ committed because the server does not build (no Node there).
 
 - Routes (hash): `/login` (`meta.public`), `/`, `/profile`. Everything except
   public routes requires a session; `meta.manage` additionally requires
-  `pwastarter.manage`. A `401` from the API returns to login with
+  `pk.manage`. A `401` from the API returns to login with
   `?redirect=`.
-- Language: user setting, else `localStorage` `pwastarter.language`, else
+- Language: user setting, else `localStorage` `pk.language`, else
   device language, else `de`. Theme: `auto | light | dark` via `data-theme`
   on `<html>`; `applyTheme()` also sets both `theme-color` meta tags and
   remembers the theme for the login page.

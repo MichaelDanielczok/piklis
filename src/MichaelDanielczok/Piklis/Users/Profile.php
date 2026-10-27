@@ -1,6 +1,6 @@
 <?php
 
-namespace MichaelDanielczok\PwaStarter\Users;
+namespace MichaelDanielczok\Piklis\Users;
 
 use QUI;
 use QUI\Interfaces\Users\User;
@@ -19,13 +19,13 @@ use function trim;
  */
 class Profile
 {
-    public const ATTRIBUTE_THEME = 'pwastarter.theme';
-    public const ATTRIBUTE_LANGUAGE = 'pwastarter.language';
+    public const ATTRIBUTE_THEME = 'pk.theme';
+    public const ATTRIBUTE_LANGUAGE = 'pk.language';
 
     public const THEMES = ['auto', 'light', 'dark'];
     public const LANGUAGES = ['auto', 'de', 'en'];
 
-    public const PERMISSION_MANAGE = 'pwastarter.manage';
+    public const PERMISSION_MANAGE = 'pk.manage';
 
     private const AVATAR_SIZE = 160;
 

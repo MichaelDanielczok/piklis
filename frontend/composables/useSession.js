@@ -8,7 +8,7 @@ import { computed, ref } from 'vue';
 import { api, ApiError } from '@/api/index.js';
 import { setLocale } from '@/i18n/index.js';
 
-const THEME_STORAGE_KEY = 'pwastarter.theme';
+const THEME_STORAGE_KEY = 'pk.theme';
 
 const user = ref(null);
 const status = ref('unknown');

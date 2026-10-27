@@ -7,11 +7,11 @@ import { VitePWA } from 'vite-plugin-pwa';
 // fester app.css, damit die Standalone-Seite nach einem Build unverändert bleibt.
 // Das Build-Ergebnis wird committet; der Server baut nicht selbst.
 
-const PACKAGE = 'michaeldanielczok/pwa-starter';
-const APP_NAME = 'PWA Starter';
+const PACKAGE = 'michaeldanielczok/piklis';
+const APP_NAME = 'Piklis';
 const THEME_COLOR = '#14161A';
 
-// Entwicklung: /api/pwa-starter/ und /ajax.php gehen an die QUIQQER-Instanz, damit
+// Entwicklung: /api/piklis/ und /ajax.php gehen an die QUIQQER-Instanz, damit
 // Anmeldung und Session-Cookie wie im Betrieb funktionieren. Standard: Docker-Testinstanz.
 const devBackend = process.env.APP_BACKEND ?? 'http://localhost:8080';
 
@@ -77,7 +77,7 @@ const pwa = VitePWA({
                 urlPattern: ({ request, url }) => request.mode === 'navigate' && url.pathname === '/',
                 handler: 'StaleWhileRevalidate',
                 options: {
-                    cacheName: 'pwastarter-start',
+                    cacheName: 'pk-start',
                     expiration: { maxEntries: 1 }
                 }
             }
@@ -100,7 +100,7 @@ export default defineConfig({
         host: true,
         proxy: {
             // nur die REST-API; /api/index.js ist das eigene Frontend-Modul
-            '/api/pwa-starter/': backendProxy,
+            '/api/piklis/': backendProxy,
             '/ajax.php': backendProxy,
             '/media/cache/': backendProxy
         }

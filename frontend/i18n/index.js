@@ -25,7 +25,7 @@ export const LOCALE_NAMES = {
 export const SUPPORTED_LOCALES = Object.keys(LOCALE_NAMES);
 export const FALLBACK_LOCALE = 'de';
 
-const STORAGE_KEY = 'pwastarter.language';
+const STORAGE_KEY = 'pk.language';
 
 function readStoredLocale() {
     try {

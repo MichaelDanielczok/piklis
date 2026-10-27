@@ -10,17 +10,17 @@
     <meta name="robots" content="noindex, nofollow">
     <meta name="theme-color" content="#14161A" media="(prefers-color-scheme: dark)">
     <meta name="theme-color" content="#F6F6F3" media="(prefers-color-scheme: light)">
-    <title>PWA Starter</title>
+    <title>Piklis</title>
     <!-- PWA: Manifest und Service Worker liefert das Paket unter der Wurzel aus (Pwa\EventHandler) -->
     <link rel="manifest" href="/manifest.webmanifest">
-    <link rel="icon" href="/packages/michaeldanielczok/pwa-starter/bin/app/icons/favicon-32.png" sizes="32x32" type="image/png">
-    <link rel="apple-touch-icon" href="/packages/michaeldanielczok/pwa-starter/bin/app/icons/apple-touch-icon.png">
+    <link rel="icon" href="/packages/michaeldanielczok/piklis/bin/app/icons/favicon-32.png" sizes="32x32" type="image/png">
+    <link rel="apple-touch-icon" href="/packages/michaeldanielczok/piklis/bin/app/icons/apple-touch-icon.png">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="PWA Starter">
+    <meta name="apple-mobile-web-app-title" content="Piklis">
     <!-- Inhalt reicht unter die Statusleiste (safe-area-inset-top in AppPage) -->
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <!-- Motiv vor dem ersten Zeichnen (wie applyStoredTheme in useSession.js) -->
-    <script>try{var t=localStorage.getItem('pwastarter.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>
+    <script>try{var t=localStorage.getItem('pk.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>
     <!-- Loader bis zum Start der App; Vue ersetzt den Inhalt von #app beim Mount.
          Farben wie --color-bg/--color-accent in tokens.css -->
     <style>
@@ -38,8 +38,8 @@
             .boot__bar::after { animation: none; }
         }
     </style>
-    <link rel="stylesheet" href="/packages/michaeldanielczok/pwa-starter/bin/app/app.css">
-    <script type="module" src="/packages/michaeldanielczok/pwa-starter/bin/app/app.js"></script>
+    <link rel="stylesheet" href="/packages/michaeldanielczok/piklis/bin/app/app.css">
+    <script type="module" src="/packages/michaeldanielczok/piklis/bin/app/app.js"></script>
 </head>
 <body>
 <div id="app">

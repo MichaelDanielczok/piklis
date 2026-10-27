@@ -1,6 +1,6 @@
 <?php
 
-namespace MichaelDanielczok\PwaStarter\Pwa;
+namespace MichaelDanielczok\Piklis\Pwa;
 
 use QUI;
 

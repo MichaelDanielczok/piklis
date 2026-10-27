@@ -1,4 +1,4 @@
-# QUIQQER PWA Starter
+# QUIQQER Piklis
 
 Template for web apps that run as an installable PWA in the browser and use
 QUIQQER as backend: a Vue 3 + Ionic app as standalone start page of its own
@@ -14,7 +14,7 @@ built this way: Obsidian note “Grundgerüst PWA QUIQQER Projekt”.
 - Navigation: sidebar on desktop, floating bar on mobile
 - PWA: manifest, service worker (precache, start page stale-while-revalidate),
   update on next start, icons generated from one SVG
-- REST API `/api/pwa-starter/v1` (`GET /me`, `PATCH /me/settings`)
+- REST API `/api/piklis/v1` (`GET /me`, `PATCH /me/settings`)
 - App texts in `frontend/i18n/locales/` (de, en; more languages in a few
   steps), backend texts in `locale/*.xml`
 - Example console command, cron, permission, user attributes

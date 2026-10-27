@@ -1,6 +1,6 @@
 <?php
 
-namespace MichaelDanielczok\PwaStarter\Rest;
+namespace MichaelDanielczok\Piklis\Rest;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;

@@ -1,6 +1,6 @@
 <?php
 
-namespace MichaelDanielczok\PwaStarter\Console;
+namespace MichaelDanielczok\Piklis\Console;
 
 use QUI;
 
@@ -9,14 +9,14 @@ use QUI;
  * Lange Läufe gehören in einen Konsolenbefehl; ein App-Knopf startet ihn als
  * eigenen Prozess (siehe docs/architecture.md, „Hintergrundarbeit“).
  *
- * ./console pwastarter:hello
+ * ./console pk:hello
  */
 class Hello extends QUI\System\Console\Tool
 {
     public function __construct()
     {
-        $this->setName('pwastarter:hello')
-            ->setDescription('PWA Starter: example console command');
+        $this->setName('pk:hello')
+            ->setDescription('Piklis: example console command');
     }
 
     public function execute(): void
@@ -38,6 +38,6 @@ class Hello extends QUI\System\Console\Tool
 
     private static function greeting(): string
     {
-        return 'PWA Starter: hello from ' . QUI::conf('globals', 'host');
+        return 'Piklis: hello from ' . QUI::conf('globals', 'host');
     }
 }

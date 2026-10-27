@@ -2,7 +2,7 @@
 <quiqqer xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="https://www.quiqqer.com/docs/schemas/2.x/console.xsd">
     <console>
-        <!-- Beispiel: ./console pwastarter:hello; Vorlage für Hintergrundarbeit (Cron startet denselben Code) -->
-        <tool exec="\MichaelDanielczok\PwaStarter\Console\Hello"/>
+        <!-- Beispiel: ./console pk:hello; Vorlage für Hintergrundarbeit (Cron startet denselben Code) -->
+        <tool exec="\MichaelDanielczok\Piklis\Console\Hello"/>
     </console>
 </quiqqer>

@@ -29,7 +29,7 @@ class MeEndpoint
     }
 
     /**
-     * Erwartet JSON, z. B. `{ "theme": "dark", "language": "auto" }`.
+     * Erwartet JSON, z. B. `{ "theme": "dark" }`.
      * Antwortet wie `GET /me`.
      *
      * @param array<string, string> $args

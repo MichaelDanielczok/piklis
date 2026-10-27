@@ -9,7 +9,9 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 const PACKAGE = 'michaeldanielczok/piklis';
 const APP_NAME = 'Piklis';
-const THEME_COLOR = '#14161A';
+// Seitengrund im hellen Motiv (--color-bg); Grün (#1F6E4E) färbte die Statusleiste
+// über der hellen Seite
+const THEME_COLOR = '#F7F6F3';
 
 // Entwicklung: /api/piklis/ und /ajax.php gehen an die QUIQQER-Instanz, damit
 // Anmeldung und Session-Cookie wie im Betrieb funktionieren. Standard: Docker-Testinstanz.
@@ -46,16 +48,18 @@ const pwa = VitePWA({
         id: '/',
         name: APP_NAME,
         short_name: APP_NAME,
+        description: 'Gemeinsame Einkaufslisten für den Haushalt',
         lang: 'de',
         start_url: '/',
         scope: '/',
         display: 'standalone',
-        // Manifest kennt nur eine Farbe: dunkles Motiv (wie --color-bg in tokens.css)
+        // Manifest kennt nur eine Farbe: helles Motiv (wie --color-bg in tokens.css)
         background_color: THEME_COLOR,
         theme_color: THEME_COLOR,
         icons: [
             { src: appBase + 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
             { src: appBase + 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+            { src: appBase + 'icons/icon-maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
             { src: appBase + 'icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
         ]
     },

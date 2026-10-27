@@ -3,77 +3,19 @@
  * Zahlen, Daten und Mehrzahl über Intl. QUIQQERs `locale.xml` enthält nur
  * Backend-Texte (Rechte, Cron, Einstellungen).
  *
- * Sprache: Benutzereinstellung, sonst zuletzt gewählte (localStorage), sonst
- * Gerätesprache, sonst FALLBACK_LOCALE.
- *
- * Weitere Sprache (z. B. pl): `locales/pl.js` anlegen und hier in `messages`
- * und `LOCALE_NAMES` eintragen, dazu `Profile::LANGUAGES` in PHP
- * (siehe docs/architecture.md, „Texts“).
+ * Piklis ist vorerst nur Deutsch: keine Sprachauswahl, keine Erkennung der
+ * Gerätesprache. Alle Texte laufen trotzdem über t(), damit eine weitere
+ * Sprache (z. B. pl) später nur `locales/pl.js`, einen Eintrag in `messages`
+ * und eine Auswahl braucht (siehe docs/architecture.md, „Texts“).
  */
 import { ref } from 'vue';
 import de from './locales/de.js';
-import en from './locales/en.js';
 
-const messages = { de, en };
+const messages = { de };
 
-/** Sprachen der App mit ihrem Namen in der eigenen Sprache (Auswahl im Profil). */
-export const LOCALE_NAMES = {
-    de: 'Deutsch',
-    en: 'English'
-};
-
-export const SUPPORTED_LOCALES = Object.keys(LOCALE_NAMES);
 export const FALLBACK_LOCALE = 'de';
 
-const STORAGE_KEY = 'pk.language';
-
-function readStoredLocale() {
-    try {
-        return window.localStorage.getItem(STORAGE_KEY);
-    } catch {
-        return null;
-    }
-}
-
-function detectLocale() {
-    const stored = readStoredLocale();
-
-    if (SUPPORTED_LOCALES.includes(stored)) {
-        return stored;
-    }
-
-    const deviceLanguages = navigator.languages ?? [navigator.language];
-
-    for (const language of deviceLanguages) {
-        const base = String(language).toLowerCase().split('-')[0];
-
-        if (SUPPORTED_LOCALES.includes(base)) {
-            return base;
-        }
-    }
-
-    return FALLBACK_LOCALE;
-}
-
-export const locale = ref(detectLocale());
-
-/**
- * Setzt die Sprache. `null` bedeutet „Automatisch“ (Gerätesprache).
- */
-export function setLocale(newLocale) {
-    try {
-        if (newLocale === null) {
-            window.localStorage.removeItem(STORAGE_KEY);
-        } else {
-            window.localStorage.setItem(STORAGE_KEY, newLocale);
-        }
-    } catch {
-        // ohne localStorage gilt die Wahl nur bis zum Neuladen
-    }
-
-    locale.value = newLocale === null ? detectLocale() : newLocale;
-    applyDocumentLanguage();
-}
+export const locale = ref(FALLBACK_LOCALE);
 
 export function applyDocumentLanguage() {
     document.documentElement.lang = locale.value;
@@ -138,5 +80,14 @@ export function formatDateTime(value) {
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit'
+    }).format(new Date(value));
+}
+
+/** Tag als Überschrift: de „Dienstag, 27. Oktober“. */
+export function formatDayHeading(value) {
+    return new Intl.DateTimeFormat(locale.value, {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long'
     }).format(new Date(value));
 }

@@ -6,6 +6,7 @@
 import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppPage from '@/components/layout/AppPage.vue';
+import AppLogo from '@/components/ui/AppLogo.vue';
 import { login } from '@/composables/useSession.js';
 import { ApiError } from '@/api/index.js';
 import { t } from '@/i18n/index.js';
@@ -50,8 +51,8 @@ async function submit() {
     <AppPage bare>
         <main class="login">
             <form class="login__card" @submit.prevent="submit">
-                <h1 class="login__title">{{ t('common.appName') }}</h1>
-                <p class="login__subtitle">{{ t('login.title') }}</p>
+                <AppLogo class="login__logo" />
+                <h1 class="login__title">{{ t('login.title') }}</h1>
 
                 <label class="login__field">
                     <span class="login__label">{{ t('login.username') }}</span>
@@ -108,17 +109,18 @@ async function submit() {
     border-radius: var(--radius-lg);
     background: var(--color-surface-1);
     border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-1);
+}
+
+.login__logo {
+    margin-bottom: var(--space-2);
 }
 
 .login__title {
-    font-family: var(--font-display);
-    font-size: var(--font-size-h1);
-    line-height: var(--line-height-heading);
-}
-
-.login__subtitle {
     margin-bottom: var(--space-2);
-    color: var(--color-text-2);
+    font-size: var(--font-size-h1);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--line-height-h1);
 }
 
 .login__field {
@@ -137,8 +139,8 @@ async function submit() {
     height: var(--input-height);
     padding: 0 var(--space-4);
     border-radius: var(--radius-sm);
-    border: 1px solid var(--color-border-strong);
-    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-1);
     color: var(--color-text-1);
     /* 16 px: iOS zoomt sonst beim Fokus */
     font: inherit;
@@ -146,7 +148,7 @@ async function submit() {
 }
 
 .login__input:focus-visible {
-    outline: var(--focus-ring-width) solid var(--color-accent);
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
     outline-offset: 0;
 }
 
@@ -156,11 +158,12 @@ async function submit() {
 }
 
 .login__submit {
-    height: var(--input-height);
+    height: var(--button-height);
     margin-top: var(--space-2);
-    border-radius: var(--radius-pill);
+    border-radius: var(--radius-md);
     background: var(--color-accent);
     color: var(--color-on-accent);
+    font-size: var(--font-size-title);
     font-weight: var(--font-weight-semibold);
     transition: background-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
 }

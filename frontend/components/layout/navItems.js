@@ -1,8 +1,9 @@
-import { House, UserRound } from '@lucide/vue';
+import { Files, LayoutGrid, ListChecks } from '@lucide/vue';
 
-// Navigationsziele, in Seitenleiste und mobiler Navigation gleich und in dieser
-// Reihenfolge. Das Profil steht in der Seitenleiste immer unten.
+// Hauptziele, in Seitenleiste und mobiler Navigation gleich und in dieser
+// Reihenfolge. Profil, Haushalt und Einstellungen liegen im Benutzermenü.
 export const navItems = [
-    { to: '/', labelKey: 'nav.home', icon: House, exact: true },
-    { to: '/profile', labelKey: 'nav.profile', icon: UserRound }
+    { to: '/', labelKey: 'nav.lists', icon: ListChecks, exact: true },
+    { to: '/products', labelKey: 'nav.products', icon: LayoutGrid },
+    { to: '/templates', labelKey: 'nav.templates', icon: Files }
 ];

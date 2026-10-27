@@ -1,57 +1,42 @@
-# QUIQQER Piklis
+# Piklis
 
-Template for web apps that run as an installable PWA in the browser and use
-QUIQQER as backend: a Vue 3 + Ionic app as standalone start page of its own
-QUIQQER instance, talking to a `quiqqer/rest` API with the QUIQQER session.
+Private shopping list app for the household: an installable PWA (phone
+first, desktop usable) on QUIQQER. Vue 3 + Ionic app as standalone start
+page of its own QUIQQER instance, talking to a `quiqqer/rest` API with the
+QUIQQER session. German only.
 
-Derived from Filmoteka. Whether this structure fits a project, and why it is
-built this way: Obsidian note “Grundgerüst PWA QUIQQER Projekt”.
+Built on the template `quiqqer-pwa-starter`. Concept, decisions and roadmap
+live in Obsidian (“Piklis”, “Piklis Konzept”, “Piklis Entscheidungen”,
+“Piklis Roadmap”); the design package “Leinen” lies in the instance root
+under `design/piklis-designpaket/`.
 
 ## What is included
 
 - Login with QUIQQER users (core login, own form), session check, 401 handling
-- Home and profile (theme light/dark/auto, language de/en/auto, sign out)
-- Navigation: sidebar on desktop, floating bar on mobile
-- PWA: manifest, service worker (precache, start page stale-while-revalidate),
-  update on next start, icons generated from one SVG
+- Navigation Listen · Produkte · Vorlagen: floating glass bar on phones,
+  sidebar on desktop; placeholder views
+- User menu at the avatar: Profil, Haushalt, Einstellungen, Darstellung
+  (theme automatic/light/dark), sign out
+- Design “Leinen”: tokens light/dark, system font, app icon, favicons,
+  boot loader, toast, sheet
+- Base components (product image, list row with its states, quantity, add
+  tile, section label, sheet, skeleton row) with a pattern page in the dev
+  server (`/#/components`)
+- Permission `piklis.products.manage` for product maintainers
+- PWA: manifest, service worker (precache, start page stale-while-revalidate)
 - REST API `/api/piklis/v1` (`GET /me`, `PATCH /me/settings`)
-- App texts in `frontend/i18n/locales/` (de, en; more languages in a few
-  steps), backend texts in `locale/*.xml`
-- Example console command, cron, permission, user attributes
 - PHPStan level 8, PHPCS, PHPUnit
-- Layout guide: what to change for a header, other navigation or another
-  look ([architecture](docs/architecture.md#layout))
-
-## New project
-
-1. GitHub: “Use this template”, clone.
-2. Rename placeholders, then the script deletes itself:
-
-   ```bash
-   ./init.sh <vendor> <package> <app-id> "<Title>"
-   ```
-
-3. Colours in `frontend/styles/tokens.css`, `standalone.html` and
-   `vite.config.js` (`THEME_COLOR`); icon in `build/icon.svg`, then
-   `build/make-icons.sh`.
-4. Build and start a test instance (see below), commit.
 
 ## Quick start
 
 ```bash
 npm install
-npm run build
+npm run dev     # Vite, proxies the API to APP_BACKEND
+npm run build   # before every commit; bin/app/ is committed
 ```
-
-Test instance: [quiqqer-docker-dev](https://github.com/MichaelDanielczok/quiqqer-docker-dev)
-(Docker, QUIQQER with this repository mounted as package). After its
-`install-package.sh` the app runs on <http://localhost:8080>. Frontend with
-hot reload: `npm run dev` (<http://localhost:5173>, proxies the API to the
-test instance).
-
-Run `npm run build` before every commit; the build in `bin/app/` is committed.
 
 ## Documentation
 
-- [Architecture](docs/architecture.md): structure, PWA, REST, login, texts
-- [Development](docs/development.md): Docker, Vite, tools, deployment
+- [Architecture](docs/architecture.md): structure, design, components,
+  PWA, REST, login, texts
+- [Development](docs/development.md): instance, mock backend, Vite, tools

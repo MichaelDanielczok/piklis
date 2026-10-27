@@ -1,11 +1,13 @@
 import { createRouter, createWebHashHistory } from '@ionic/vue-router';
-import HomeView from './views/HomeView.vue';
+import ListsView from './views/ListsView.vue';
 import { loadSession, useSession } from './composables/useSession.js';
 import { installPageTransitionHandling } from './composables/usePageTransition.js';
 
-// Hash-Routing (/#/profile): QUIQQER kennt keine Seiten für App-Pfade.
+// Hash-Routing (/#/products): QUIQQER kennt keine Seiten für App-Pfade.
 // Alle Ansichten außer `meta.public` verlangen eine Anmeldung;
-// `meta.manage` zusätzlich das Recht pk.manage.
+// `meta.manageProducts` zusätzlich das Recht piklis.products.manage.
+// Hauptziele (Navigation): Listen, Produkte, Vorlagen. Profil, Haushalt und
+// Einstellungen kommen aus dem Benutzermenü.
 const routes = [
     {
         path: '/login',
@@ -17,14 +19,42 @@ const routes = [
     },
     {
         path: '/',
-        name: 'home',
-        component: HomeView
+        name: 'lists',
+        component: ListsView
+    },
+    {
+        path: '/products',
+        name: 'products',
+        component: () => import('./views/ProductsView.vue')
+    },
+    {
+        path: '/templates',
+        name: 'templates',
+        component: () => import('./views/TemplatesView.vue')
     },
     {
         path: '/profile',
         name: 'profile',
         component: () => import('./views/ProfileView.vue')
     },
+    {
+        path: '/household',
+        name: 'household',
+        component: () => import('./views/HouseholdView.vue')
+    },
+    {
+        path: '/settings',
+        name: 'settings',
+        component: () => import('./views/SettingsView.vue')
+    },
+    // Musterseite nur im Entwicklungsserver; im Build fehlt sie samt Beispielbildern
+    ...(import.meta.env.DEV
+        ? [{
+            path: '/components',
+            name: 'components',
+            component: () => import('./views/ComponentsView.vue')
+        }]
+        : []),
     {
         path: '/:pathMatch(.*)*',
         redirect: '/'
@@ -38,7 +68,7 @@ const router = createRouter({
 
 installPageTransitionHandling(router);
 
-const { status, canManage } = useSession();
+const { status, canManageProducts } = useSession();
 
 router.beforeEach(async (to) => {
     if (status.value === 'unknown') {
@@ -61,7 +91,7 @@ router.beforeEach(async (to) => {
         };
     }
 
-    if (to.meta.manage && !canManage.value) {
+    if (to.meta.manageProducts && !canManageProducts.value) {
         return { path: '/', replace: true };
     }
 

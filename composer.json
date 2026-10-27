@@ -1,7 +1,7 @@
 {
     "name": "michaeldanielczok/piklis",
     "type": "quiqqer-module",
-    "description": "PWA based on QUIQQER: Vue 3 + Ionic app as standalone start page, REST API with session login.",
+    "description": "Piklis: shopping list app as PWA on QUIQQER (Vue 3 + Ionic start page, REST API with session login).",
     "license": "proprietary",
     "authors": [
         {

@@ -1,6 +1,8 @@
 <script setup>
 /**
- * Schwebende Glas-Navigation unten (Mobil und Tablet).
+ * Schwebende Glas-Navigation unten (Mobil und Tablet) im iPhone-Stil, in
+ * Leinen-Farben: aktives Ziel mit grünem Pill hinter dem Symbol und grüner
+ * Beschriftung (Form und Farbe, nicht nur Farbe).
  */
 import { t } from '@/i18n/index.js';
 import NavLink from './NavLink.vue';
@@ -12,7 +14,9 @@ import { navItems } from './navItems.js';
         <ul class="mobile-nav__list" :style="{ '--nav-count': navItems.length }">
             <li v-for="item in navItems" :key="item.to">
                 <NavLink :to="item.to" :exact="item.exact" class="mobile-nav__link">
-                    <component :is="item.icon" class="mobile-nav__icon" aria-hidden="true" />
+                    <span class="mobile-nav__pill">
+                        <component :is="item.icon" class="mobile-nav__icon" aria-hidden="true" />
+                    </span>
                     <span class="mobile-nav__label">{{ t(item.labelKey) }}</span>
                 </NavLink>
             </li>
@@ -32,8 +36,8 @@ import { navItems } from './navItems.js';
     background: var(--nav-glass-bg);
     border: 1px solid var(--nav-glass-border);
     box-shadow: var(--shadow-float);
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur) saturate(1.4);
+    -webkit-backdrop-filter: var(--glass-blur) saturate(1.4);
 }
 
 .mobile-nav__list {
@@ -53,6 +57,7 @@ import { navItems } from './navItems.js';
     color: var(--color-text-2);
     font-size: var(--font-size-caption);
     font-weight: var(--font-weight-semibold);
+    line-height: var(--line-height-label);
     transition: color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
 }
 
@@ -60,8 +65,27 @@ import { navItems } from './navItems.js';
     transform: scale(var(--press-scale));
 }
 
+.mobile-nav__link:focus-visible {
+    outline-offset: calc(-1 * var(--space-1));
+    border-radius: var(--radius-pill);
+}
+
+.mobile-nav__pill {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--space-14);
+    height: var(--space-8);
+    border-radius: var(--radius-pill);
+    transition: background-color var(--duration-fast) var(--ease-out);
+}
+
 .mobile-nav__link[aria-current="page"] {
     color: var(--color-accent-text);
+}
+
+.mobile-nav__link[aria-current="page"] .mobile-nav__pill {
+    background: var(--color-accent-soft);
 }
 
 .mobile-nav__icon {

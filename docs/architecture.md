@@ -2,8 +2,11 @@
 
 ## Overview
 
+- Piklis: private shopping list app as installable PWA, phone first, desktop
+  usable. German only (texts still through `t()`).
 - QUIQQER package `michaeldanielczok/piklis`, namespace
-  `MichaelDanielczok\Piklis`. One QUIQQER instance per app. No core
+  `MichaelDanielczok\Piklis`, app id `pk` (user attributes, `localStorage`,
+  console commands). One QUIQQER instance per app. No core
   changes; everything lives in this package.
 - The app is the start page `/` of the instance: a
   `quiqqer/sitetypes:types/standalone` page without template. Its content
@@ -21,8 +24,8 @@
 | --- | --- |
 | `package.xml` | registers the REST provider |
 | `database.xml` | own tables, prefix `pk_`, portable types |
-| `permissions.xml` | `pk.manage` (sent as `permissions.manage` in `GET /me`) |
-| `user.xml` | app settings as user attributes (`pk.theme`, `pk.language`) |
+| `permissions.xml` | `piklis.products.manage`: product maintainers may edit all products (sent as `permissions.manageProducts` in `GET /me`) |
+| `user.xml` | app settings as user attributes (`pk.theme`) |
 | `events.xml` | `onRequest`: service worker and manifest |
 | `console.xml`, `cron.xml` | example command `pk:hello`, the same code as cron (created inactive) |
 | `locale.xml`, `locale/*.xml` | backend texts (see [Texts](#texts)) |
@@ -42,111 +45,149 @@ committed because the server does not build (no Node there).
 | `app.js`, `App.vue`, `router.js` | entry, shell, routes |
 | `api/index.js` | the only module that talks to the server (REST and core Ajax) |
 | `composables/` | shared state: session, toast, page transition |
-| `components/layout/` | page frame, sidebar, mobile navigation, nav items |
+| `components/layout/` | page frame and header, sidebar, mobile navigation, nav items, user menu |
+| `components/ui/` | button, sheet, section label, theme switch, avatar, logo, empty state |
+| `components/list/` | list row, row group, skeleton row, quantity, add tile |
+| `components/products/` | product image (photo or fallback icon), fallback icon |
+| `icons/` | fallback icon sprite (`ersatzicons.svg`, embedded once at start) |
+| `utils/quantity.js` | quantities with unit (`2 ×`, `2 Packungen`, `1,5 kg`) |
 | `views/` | one view per route |
 | `styles/tokens.css` | all colours, sizes and spacing as CSS variables |
-| `i18n/` | `t()`, texts in `locales/*.js`, `Intl` for numbers, dates and plurals |
-| `public/icons/` | PWA icons and favicon (from `build/icon.svg`) |
+| `i18n/` | `t()`, texts in `locales/de.js`, `Intl` for numbers, dates and plurals |
+| `public/icons/` | PWA icons and favicons (from `build/*.svg`) |
+| `dev/samples/` | sample photos for the pattern page, dev server only |
 
-- Routes (hash): `/login` (`meta.public`), `/`, `/profile`. Everything except
-  public routes requires a session; `meta.manage` additionally requires
-  `pk.manage`. A `401` from the API returns to login with
-  `?redirect=`.
-- Language: user setting, else `localStorage` `pk.language`, else
-  device language, else `de`. Theme: `auto | light | dark` via `data-theme`
-  on `<html>`; `applyTheme()` also sets both `theme-color` meta tags and
-  remembers the theme for the login page.
+- Routes (hash): `/login` (`meta.public`); navigation `/` (Listen),
+  `/products` (Produkte), `/templates` (Vorlagen); from the user menu
+  `/profile`, `/household`, `/settings`; `/components` (pattern page) only in
+  the dev server (`import.meta.env.DEV`, missing in the build). Everything
+  except public routes requires a session; `meta.manageProducts`
+  additionally requires `piklis.products.manage`. A `401` from the API
+  returns to login with `?redirect=`.
+- Language: German only, no language setting. Theme: `auto | light | dark`
+  (default `auto`, follows the system) via `data-theme` on `<html>`, chosen
+  in the user menu or in Einstellungen; `applyTheme()` also sets both
+  `theme-color` meta tags and remembers the theme for the login page.
 - Logout clears module state: other composables register a reset with
   `onLogout()` from `useSession.js`.
-- Sizes: spacing in quarter rem, radii in eighth rem, font sizes in
+
+## Layout and design
+
+Design direction “Leinen” from the design package in the instance root
+(`design/piklis-designpaket/`: `DESIGN.md`, tokens, logo, fallback icons,
+screenshots). It sets the direction, not pixels: values come from its
+tokens, rounded to the grid below and stored under the starter's token
+names in `styles/tokens.css` (no second token system). Where the design
+package and the concept (Obsidian “Piklis Konzept”) disagree, the concept
+wins.
+
+- **Grid:** spacing in quarter rem, radii in eighth rem, font sizes in
   sixteenth rem, breakpoints in `em` (`45em` tablet, `64em` desktop with
   sidebar). Components only use the variables from `tokens.css`.
+- **Colours:** warm neutrals and one brand colour (green `#1F6E4E`, dark
+  `#5CC495`). Light is the default, dark follows the system or
+  `data-theme="dark"`. Status colours `--color-done`, `--color-notgot`,
+  `--color-unsynced` always come with a symbol and text, never colour alone.
+- **Font:** system font only (SF Pro, Roboto, Segoe UI), no web font.
+- **Shell** (`App.vue`): sidebar from `64em`, else the floating glass bar at
+  the bottom.
+- **Header** (`AppHeader.vue`, rendered by `AppPage.vue`): large title
+  (28 px) with optional subtitle, back button on sub pages (`back`), actions
+  slot, avatar with user menu on phones. It scrolls with the content; the
+  glass strip in `AppPage.vue` covers the status bar of the installed app.
+  `AppPage` `width`: `wide` · `list` · `narrow`.
+- **Navigation:** Listen · Produkte · Vorlagen (`navItems.js`).
+  `MobileNav.vue`: the starter's floating glass bar in Leinen colours, active
+  item with a green pill behind the icon and green label. `SideNav.vue`: app
+  icon and name, items with a green pill, user menu at the bottom.
+- **User menu** (`UserMenu.vue`, `placement` `header` | `sidebar`): name,
+  Profil, Haushalt, Einstellungen, Darstellung (theme switch directly in the
+  menu as `menuitemradio`), Musterseite (dev server only), Abmelden. Menu
+  button keyboard pattern (arrows, Home/End, Escape).
+- **Toast** (`useToast.js`, style in `base.css`): dark surface, symbol on the
+  left (`icon: 'done' | 'notgot' | 'info'`), green action (“Rückgängig”), 5 s,
+  above the floating bar.
+- **Sheets** (`AppSheet.vue`): Ionic modal as sheet with automatic height,
+  radius 22 px at the top, handle, title and subtitle, round close button,
+  scrim from the tokens; centred from `45em`.
+- **App icon:** “Zettelstapel” from the design package. `build/icon.svg`
+  (rounded, manifest `any`), `build/icon-maskable.svg` (full bleed, maskable
+  and Apple touch icon), `build/favicon.svg` (reduced, browser tab); render
+  with `build/make-icons.sh`. Manifest and `theme-color` use the page
+  background (`#F7F6F3` light, `#141615` dark), not the green of the design
+  package's example manifest: a green status bar above the light page looked
+  wrong. Boot loader in `standalone.html`: app icon and progress bar.
 - Hover styles only inside `@media (hover: hover)` (sticky hover on iOS).
-- Ionic’s swipe-back gesture is off; a browser back (Safari gesture)
+- Ionic's swipe-back gesture is off; a browser back (Safari gesture)
   switches pages without animation (`usePageTransition.js`). Re-enable the
   gesture in a native shell.
 
-## Layout
+## Base components
 
-The starter ships a deliberately plain shell: sidebar on desktop, floating
-bar at the bottom on phones, no header. It is a starting point, not a design
-decision; every project shapes its own look. All of it lives in a few files:
+All shown on the pattern page `/#/components` (dev server only), with sample
+data and sample photos cut from the design package's drawn placeholders.
 
-| File | Decides |
+| Component | Purpose |
 | --- | --- |
-| `App.vue` | which navigation exists and at which width (`64em`: sidebar instead of bottom bar) |
-| `components/layout/navItems.js` | navigation targets, icons, order |
-| `components/layout/SideNav.vue`, `MobileNav.vue` | look of both navigations |
-| `components/layout/AppPage.vue` | frame of every view: scrolling, safe areas, content width |
-| `styles/tokens.css` | colours, fonts, spacing, radii, sizes |
-| `styles/base.css` | global rules, mapping of Ionic variables, toast |
+| `products/ProductImage.vue` | photo or fallback icon with the same size and radius (`row` 44 px, `tile` 48 px, `lg` 80 px); `muted` for done rows; a broken photo falls back to the icon |
+| `products/ProductIcon.vue` | one fallback icon from the sprite (`#pk-<name>`, unknown names show `allgemein`) |
+| `list/ListRow.vue` | list row with three separate touch areas: handle (32 px wide, full row height), details (image, name max. 2 lines, note or status, quantity), check zone (60 px wide, full row height, ring 28 px). States `open` · `done` · `notGot` (transfer button instead of the ring), plus `unsynced` |
+| `list/RowGroup.vue` | card for rows, separators instead of single cards |
+| `list/SkeletonRow.vue` | loading row with exactly the end height (64 px) and the same zones, flat without shimmer |
+| `list/QuantityLabel.vue` | quantity, semibold with tabular figures |
+| `list/AddTile.vue` | tile in “Produkte hinzufügen”: fixed height 124 px, plus button turns into “− 1 +” with the plus at the same place, inset outline when selected, minus at 1 removes |
+| `ui/SectionLabel.vue` | section heading in capitals (“ERLEDIGT · 8”), capitals by CSS only |
+| `ui/AppSheet.vue` | bottom sheet (see above) |
+| `ui/AppButton.vue`, `ui/ThemeSwitch.vue`, `ui/UserAvatar.vue`, `ui/AppLogo.vue`, `ui/EmptyState.vue` | button, theme choice, avatar or initials, app icon with name, placeholder of a view |
 
-Common changes:
+Deviations from the design package, chosen for the phone:
 
-- **Square instead of pill buttons:** `SideNav.vue`, `.side-nav__link`:
-  `border-radius: var(--radius-sm)`. The mobile bar likewise
-  (`.mobile-nav`, e.g. `var(--radius-lg)`). Never hard-code values; add a
-  token if none fits.
-- **Header bar** (back button, search, notifications, avatar): create
-  `components/layout/AppHeader.vue`.
-  - For all views: in `App.vue` inside `.app-shell__main`, above
-    `IonRouterOutlet`; make `.app-shell__main` a flex column and let the
-    outlet take the remaining height (`position: relative; flex: 1` instead
-    of `inset: 0`).
-  - Per view (e.g. a title or actions that differ): render it in
-    `AppPage.vue` through a slot or prop.
-  - Safe area: the header gets `padding-top: env(safe-area-inset-top)`;
-    then the glass strip `.app-page__statusbar` in `AppPage.vue` is no
-    longer needed for views below it.
-  - Phones: keep it small (title, avatar) or hide parts below `64em`, the
-    bottom bar already holds the navigation.
-  - Search field: state in a composable (e.g. `useSearch.js`), so header
-    and views share it.
-- **Other navigation:** only a bottom bar → drop `SideNav` in `App.vue` and
-  remove the `64em` rule; only a sidebar → drop `MobileNav` and the bottom
-  padding (`--padding-bottom`) in `AppPage.vue`. Groups or lists in the
-  sidebar (e.g. people, folders): extend `SideNav.vue`; Filmoteka’s sidebar
-  with the wishlists of others is a reference.
-- **Colours:** `--color-*` in `tokens.css` (dark is the default, light in two
-  blocks: system setting and fixed choice), plus the boot loader and
-  `theme-color` in `standalone.html` and `THEME_COLOR` in `vite.config.js`.
-- **Fonts:** WOFF2 files under `frontend/fonts/`, `@font-face` in
-  `styles/fonts.css` (import in `app.js`), then `--font-text` and
-  `--font-display`. Local files only, no font services at runtime.
-- **Ionic components** (toast, sheets, modals): their look comes from the
-  Ionic variables in `base.css`; `mode: 'ios'` in `app.js` keeps it equal on
-  all platforms.
+- Drag handle 32 px wide over the full row height (design: 28 × 48 or
+  24 × 44): easier to hit, on the 4 px grid.
+- Check zone 60 px wide over the full row height (design: 60 × 64 or
+  48 × 48): the larger value of the package.
+- A “not got” row shows a round transfer button (arrow) in the check zone.
+- A status without note (“noch nicht übertragen”) may wrap to a second line
+  instead of being cut off.
+
+Quantities (`utils/quantity.js`): number plus optional unit from a fixed list
+(`piece`, `pack`, `bottle`, `cup`, `can`, `jar`, `bag`, `net`, `bunch`,
+`roll`, `bar`, `g`, `kg`, `ml`, `l`); decimals only for `kg` and `l`; without
+unit “2 ×”. Texts and plurals in `i18n` (`units.*`, `unitNames.*`).
+
+Fallback icons: the 16 icons of the design package (24 grid, line 1.75,
+round caps, `currentColor`) as sprite in `icons/ersatzicons.svg`, embedded
+once into the document (`installIconSprite()` in `app.js`), shown with
+`<use href="#pk-milch">`. More icons follow (Lucide and own ones in the same
+style).
 
 ## Texts
 
-- App texts in `frontend/i18n/locales/<language>.js` (nested objects,
-  `t('profile.title')`). They are part of `app.js`: no request at start,
-  available offline.
-- `locale.xml` with `locale/*.xml` holds only backend texts (permissions,
+- App texts in `frontend/i18n/locales/de.js` (nested objects,
+  `t('menu.profile')`). They are part of `app.js`: no request at start,
+  available offline. German is the only language for now; there is no
+  language setting and no detection of the device language.
+- `locale.xml` with `locale/de.xml` holds only backend texts (permissions,
   cron, settings); PHP never needs the app texts.
 - Placeholders: `{name}`, numbers formatted per language. Plurals as object
   with the categories of `Intl.PluralRules`; `t('<key>', { count })` picks
   the form:
 
   ```js
-  days: { one: '{count} Tag', other: '{count} Tage' }          // de, en
-  days: { one: '{count} dzień', few: '{count} dni', many: '{count} dni', other: '{count} dnia' } // pl
+  pack: { one: '{count} Packung', other: '{count} Packungen' }        // de
+  pack: { one: '{count} opakowanie', few: '{count} opakowania', many: '{count} opakowań', other: '{count} opakowania' } // pl
   ```
 
-- Main language and fallback: `de` (`FALLBACK_LOCALE`). Missing keys fall
-  back to it, unknown keys show the key itself.
+- Missing keys fall back to `de` (`FALLBACK_LOCALE`), unknown keys show the
+  key itself.
 
-Add a language, e.g. Polish:
+Add a language later, e.g. Polish:
 
 1. `frontend/i18n/locales/pl.js`, same keys as `de.js`.
-2. `frontend/i18n/index.js`: import it, add to `messages` and
-   `LOCALE_NAMES` (`pl: 'Polski'`). The profile picks it up automatically.
-3. PHP: `Users\Profile::LANGUAGES` gets `'pl'`.
-4. Backend texts: `locale/pl.xml` and an entry in `locale.xml`; activate the
+2. `frontend/i18n/index.js`: import it, add to `messages`, bring back a
+   language choice (user attribute, `Users\Profile`, settings view).
+3. Backend texts: `locale/pl.xml` and an entry in `locale.xml`; activate the
    language in the QUIQQER translator and project.
-5. Main language Polish instead of German: `FALLBACK_LOCALE`, `lang` in
-   `standalone.html` and `frontend/index.html`, `manifest.lang` in
-   `vite.config.js`.
 
 ## PWA
 
@@ -170,8 +211,8 @@ Add a language, e.g. Polish:
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/me` | own user: `id`, `name`, `initials`, `avatarUrl`, `settings`, `permissions.manage` |
-| `PATCH` | `/me/settings` | `theme` (`auto`/`light`/`dark`), `language` (`auto`/`de`/`en`); answers like `GET /me` |
+| `GET` | `/me` | own user: `id`, `name`, `initials` (first and last name), `avatarUrl`, `settings.theme`, `permissions.manageProducts` |
+| `PATCH` | `/me/settings` | `theme` (`auto`/`light`/`dark`); answers like `GET /me` |
 
 - Every route in the group requires a QUIQQER session
   (`Rest\SessionAuthentication`), without: `401 unauthorized`. Public routes

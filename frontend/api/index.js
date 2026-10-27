@@ -132,7 +132,7 @@ export const api = {
     },
 
     /**
-     * @param {{ theme?: 'auto'|'light'|'dark', language?: 'auto'|'de'|'en' }} settings
+     * @param {{ theme?: 'auto'|'light'|'dark' }} settings
      */
     updateSettings(settings) {
         return request('PATCH', '/me/settings', settings);

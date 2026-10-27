@@ -11,9 +11,11 @@ import { applyDocumentLanguage } from './i18n/index.js';
 import { onUnauthorized } from './api/index.js';
 import { applyStoredTheme, markLoggedOut } from './composables/useSession.js';
 import { registerServiceWorker } from './pwa.js';
+import { installIconSprite } from './icons/sprite.js';
 
 applyDocumentLanguage();
 applyStoredTheme();
+installIconSprite();
 
 // Session abgelaufen: zurück zur Anmeldeseite, danach wieder hierher
 onUnauthorized(() => {

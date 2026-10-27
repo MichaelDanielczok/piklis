@@ -5,7 +5,6 @@
         <!-- App-Einstellungen, geändert über PATCH /api/piklis/v1/me/settings -->
         <attributes>
             <attribute>pk.theme</attribute>
-            <attribute>pk.language</attribute>
         </attributes>
     </user>
 </quiqqer>

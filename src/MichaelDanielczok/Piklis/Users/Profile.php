@@ -15,17 +15,17 @@ use function trim;
  * Benutzerdaten und App-Einstellungen.
  *
  * Name und Avatar werden im QUIQQER-Backend gepflegt; die App zeigt sie nur an.
- * Die Einstellungen liegen als Benutzerattribute (siehe user.xml).
+ * Die Einstellungen liegen als Benutzerattribute (siehe user.xml). Die
+ * Oberfläche ist nur Deutsch, deshalb gibt es keine Spracheinstellung.
  */
 class Profile
 {
     public const ATTRIBUTE_THEME = 'pk.theme';
-    public const ATTRIBUTE_LANGUAGE = 'pk.language';
 
     public const THEMES = ['auto', 'light', 'dark'];
-    public const LANGUAGES = ['auto', 'de', 'en'];
 
-    public const PERMISSION_MANAGE = 'pk.manage';
+    /** Produktpfleger: dürfen alle Produkte bearbeiten und ausblenden */
+    public const PERMISSION_MANAGE_PRODUCTS = 'piklis.products.manage';
 
     private const AVATAR_SIZE = 160;
 
@@ -44,7 +44,7 @@ class Profile
             ...$this->toPublicArray(),
             'settings' => $this->getSettings(),
             'permissions' => [
-                'manage' => (bool)QUI\Permissions\Permission::hasPermission(self::PERMISSION_MANAGE, $this->User)
+                'manageProducts' => $this->canManageProducts()
             ]
         ];
     }
@@ -56,35 +56,32 @@ class Profile
      */
     public function toPublicArray(): array
     {
-        $name = $this->getName();
-
         return [
             'id' => (string)$this->User->getUUID(),
-            'name' => $name,
-            'initials' => mb_strtoupper(mb_substr($name, 0, 1)),
+            'name' => $this->getName(),
+            'initials' => $this->getInitials(),
             'avatarUrl' => $this->getAvatarUrl()
         ];
     }
 
+    public function canManageProducts(): bool
+    {
+        return (bool)QUI\Permissions\Permission::hasPermission(self::PERMISSION_MANAGE_PRODUCTS, $this->User);
+    }
+
     /**
-     * @return array{theme: string, language: string}
+     * @return array{theme: string}
      */
     public function getSettings(): array
     {
         $theme = $this->User->getAttribute(self::ATTRIBUTE_THEME);
-        $language = $this->User->getAttribute(self::ATTRIBUTE_LANGUAGE);
 
         if (!in_array($theme, self::THEMES, true)) {
             $theme = 'auto';
         }
 
-        if (!in_array($language, self::LANGUAGES, true)) {
-            $language = 'auto';
-        }
-
         return [
-            'theme' => $theme,
-            'language' => $language
+            'theme' => $theme
         ];
     }
 
@@ -105,14 +102,6 @@ class Profile
             $this->User->setAttribute(self::ATTRIBUTE_THEME, $input['theme']);
         }
 
-        if (isset($input['language'])) {
-            if (!in_array($input['language'], self::LANGUAGES, true)) {
-                throw new InvalidSettingException('language');
-            }
-
-            $this->User->setAttribute(self::ATTRIBUTE_LANGUAGE, $input['language']);
-        }
-
         $this->User->save();
     }
 
@@ -128,6 +117,33 @@ class Profile
         }
 
         return $this->User->getUsername();
+    }
+
+    public function getInitials(): string
+    {
+        $firstname = $this->User->getAttribute('firstname');
+        $lastname = $this->User->getAttribute('lastname');
+
+        return self::initials(
+            is_string($firstname) ? $firstname : '',
+            is_string($lastname) ? $lastname : '',
+            $this->getName()
+        );
+    }
+
+    /**
+     * Anfangsbuchstaben von Vor- und Nachname, sonst erster Buchstabe des Namens.
+     */
+    public static function initials(string $firstname, string $lastname, string $fallbackName): string
+    {
+        $firstname = trim($firstname);
+        $lastname = trim($lastname);
+
+        if ($firstname !== '' && $lastname !== '') {
+            return mb_strtoupper(mb_substr($firstname, 0, 1) . mb_substr($lastname, 0, 1));
+        }
+
+        return mb_strtoupper(mb_substr(trim($fallbackName), 0, 1));
     }
 
     /**

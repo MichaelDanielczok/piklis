@@ -1,18 +1,40 @@
 <script setup>
 /**
- * Rahmen jeder Ansicht: Ionic-Seite mit scrollendem Inhalt. Unten Platz für
- * die schwebende Navigation (Mobil) und den Home-Indikator.
+ * Rahmen jeder Ansicht: Ionic-Seite mit scrollendem Inhalt, oben der Kopf
+ * (AppHeader: Titel, Zurück, Benutzermenü), unten Platz für die schwebende
+ * Navigation (Mobil) und den Home-Indikator.
  * Hinter der Statusleiste liegt ein Glasstreifen: In der installierten App
  * (black-translucent) liefe der Inhalt sonst sichtbar unter Uhrzeit und Akku
  * durch. Im Browser ist der Sicherheitsabstand 0, der Streifen also auch.
- * `bare`: ohne Navigation (Anmeldeseite), kein Platz unten.
+ *
+ * `bare`: ohne Kopf und Navigation (Anmeldeseite), kein Platz unten.
+ * `width`: Breite des Inhalts – wide (Standard) · list (Einkaufslisten) ·
+ * narrow (Formulare, Profil).
  */
 import { IonContent, IonPage } from '@ionic/vue';
+import AppHeader from './AppHeader.vue';
 
 defineProps({
+    title: {
+        type: String,
+        default: ''
+    },
+    subtitle: {
+        type: String,
+        default: ''
+    },
+    back: {
+        type: Boolean,
+        default: false
+    },
     bare: {
         type: Boolean,
         default: false
+    },
+    width: {
+        type: String,
+        default: 'wide',
+        validator: (value) => ['wide', 'list', 'narrow'].includes(value)
     }
 });
 </script>
@@ -21,7 +43,12 @@ defineProps({
     <IonPage>
         <div class="app-page__statusbar" aria-hidden="true"></div>
         <IonContent class="app-page" :class="{ 'app-page--bare': bare }">
-            <div class="app-page__inner">
+            <div class="app-page__inner" :class="'app-page__inner--' + width">
+                <AppHeader v-if="!bare" :title="title" :subtitle="subtitle" :back="back">
+                    <template v-if="$slots.actions" #actions>
+                        <slot name="actions" />
+                    </template>
+                </AppHeader>
                 <slot />
             </div>
         </IonContent>
@@ -58,9 +85,21 @@ defineProps({
     margin: 0 auto;
 }
 
+.app-page__inner--list {
+    max-width: var(--list-content-width);
+}
+
+.app-page__inner--narrow {
+    max-width: var(--narrow-content-width);
+}
+
 @media (min-width: 64em) {
     .app-page:not(.app-page--bare) {
         --padding-bottom: var(--space-14);
+    }
+
+    .app-page__inner {
+        padding: 0 var(--space-4);
     }
 }
 </style>

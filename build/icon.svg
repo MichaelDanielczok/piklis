@@ -1,7 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-    <!-- Platzhalter-Icon; eigenes Motiv hier einsetzen und build/make-icons.sh ausführen.
-         Wichtiges innerhalb der mittleren 80 % halten (maskable). -->
-    <rect width="512" height="512" fill="#14161A"/>
-    <rect x="128" y="128" width="256" height="256" rx="64" fill="#4C8DFF"/>
-    <circle cx="256" cy="256" r="56" fill="#FFFFFF"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="512" height="512" role="img" aria-label="Piklis">
+  <rect width="96" height="96" rx="22" fill="#1F6E4E"/>
+  <rect x="34" y="16" width="44" height="56" rx="9" fill="#8FCBAF" transform="rotate(9 56 44)"/>
+  <g transform="rotate(-6 44 52)">
+    <rect x="20" y="24" width="46" height="56" rx="9" fill="#FFFFFF"/>
+    <rect x="27" y="35" width="16" height="16" rx="4.5" fill="#1F6E4E"/>
+    <path d="M31 43l2.8 2.8 5.6-6" fill="none" stroke="#FFFFFF" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M49 43h10M27 64h32" stroke="#1F6E4E" stroke-width="7" stroke-linecap="round"/>
+  </g>
 </svg>

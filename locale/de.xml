@@ -7,15 +7,18 @@
                 <de><![CDATA[Piklis]]></de>
             </locale>
             <locale name="package.description">
-                <de><![CDATA[Web-App (PWA) auf Basis von QUIQQER.]]></de>
+                <de><![CDATA[Einkaufslisten-App (PWA) auf Basis von QUIQQER.]]></de>
             </locale>
 
             <!-- region permissions -->
-            <locale name="permission.pk._header">
+            <locale name="permission.piklis._header">
                 <de><![CDATA[Piklis]]></de>
             </locale>
-            <locale name="permission.pk.manage">
-                <de><![CDATA[Darf die App verwalten]]></de>
+            <locale name="permission.piklis.products._header">
+                <de><![CDATA[Piklis: Produkte]]></de>
+            </locale>
+            <locale name="permission.piklis.products.manage">
+                <de><![CDATA[Darf alle Produkte pflegen (Produktpfleger)]]></de>
             </locale>
             <!-- endregion -->
 

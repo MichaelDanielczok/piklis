@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="32" height="32" role="img" aria-label="Piklis">
+  <!-- Reduzierte Fassung für 16–24 px: ein Zettel, Kästchen, ein Strich -->
+  <rect width="96" height="96" rx="22" fill="#1F6E4E"/>
+  <rect x="22" y="18" width="52" height="60" rx="10" fill="#FFFFFF"/>
+  <rect x="30" y="30" width="22" height="22" rx="5" fill="#1F6E4E"/>
+  <path d="M30 66h36" stroke="#1F6E4E" stroke-width="9" stroke-linecap="round"/>
+</svg>

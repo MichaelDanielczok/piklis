@@ -4,6 +4,5 @@
     <locales>
         <!-- Backend-Texte (Rechte, Cron, Einstellungen); App-Texte in frontend/i18n/locales/ -->
         <file file="/locale/de.xml"/>
-        <file file="/locale/en.xml"/>
     </locales>
 </quiqqer>

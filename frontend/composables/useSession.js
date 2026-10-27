@@ -6,7 +6,6 @@
  */
 import { computed, ref } from 'vue';
 import { api, ApiError } from '@/api/index.js';
-import { setLocale } from '@/i18n/index.js';
 
 const THEME_STORAGE_KEY = 'pk.theme';
 
@@ -72,7 +71,6 @@ export function applyStoredTheme() {
 
 function applySettings(settings) {
     applyTheme(settings.theme);
-    setLocale(settings.language === 'auto' ? null : settings.language);
 }
 
 /**
@@ -157,6 +155,7 @@ export function useSession() {
         user,
         status,
         isAuthenticated: computed(() => status.value === 'authenticated'),
-        canManage: computed(() => user.value?.permissions?.manage === true)
+        // Recht piklis.products.manage: alle Produkte pflegen
+        canManageProducts: computed(() => user.value?.permissions?.manageProducts === true)
     };
 }

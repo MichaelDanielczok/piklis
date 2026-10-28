@@ -39,6 +39,7 @@ import TransferSheet from '@/components/lists/TransferSheet.vue';
 import {
     checkEntry,
     completeList,
+    copyListTo,
     createListWith,
     deleteList,
     findEntry,
@@ -48,6 +49,7 @@ import {
     loadLists,
     markNotGot,
     markOpen,
+    moveListToHousehold,
     moveOpenEntry,
     reopenList,
     uncheckEntry,
@@ -112,7 +114,7 @@ const subtitle = computed(() => {
         return '';
     }
 
-    const parts = [t('lists.originPersonal')];
+    const parts = [list.value.householdId ? t('lists.originHousehold') : t('lists.originPersonal')];
     const date = formatShopDate(list.value.shopDate);
 
     if (date) {
@@ -485,6 +487,30 @@ function onSave(fields) {
     }
 }
 
+async function onMove() {
+    const name = list.value?.name ?? '';
+
+    try {
+        await moveListToHousehold(listId);
+        showToast(t('listForm.movedToast', { name }), { icon: 'info' });
+    } catch (error) {
+        console.error(error);
+        showToast(t('listForm.ownershipError'), { icon: 'notgot' });
+    }
+}
+
+async function onCopy() {
+    const name = list.value?.name ?? '';
+
+    try {
+        await copyListTo(listId, 'household');
+        showToast(t('listForm.copiedToast', { name }), { icon: 'info' });
+    } catch (error) {
+        console.error(error);
+        showToast(t('listForm.ownershipError'), { icon: 'notgot' });
+    }
+}
+
 async function onDelete() {
     const name = list.value?.name ?? '';
 
@@ -780,6 +806,8 @@ async function onDelete() {
             :entry-count="counts.total"
             @submit="onSave"
             @delete="onDelete"
+            @move="onMove"
+            @copy="onCopy"
         />
 
         <ListFormSheet v-if="list" v-model:open="newFromOpen" :source-list-id="listId" @submit="onCreateFrom" />

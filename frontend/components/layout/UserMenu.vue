@@ -29,7 +29,7 @@ const props = defineProps({
     }
 });
 
-const { user } = useSession();
+const { user, household } = useSession();
 const route = useRoute();
 const ionRouter = useIonRouter();
 
@@ -194,7 +194,10 @@ async function signOut() {
                 :aria-label="t('menu.label')"
                 @keydown="onMenuKeydown"
             >
-                <p class="user-menu__name" role="presentation">{{ user.name }}</p>
+                <p class="user-menu__name" role="presentation">
+                    {{ user.name }}
+                    <span class="user-menu__household">{{ household?.name ?? t('menu.noHousehold') }}</span>
+                </p>
 
                 <a
                     v-for="link in links"
@@ -326,6 +329,16 @@ async function signOut() {
     font-weight: var(--font-weight-semibold);
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.user-menu__household {
+    display: block;
+    overflow: hidden;
+    color: var(--color-text-2);
+    font-size: var(--font-size-note);
+    font-weight: var(--font-weight-regular);
+    line-height: var(--line-height-note);
+    text-overflow: ellipsis;
 }
 
 .user-menu__item {

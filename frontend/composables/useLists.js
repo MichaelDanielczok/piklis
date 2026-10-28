@@ -369,13 +369,14 @@ function currentEntries(listId) {
 }
 
 /**
- * Neue persönliche Liste. Gibt die ID zurück; die Liste steht sofort in der
- * Übersicht, auch bevor der Server antwortet.
+ * Neue Liste, persönlich oder (mit `householdId`) für den Haushalt. Gibt die
+ * ID zurück; die Liste steht sofort in der Übersicht, auch bevor der Server
+ * antwortet.
  *
- * @param {{ name: string, shopDate?: string|null }} fields
+ * @param {{ name: string, shopDate?: string|null, householdId?: string|null }} fields
  */
-export async function createList({ name, shopDate = null }) {
-    const op = operations.createList({ listId: crypto.randomUUID(), name, shopDate });
+export async function createList({ name, shopDate = null, householdId = null }) {
+    const op = operations.createList({ listId: crypto.randomUUID(), name, shopDate, householdId });
 
     await enqueue(op);
 
@@ -550,7 +551,11 @@ export async function takeOverEntries(entries, { targetListId = null, newList = 
     let listId = targetListId;
 
     if (newList) {
-        const create = startLocalList({ name: newList.name, shopDate: newList.shopDate ?? null });
+        const create = startLocalList({
+            name: newList.name,
+            shopDate: newList.shopDate ?? null,
+            householdId: newList.householdId ?? null
+        });
 
         listId = create.listId;
         await enqueue(create);
@@ -598,12 +603,16 @@ export function reopenList(listId) {
  * Neue Liste aus einem früheren Einkauf: die gewählten Produkte mit ihren
  * Mengen in derselben Reihenfolge, alle offen, ohne Notizen.
  *
- * @param {{ name: string, shopDate?: string|null }} fields
+ * @param {{ name: string, shopDate?: string|null, householdId?: string|null }} fields
  * @param {{ productId: string, quantity: { amount: number, unit: string|null } }[]} items in Listenreihenfolge
  * @returns {Promise<string>} ID der neuen Liste
  */
 export async function createListFrom(fields, items) {
-    const create = startLocalList({ name: fields.name, shopDate: fields.shopDate ?? null });
+    const create = startLocalList({
+        name: fields.name,
+        shopDate: fields.shopDate ?? null,
+        householdId: fields.householdId ?? null
+    });
     const keys = keysBetween(null, null, items.length);
 
     await enqueue(create);
@@ -622,13 +631,66 @@ export async function createListFrom(fields, items) {
 
 /**
  * Neue Liste aus dem Sheet „Neue Liste“: leer oder mit den gewählten
- * Produkten eines früheren Einkaufs (`items`).
+ * Produkten eines früheren Einkaufs (`items`), persönlich oder im Haushalt.
  *
- * @param {{ name: string, shopDate?: string|null, items?: object[]|null }} fields
+ * @param {{ name: string, shopDate?: string|null, householdId?: string|null, items?: object[]|null }} fields
  * @returns {Promise<string>} ID der neuen Liste
  */
-export function createListWith({ name, shopDate = null, items = null }) {
-    return items ? createListFrom({ name, shopDate }, items) : createList({ name, shopDate });
+export function createListWith({ name, shopDate = null, householdId = null, items = null }) {
+    return items
+        ? createListFrom({ name, shopDate, householdId }, items)
+        : createList({ name, shopDate, householdId });
+}
+
+/**
+ * Persönliche Liste in den Haushalt verschieben (REST, nur der Besitzer).
+ * Die ID bleibt, ausstehende Operationen gelten weiter.
+ */
+export async function moveListToHousehold(listId) {
+    const { list } = await api.moveListToHousehold(listId);
+    const detail = details.value[listId];
+
+    upsertOverview(list);
+
+    if (detail?.status === 'ready') {
+        const change = { list: { ...detail.list, ...list } };
+
+        if (list.revision === detail.revision + 1) {
+            change.revision = list.revision;
+        } else if (list.revision > detail.revision) {
+            pullsWanted.add(listId);
+            queueMicrotask(pullWhenIdle);
+        }
+
+        patchDetail(listId, change);
+    }
+
+    return list;
+}
+
+/**
+ * Liste kopieren: `to` 'household' (persönliche Liste in den Haushalt) oder
+ * 'personal' (Haushaltsliste als persönliche Kopie, z. B. vor dem Austritt).
+ * Das Original bleibt. Gibt die neue Liste zurück.
+ */
+export async function copyListTo(listId, to) {
+    const { list } = await api.copyList(listId, crypto.randomUUID(), to);
+
+    upsertOverview(list);
+    loadLists().catch((error) => console.error(error));
+
+    return list;
+}
+
+/**
+ * Nach Beitritt, Wechsel, Austritt oder Auflösen: geladene Listen verwerfen
+ * (manche sind nicht mehr zugänglich, andere neu) und die Übersicht neu laden.
+ */
+export function reloadAfterHouseholdChange() {
+    details.value = {};
+    pullsWanted.clear();
+
+    return loadLists();
 }
 
 export { isVisible, activeEntryOf as activeEntryOfProduct };

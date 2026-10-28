@@ -59,7 +59,7 @@ function newList(op) {
         ownership: op.householdId ? 'household' : 'personal',
         householdId: op.householdId ?? null,
         status: 'active',
-        role: 'owner',
+        role: op.householdId ? 'member' : 'owner',
         revision: 0,
         createdAt: op.createdAt ?? null,
         updatedAt: op.createdAt ?? null,

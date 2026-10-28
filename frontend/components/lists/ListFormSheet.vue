@@ -11,17 +11,25 @@
  * Reihenfolge, alle vorgewählt, abwählbar („Alle“, „Nur nicht gekaufte“).
  * In der neuen Liste ist alles offen; Notizen bleiben im alten Einkauf.
  *
+ * Zugehörigkeit (Schritt 9): Mit Haushalt ist eine neue Liste standardmäßig
+ * für den Haushalt, „Nur für mich“ ist wählbar. Beim Bearbeiten einer
+ * persönlichen Liste „In den Haushalt verschieben“ (Rückfrage im selben
+ * Sheet, die Liste gehört danach dem Haushalt) und „In den Haushalt
+ * kopieren“ (das Original bleibt privat).
+ *
  * v-model:open · `list` null = neu · `sourceListId`: gleich mit diesem
  * früheren Einkauf starten (aus dem Archiv)
- * Emits: submit({ name, shopDate, items }) (`items` null = leer) · delete
+ * Emits: submit({ name, shopDate, householdId, items }) (`items` null = leer)
+ * · delete · move · copy
  */
 import { computed, ref, useId, watch } from 'vue';
-import { CircleAlert, Trash2 } from '@lucide/vue';
+import { CircleAlert, Copy, House, Trash2, User } from '@lucide/vue';
 import AppButton from '@/components/ui/AppButton.vue';
 import AppSheet from '@/components/ui/AppSheet.vue';
 import EntryChecklist from './EntryChecklist.vue';
 import { ensureListLoaded, listEntries, useLists } from '@/composables/useLists.js';
 import { useProducts } from '@/composables/useProducts.js';
+import { useSession } from '@/composables/useSession.js';
 import { categoryOf, iconOf } from '@/products/catalog.js';
 import { formatDay, shopDateFromToday } from '@/utils/shopDate.js';
 import { copyPlan } from '@/utils/takeOver.js';
@@ -45,7 +53,7 @@ const props = defineProps({
     }
 });
 
-const emit = defineEmits(['submit', 'delete']);
+const emit = defineEmits(['submit', 'delete', 'move', 'copy']);
 const open = defineModel('open', { type: Boolean, default: false });
 
 const ids = {
@@ -54,17 +62,22 @@ const ids = {
     date: useId(),
     dateLabel: useId(),
     start: useId(),
+    owner: useId(),
+    ownerHeading: useId(),
     selectError: useId()
 };
 
 const { archivedLists } = useLists();
 const { findProduct } = useProducts();
+const { household } = useSession();
 
 const nameInput = ref(null);
 const name = ref('');
 const shopDate = ref(null);
 const submitted = ref(false);
 const confirmDelete = ref(false);
+const confirmMove = ref(false);
+const owner = ref('household');
 const step = ref('form');
 const start = ref('empty');
 const selected = ref([]);
@@ -75,6 +88,16 @@ const sourceError = ref(false);
 let selectedFor = null;
 
 const isNew = computed(() => props.list === null);
+
+/** Gehört die (bestehende) Liste dem Haushalt? */
+const isHouseholdList = computed(() => Boolean(props.list?.householdId));
+
+/** Eigene persönliche Liste, die sich in den Haushalt verschieben oder kopieren lässt. */
+const canMoveToHousehold = computed(() => Boolean(household.value)
+    && !isNew.value
+    && !isHouseholdList.value
+    && props.list?.role === 'owner'
+    && !props.list?.local);
 
 /** Frühere Einkäufe zur Auswahl; ein vorgegebener steht immer dabei. */
 const previous = computed(() => {
@@ -118,6 +141,10 @@ function previousTitle(item) {
 const sheetTitle = computed(() => {
     if (confirmDelete.value) {
         return t('listForm.deleteTitle');
+    }
+
+    if (confirmMove.value) {
+        return t('listForm.moveTitle');
     }
 
     if (step.value === 'products') {
@@ -175,6 +202,8 @@ watch(open, (isOpen) => {
         shopDate.value = props.list?.shopDate ?? null;
         submitted.value = false;
         confirmDelete.value = false;
+        confirmMove.value = false;
+        owner.value = household.value ? 'household' : 'personal';
         start.value = given ? given.id : 'empty';
         step.value = given ? 'products' : 'form';
         selectError.value = '';
@@ -270,7 +299,19 @@ function submit() {
         }
     }
 
-    emit('submit', { name: name.value.trim(), shopDate: shopDate.value, items });
+    const householdId = isNew.value && household.value && owner.value === 'household' ? household.value.id : null;
+
+    emit('submit', { name: name.value.trim(), shopDate: shopDate.value, householdId, items });
+    open.value = false;
+}
+
+function move() {
+    emit('move');
+    open.value = false;
+}
+
+function copy() {
+    emit('copy');
     open.value = false;
 }
 
@@ -292,9 +333,19 @@ function remove() {
         :subtitle="sheetSubtitle"
         @presented="focusName"
     >
-        <p v-if="confirmDelete" class="list-form__confirm">
-            {{ t('listForm.deleteText', { name: list?.name ?? '', count: entryCount }) }}
-        </p>
+        <div v-if="confirmDelete" class="list-form__stack">
+            <p class="list-form__confirm">
+                {{ t('listForm.deleteText', { name: list?.name ?? '', count: entryCount }) }}
+            </p>
+            <p v-if="isHouseholdList" class="list-form__hint">{{ t('listForm.deleteHouseholdHint') }}</p>
+        </div>
+
+        <div v-else-if="confirmMove" class="list-form__stack">
+            <p class="list-form__confirm">
+                {{ t('listForm.moveText', { name: list?.name ?? '', household: household?.name ?? '' }) }}
+            </p>
+            <p class="list-form__hint">{{ t('listForm.moveHint') }}</p>
+        </div>
 
         <form
             v-else-if="step === 'products'"
@@ -403,6 +454,49 @@ function remove() {
                 </label>
             </fieldset>
 
+            <fieldset v-if="isNew && household" class="choice-list">
+                <legend class="form-field__label list-form__legend">{{ t('listForm.owner') }}</legend>
+                <label class="choice">
+                    <input v-model="owner" class="choice__radio" type="radio" :name="ids.owner" value="household">
+                    <House class="list-form__owner-icon" aria-hidden="true" />
+                    <span class="choice__text">
+                        <span class="choice__title">{{ t('listForm.ownerHousehold', { name: household.name }) }}</span>
+                        <span class="choice__hint">{{ t('listForm.ownerHouseholdHint') }}</span>
+                    </span>
+                </label>
+                <label class="choice">
+                    <input v-model="owner" class="choice__radio" type="radio" :name="ids.owner" value="personal">
+                    <User class="list-form__owner-icon" aria-hidden="true" />
+                    <span class="choice__text">
+                        <span class="choice__title">{{ t('listForm.ownerPersonal') }}</span>
+                        <span class="choice__hint">{{ t('listForm.ownerPersonalHint') }}</span>
+                    </span>
+                </label>
+            </fieldset>
+
+            <section v-if="!isNew" class="list-form__owner" :aria-labelledby="ids.ownerHeading">
+                <h3 :id="ids.ownerHeading" class="form-field__label">{{ t('listForm.owner') }}</h3>
+                <p class="list-form__owner-text">
+                    <component :is="isHouseholdList ? House : User" class="list-form__owner-icon" aria-hidden="true" />
+                    <span>
+                        {{ isHouseholdList
+                            ? t('listForm.ownedByHousehold', { name: household?.name ?? t('lists.originHousehold') })
+                            : t('listForm.ownedByMe') }}
+                    </span>
+                </p>
+                <div v-if="canMoveToHousehold" class="list-form__owner-actions">
+                    <AppButton variant="secondary" @click="confirmMove = true">
+                        <House aria-hidden="true" />
+                        {{ t('listForm.move') }}
+                    </AppButton>
+                    <AppButton variant="secondary" @click="copy">
+                        <Copy aria-hidden="true" />
+                        {{ t('listForm.copy') }}
+                    </AppButton>
+                    <p class="list-form__hint">{{ t('listForm.moveCopyHint') }}</p>
+                </div>
+            </section>
+
             <fieldset v-if="isNew && previous.length > 0" class="choice-list">
                 <legend class="form-field__label list-form__legend">{{ t('listForm.start') }}</legend>
                 <label class="choice">
@@ -439,6 +533,10 @@ function remove() {
             <template v-if="confirmDelete">
                 <AppButton variant="secondary" @click="confirmDelete = false">{{ t('common.cancel') }}</AppButton>
                 <AppButton variant="danger-solid" @click="remove">{{ t('listForm.deleteConfirm') }}</AppButton>
+            </template>
+            <template v-else-if="confirmMove">
+                <AppButton variant="secondary" @click="confirmMove = false">{{ t('common.cancel') }}</AppButton>
+                <AppButton @click="move">{{ t('listForm.moveConfirm') }}</AppButton>
             </template>
             <template v-else>
                 <AppButton v-if="step === 'products'" variant="secondary" @click="step = 'form'">{{ t('common.back') }}</AppButton>
@@ -518,6 +616,41 @@ function remove() {
 
 .list-form__delete {
     align-self: flex-start;
+}
+
+.list-form__stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.list-form__owner {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.list-form__owner-text {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--color-text-1);
+    font-size: var(--font-size-text);
+    line-height: var(--line-height-text);
+}
+
+.list-form__owner-icon {
+    flex: none;
+    width: var(--icon-size-md);
+    height: var(--icon-size-md);
+    color: var(--color-text-2);
+}
+
+.list-form__owner-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    padding-top: var(--space-1);
 }
 
 .list-form__legend {

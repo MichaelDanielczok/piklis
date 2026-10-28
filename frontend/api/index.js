@@ -173,6 +173,69 @@ export const api = {
     },
 
     /**
+     * Persönliche Liste in den eigenen Haushalt verschieben (ID bleibt):
+     * { list }. Nur der Besitzer.
+     */
+    moveListToHousehold(listId) {
+        return request('POST', '/lists/' + encodeURIComponent(listId) + '/move', { to: 'household' });
+    },
+
+    /**
+     * Liste kopieren, neue ID aus dem Browser: { status, list }.
+     * `to`: 'household' (persönliche Liste in den Haushalt) oder 'personal'
+     * (Haushaltsliste als persönliche Kopie).
+     */
+    copyList(listId, newListId, to) {
+        return request('POST', '/lists/' + encodeURIComponent(listId) + '/copy', { id: newListId, to });
+    },
+
+    /**
+     * Eigener Haushalt: { household: { id, name, role, members, invite } | null }.
+     * `invite` ({ code, expiresAt }) nur für Administratoren.
+     */
+    getHousehold() {
+        return request('GET', '/household');
+    },
+
+    /** Haushalt anlegen (man wird Administrator): wie getHousehold. */
+    createHousehold(name) {
+        return request('POST', '/household', { name });
+    },
+
+    /**
+     * Mit Einladungscode beitreten. `switchHousehold`: den bisherigen Haushalt
+     * dabei verlassen; `confirmDissolve`: als letztes Mitglied auflösen.
+     */
+    joinHousehold(code, { switchHousehold = false, confirmDissolve = false } = {}) {
+        return request('POST', '/household/join', { code, switch: switchHousehold, confirmDissolve });
+    },
+
+    /** Neuer Einladungscode (Administratoren): wie getHousehold. */
+    renewHouseholdInvite() {
+        return request('POST', '/household/invite');
+    },
+
+    /** Austreten; als letztes Mitglied nur mit `confirmDissolve`. */
+    leaveHousehold({ confirmDissolve = false } = {}) {
+        return request('POST', '/household/leave', { confirmDissolve });
+    },
+
+    /** Auflösen (Administratoren): Haushalt und seine Listen werden gelöscht. */
+    dissolveHousehold() {
+        return request('DELETE', '/household');
+    },
+
+    /** Rolle eines Mitglieds: 'admin' oder 'member' (Administratoren). */
+    setHouseholdRole(userId, role) {
+        return request('PATCH', '/household/members/' + encodeURIComponent(userId), { role });
+    },
+
+    /** Mitglied entfernen (Administratoren). */
+    removeHouseholdMember(userId) {
+        return request('DELETE', '/household/members/' + encodeURIComponent(userId));
+    },
+
+    /**
      * Ganzer Katalog inkl. ausgeblendeter Produkte (`hidden: true`):
      * { products }. ETag: Der Browser fragt bedingt nach (304 aus dem Cache).
      */

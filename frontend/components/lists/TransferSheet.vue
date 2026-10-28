@@ -229,7 +229,8 @@ async function submit() {
         }
 
         const result = await takeOverEntries(chosen, target.value === 'new'
-            ? { newList: { name: newName.value.trim(), shopDate: null } }
+            // neue Liste gehört dorthin, wohin die Ursprungsliste gehört
+            ? { newList: { name: newName.value.trim(), shopDate: null, householdId: props.list.householdId ?? null } }
             : { targetListId: target.value, answers: answers.value });
 
         emit('finished', { result, targetName: targetName.value });

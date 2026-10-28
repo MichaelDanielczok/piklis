@@ -5,8 +5,8 @@
  * Liste“ unten im Daumenbereich. Eine neue Liste erscheint sofort und öffnet
  * sich direkt.
  *
- * Herkunft vorerst immer „nur ich“; Haushaltslisten (Schritt 9) und
- * geteilte Listen (Schritt 11) folgen. Unter den Karten führt „Archiv“ zu
+ * Herkunft als Chip: „nur ich“ oder „Haushalt“; geteilte Listen folgen
+ * mit Schritt 11. Unter den Karten führt „Archiv“ zu
  * den abgeschlossenen Einkäufen; „Neue Liste“ startet leer oder aus einem
  * früheren Einkauf.
  *

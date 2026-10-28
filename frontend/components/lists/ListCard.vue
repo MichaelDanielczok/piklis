@@ -1,7 +1,8 @@
 <script setup>
 /**
  * Karte einer aktiven Liste in der Übersicht (Designpaket 01): Name und
- * Datum, Herkunft als Chip (vorerst immer „nur ich“), Fortschritt als Balken
+ * Datum, Herkunft als Chip („nur ich“ oder „Haushalt“, mit Symbol und
+ * ausgeschriebener Bedeutung für Screenreader), Fortschritt als Balken
  * mit „8 von 30“, darunter die Bilder der ersten offenen Produkte und
  * „+ N“ für die übrigen offenen.
  *
@@ -10,7 +11,7 @@
  * Emits: open
  */
 import { computed } from 'vue';
-import { User } from '@lucide/vue';
+import { House, User } from '@lucide/vue';
 import ProductImage from '@/components/products/ProductImage.vue';
 import { useProducts } from '@/composables/useProducts.js';
 import { categoryOf, iconOf } from '@/products/catalog.js';
@@ -47,6 +48,8 @@ const thumbs = computed(() => (props.list.preview ?? []).map((productId) => {
     };
 }));
 
+const isHousehold = computed(() => Boolean(props.list.householdId));
+
 const more = computed(() => Math.max(0, counts.value.open - thumbs.value.length));
 </script>
 
@@ -59,9 +62,12 @@ const more = computed(() => Math.max(0, counts.value.open - thumbs.value.length)
                     <span v-if="date" class="list-card__date">{{ date }}</span>
                 </button>
             </component>
-            <span class="list-card__origin" :title="t('lists.originPersonalLabel')">
-                <User class="list-card__origin-icon" aria-hidden="true" />
-                {{ t('lists.originPersonal') }}
+            <span class="list-card__origin" :class="{ 'list-card__origin--household': isHousehold }">
+                <component :is="isHousehold ? House : User" class="list-card__origin-icon" aria-hidden="true" />
+                <span aria-hidden="true">{{ isHousehold ? t('lists.originHousehold') : t('lists.originPersonal') }}</span>
+                <span class="visually-hidden">
+                    {{ isHousehold ? t('lists.originHouseholdLabel') : t('lists.originPersonalLabel') }}
+                </span>
             </span>
         </div>
 
@@ -188,6 +194,11 @@ const more = computed(() => Math.max(0, counts.value.open - thumbs.value.length)
     font-size: var(--font-size-note);
     font-weight: var(--font-weight-semibold);
     line-height: var(--line-height-note);
+}
+
+.list-card__origin--household {
+    background: var(--color-accent-soft);
+    color: var(--color-accent-text);
 }
 
 .list-card__origin-icon {

@@ -150,11 +150,28 @@ export async function updateSettings(changes) {
     }
 }
 
+/**
+ * Haushalt in Kurzform `{ id, name, role }` oder null nach Anlegen, Beitritt,
+ * Austritt usw. (aus `GET /me`, danach aus `useHousehold.js`).
+ */
+export function setSessionHousehold(household) {
+    if (!user.value) {
+        return;
+    }
+
+    user.value = {
+        ...user.value,
+        household: household ? { id: household.id, name: household.name, role: household.role } : null
+    };
+}
+
 export function useSession() {
     return {
         user,
         status,
         isAuthenticated: computed(() => status.value === 'authenticated'),
+        // Haushalt des Benutzers { id, name, role } oder null: Standard für neue Listen
+        household: computed(() => user.value?.household ?? null),
         // Recht piklis.products.manage: alle Produkte pflegen
         canManageProducts: computed(() => user.value?.permissions?.manageProducts === true)
     };

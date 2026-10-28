@@ -37,7 +37,8 @@
 PHP under `src/MichaelDanielczok/Piklis/`, grouped by area: `Rest/`
 (endpoints), `Sync/` (operations, conflict rules, without database),
 `Lists/` (sort keys, quantities, `ListRepository`, roles `ListAccess`,
-moving and copying `ListOwnership`), `Households/` (household rules
+moving and copying `ListOwnership`, sharing single lists `ListSharing` with
+`ShareRepository`), `Households/` (household rules
 `HouseholdService`, invite code, `HouseholdRepository`), `Products/` (catalog:
 input, rights, search, suggestion, images, `ProductRepository`), `Setup/`
 (base catalog on package setup), `Images/` (limits,
@@ -58,7 +59,7 @@ committed because the server does not build (no Node there).
 | `components/layout/` | page frame and header, sidebar, mobile navigation, nav items, user menu |
 | `components/ui/` | button, sheet, section label, theme switch, avatar, logo, empty state, search field |
 | `components/list/` | list row, row group, skeleton row, quantity, add tile |
-| `components/lists/` | overview card and its skeleton, sheet “Neue Liste / Liste bearbeiten” (with start from an earlier purchase), sheet for quantity and note of an entry, card “In der Liste …” (`EntryContextCard.vue`), transfer and completion sheet (`TransferSheet.vue`), product checklist (`EntryChecklist.vue`) |
+| `components/lists/` | overview card and its skeleton, sheet “Neue Liste / Liste bearbeiten” (with start from an earlier purchase), sheet for quantity and note of an entry, card “In der Liste …” (`EntryContextCard.vue`), transfer and completion sheet (`TransferSheet.vue`), product checklist (`EntryChecklist.vue`), sheet “Liste teilen” / “Geteilte Liste” (`ListShareSheet.vue`) |
 | `components/household/` | member options (`MemberSheet.vue`), leaving, switching and dissolving with the offer of personal copies (`HouseholdLeaveSheet.vue`) |
 | `components/products/` | product image (photo or fallback icon), fallback icon, catalog row and its skeleton, detail, form, icon picker, photo field, crop dialog, large view |
 | `products/` | fixed categories and their colour families (`categories.js`), fallback icons with their category (`catalog.js`), suggestion from the name (`suggest.js`) |
@@ -85,7 +86,8 @@ committed because the server does not build (no Node there).
   in the list context `/lists/:id/entries/:entryId` (all highlight
   “Listen”); product pages
   `/products/new?name=…`, `/products/:id`, `/products/:id/edit`; from the user menu
-  `/profile`, `/household`, `/settings`; `/components` (pattern page) only in
+  `/profile`, `/household`, `/settings`; the invitation to a list
+  `/invite/:token` (link from “Liste teilen”); `/components` (pattern page) only in
   the dev server (`import.meta.env.DEV`, missing in the build). Everything
   except public routes requires a session; `meta.manageProducts`
   additionally requires `piklis.products.manage`. A `401` from the API
@@ -380,8 +382,8 @@ that would be executed again, which the conflict rules still catch.
 | --- | --- | --- |
 | `pk_households` (9, built) | `id` string(36) (server UUID), `name` string(100), `invite_code` string(20) (unique, null), `invite_expires_at`, `created_by`, `created_at` | invite code valid 7 days, reusable, renewable by admins; see [Household](#household) |
 | `pk_household_members` (9, built) | `user_id` string(50) (primary: at most one household per person), `household_id` (index), `role` `admin`/`member`, `joined_at` | the last admin must hand over or dissolve |
-| `pk_list_shares` (11) | `list_id`, `user_id` (primary together), `invited_by`, `accepted_at` | accepted invitation: role `guest` on this one list |
-| `pk_list_invites` (11) | `token_hash` string(64) primary, `list_id`, `created_by`, `created_at`, `expires_at`, `used_at`, `used_by` | one-time link, valid 7 days; only the hash is stored |
+| `pk_list_shares` (11, built) | `list_id`, `user_id` (primary together, index `user_id`), `invited_by`, `accepted_at` | accepted invitation: role `guest` on this one list; revoking or leaving deletes the row |
+| `pk_list_invites` (11, built) | `token_hash` string(64) primary, `list_id` (index), `created_by`, `created_at`, `expires_at`, `used_at`, `used_by` | one-time link, valid 7 days; only the SHA-256 hash of the token is stored; see [Sharing single lists](#sharing-single-lists) |
 | `pk_templates` (12) | `id` string(36), `name`, `owner_user` / `household_id`, `revision`, `created_*`, `updated_*`, `deleted_at` | personal or household, like lists; no external shares |
 | `pk_template_entries` (12) | `id`, `template_id` (index), `product_id`, `amount`, `unit`, `sort_key` | products, quantities and order; notes are not stored by default |
 
@@ -415,8 +417,9 @@ to everybody.
 
 Implemented in `Sync\ListPermissions`; the role comes from `Lists\ListAccess`
 (used by `Lists\ListRepository::roleOf()` and the test store): owner of a
-personal list, member of the household the list belongs to; guests follow in
-step 11. A household member never sees the personal lists of other members.
+personal list, member of the household the list belongs to, guest with a row
+in `pk_list_shares`. A household member never sees the personal lists of other
+members; a guest who joins the list's household becomes member.
 Every list route checks the role: `GET /lists` (only accessible lists),
 `GET /lists/{id}` (`403 no_access`), `POST /ops` (per operation), `POST
 /lists/{id}/move` and `/copy` (`Lists\ListOwnership`).
@@ -509,10 +512,11 @@ again and gets `duplicate` for the others).
   `Lists\ListPreview`, for the images in the overview), plus the user's
   `household` in short form (`{ id, name, role }` or null, as in `GET /me`),
   so the polling overview notices removal or dissolution. ETag/304.
-  Own personal lists and the lists of the user's household (role `member`);
-  shares follow in step 11.
-- `GET /lists/{id}`: `{ list (with role), revision, full: true, entries }`
-  with all visible entries.
+  Own personal lists, the lists of the user's household (role `member`) and
+  lists shared with the user (role `guest`, plus `sharedBy` `{ id, name }`:
+  who created the link).
+- `GET /lists/{id}`: `{ list (with role; guests also `sharedBy`), revision,
+  full: true, entries }` with all visible entries.
 - `GET /lists/{id}?since=N`: `full: false` and only entries with a revision
   above N, including removed entries and aliases (`removed: true`,
   `mergedInto`) so the app can drop them. An unknown N (above the current
@@ -635,9 +639,10 @@ merge rules in `Sync\TakeOverMerge`, cases shared with
   “persönliche Kopie” before leaving). Name, date, completion and the visible
   entries with quantity, note, sort key and state are copied; change log row
   `list.copy`, revision 1.
-- **Revoking a share** (step 11) deletes the share row: the list disappears
-  from the guest's overview at the next poll; their pending operations get
-  `no_access` (see table). The same happens when somebody leaves a household
+- **Revoking a share** deletes the share row: the list disappears from the
+  guest's overview at the next poll, an open list shows “Kein Zugriff mehr”
+  at its next poll (5 s); their pending operations get `no_access` (see
+  table; “als eigene Liste speichern” comes with step 13). The same happens when somebody leaves a household
   (household lists stay there) or a household is dissolved (its lists are
   deleted: `list_deleted`).
 
@@ -962,10 +967,69 @@ view `views/HouseholdView.vue` (user menu › Haushalt).
   offers “In den Haushalt verschieben” (confirmation in the sheet) and “In
   den Haushalt kopieren”. Household lists show “Gehört dem Haushalt …”.
 - **Origin** in the overview and the list subtitle: “nur ich” or “Haushalt”.
-- **Suggestions** in “Produkte hinzufügen” count the household lists, too.
+- **Suggestions** in “Produkte hinzufügen” count the household lists and the
+  lists shared with the user, too (every accessible purchase).
 - **Skeleton:** name and role come from `GET /me`, so only the members wait;
   as many placeholder rows as last time on this device
   (`pk.householdMembers.<user>`) and an invite card of the same height.
+
+## Sharing single lists
+
+Concept in Obsidian “Piklis Konzept” › “Einzelne Listen mit Außenstehenden
+teilen”. Rules in `Lists\ListSharing` (no HTTP, no database; tests with
+in-memory stores in `tests/unit/Lists/ListSharingTest.php`), storage
+`Lists\ShareRepository`, REST `Rest\SharesEndpoint`, sheet
+`components/lists/ListShareSheet.vue`, view `views/InviteView.vue`.
+
+- **Who shares:** the owner of a personal list and every member of the
+  household a list belongs to (`ListPermissions::canManageSharing`). Guests
+  get `403 forbidden` for creating links, seeing or removing participants,
+  copying and moving; `list.update` and `list.delete` are `rejected
+  forbidden` in `POST /ops`.
+- **Link:** `POST /lists/{id}/invites` creates a token of 32 random bytes
+  (`Lists\InviteToken`, base64url, 43 characters); the server stores only
+  its SHA-256 hash, so the token exists only in this answer. Valid 7 days,
+  usable once. The app builds the address from its own location
+  (`location.origin + pathname + '#/invite/<token>'`), so it points to the
+  instance, in the dev server to the dev server.
+- **Passing it on:** “Link erstellen und teilen” opens the share sheet of the
+  device (`navigator.share`, text “Michael lädt dich zur Einkaufsliste … ein”
+  plus the address), without it the link is copied. If the browser refuses
+  because the tap is over (Safari after the request), the link stays in the
+  sheet with “Teilen” and “Kopieren”.
+- **Accepting:** `/invite/:token` needs a session; without one the router
+  goes to the login with `?redirect=/invite/…` and comes back after the
+  login, the login explains that an existing account is needed (no account
+  is created through the link). `GET /invites/{token}` shows who invites,
+  name and date of the list and `access` (own role or null);
+  `POST /invites/{token}/accept` adds the share row and marks the link used
+  (`used_at`, `used_by`) in one transaction with the invite row locked.
+  Someone who already has access (owner, member, guest, also the guest who
+  used this link) gets `already` and the list opens; the link is not used
+  up.
+- **Invalid links:** `invite_invalid` with `reason`: `unknown` (404, also
+  withdrawn), `used`, `expired`, `list_deleted`, `revoked` (the creator no
+  longer may share, e.g. left the household) (410). The app shows for all
+  “Link nicht mehr gültig, bitte um einen neuen”.
+- **Participants:** `GET /lists/{id}/shares` (owner, members): accepted
+  shares with name, avatar, who invited and since when, and the open links
+  (not used, not expired) without token. “Entfernen” (`DELETE
+  /lists/{id}/shares/{userId}`, confirmation in the sheet) revokes;
+  “Zurückziehen” (`DELETE /lists/{id}/invites/{inviteId}`, id = hash)
+  withdraws an open link.
+- **Guests:** origin chip “geteilt” (share symbol, lilac) in the overview and
+  “Geteilt von Michael” in the list header. “…” opens “Geteilte Liste”: who
+  shared, what a guest may do, and “Liste verlassen” (deletes the own share
+  row, confirmation). Rights as in [Ownership and roles](#ownership-and-roles);
+  product rights stay those of the user. A new list from “In andere Liste
+  übernehmen” of a shared list belongs where the guest's new lists go (own
+  household or personal), not to the foreign household.
+- **Only this list:** a share adds just this list to `GET /lists`, the
+  suggestions and the archive (when completed); other lists, templates and
+  histories of the household stay invisible.
+- **Revoked or deleted while open:** the list's poll answers `403 no_access`
+  or `410 list_deleted`; the view shows “Kein Zugriff mehr” or “Liste
+  gelöscht” and the list leaves the overview at once.
 
 ## Product catalog
 
@@ -1159,6 +1223,12 @@ picture of SmartPicker.
 | `PATCH` / `DELETE` | `/household/members/{userId}` | `{ role: admin \| member }` / remove a member (admins) |
 | `POST` | `/lists/{id}/move` | `{ to: 'household' }`: move a personal list into the household (owner) |
 | `POST` | `/lists/{id}/copy` | `{ id, to: 'household' \| 'personal' }`: copy (201, again 200 `unchanged`) |
+| `POST` | `/lists/{id}/invites` | new one-time link (owner, members): `{ token, invite: { id, createdBy, createdAt, expiresAt } }` (201) |
+| `DELETE` | `/lists/{id}/invites/{inviteId}` | withdraw an open link; answers like `GET /lists/{id}/shares` |
+| `GET` | `/lists/{id}/shares` | `{ shares: [{ id, name, initials, avatarUrl, invitedBy, acceptedAt }], invites: [{ id, createdBy, createdAt, expiresAt }] }` (owner, members) |
+| `DELETE` | `/lists/{id}/shares/{userId}` | revoke (owner, members; answers like `GET`); with the own id a guest leaves (`{ status: 'left' }`) |
+| `GET` | `/invites/{token}` | `{ invite: { list: { id, name, shopDate }, invitedBy, expiresAt }, access }`; invalid: `invite_invalid` with `reason` |
+| `POST` | `/invites/{token}/accept` | `{ status: 'accepted' \| 'already', list }` |
 | `GET` | `/config` | `images`: `maxPixels`, `maxBytes` (project settings), `cropSize` |
 | `POST` | `/ops` | operations on lists and entries, and `product.create`, see [Sync](#sync) |
 | `GET` | `/lists` | accessible lists without entries, with `role`, `counts` and `preview`, plus `household` (ETag) |

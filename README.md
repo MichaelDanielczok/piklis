@@ -70,6 +70,15 @@ under `design/piklis-designpaket/`.
   existing personal lists stay private and can be moved or copied into the
   household. Rights are checked on the server for every list route and
   operation
+- Sharing single lists: owners of personal lists and household members
+  create a one-time link (7 days) and pass it on with the share sheet of the
+  device or copy it; the recipient signs in with an existing account (no
+  account through the link), accepts, and the list stays in their overview
+  with the origin “geteilt”. Guests shop along (add, quantity, note, sort,
+  check, remove, complete) but may not share further, rename, delete or
+  move the list; participants and open links can be removed or withdrawn,
+  guests can leave; used or expired links say “Link nicht mehr gültig,
+  bitte um einen neuen”
 - Adding products: picker without keyboard on open, two columns of tiles
   (frequently bought first, weighted over 90 days, then the catalog A–Z,
   48 tiles and 24 more while scrolling, order fixed while open), plus
@@ -94,7 +103,9 @@ under `design/piklis-designpaket/`.
   (different quantities or notes, an old check, a change to a removed
   entry) ask in a sheet; nothing is silently overwritten
 - REST API `/api/piklis/v1` (`GET /me`, `PATCH /me/settings`, `GET /config`,
-  `POST /ops`, `GET /lists`, `GET /lists/{id}`, `GET|POST /products`,
+  `POST /ops`, `GET /lists`, `GET /lists/{id}`, household routes, list
+  move/copy, `POST /lists/{id}/invites`, `GET /lists/{id}/shares`,
+  `GET /invites/{token}`, `POST /invites/{token}/accept`, `GET|POST /products`,
   `GET /products/search`, `GET /products/suggestions`, `GET|PATCH /products/{id}`,
   `POST /products/{id}/hide|unhide`, `POST|DELETE /products/{id}/image`)
 - PHPStan level 8, PHPCS, PHPUnit; JS tests with `node --test`

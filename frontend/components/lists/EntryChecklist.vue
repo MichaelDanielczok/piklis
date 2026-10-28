@@ -4,7 +4,7 @@
  * oder Icon, Name mit Notiz bzw. Zustand, Menge rechts. Die ganze Zeile ist
  * die Beschriftung des Kästchens.
  *
- * items: `{ id, name, imageUrl, icon, note, meta, quantity: { amount, unit } }`
+ * items: `{ id, name, imageUrl, icon, category, note, meta, quantity: { amount, unit } }`
  * v-model:selected: Array der gewählten IDs
  * loading: so viele Zeilen in Endhöhe, wie erwartet (`skeletonRows`)
  */
@@ -64,7 +64,7 @@ function toggle(id, checked) {
                     :checked="selected.includes(item.id)"
                     @change="toggle(item.id, $event.target.checked)"
                 >
-                <ProductImage :image-url="item.imageUrl" :icon="item.icon" />
+                <ProductImage :image-url="item.imageUrl" :icon="item.icon" :category="item.category" />
                 <span class="checklist__text">
                     <span class="checklist__name">{{ item.name }}</span>
                     <span v-if="item.meta" class="checklist__meta">{{ item.meta }}</span>

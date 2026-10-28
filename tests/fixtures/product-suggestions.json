@@ -1,0 +1,1532 @@
+{
+    "_comment": "Vorschlag von Kategorie und Ersatzicon aus dem Namen (data/keywords.json). Geprüft von ProductSuggestionTest (PHPUnit) und tests/js/suggest.test.js; expected null = kein Vorschlag (allgemeines Icon, ohne Kategorie).",
+    "cases": [
+        {
+            "name": "Bananen",
+            "expected": {
+                "icon": "banane",
+                "category": "fruit"
+            }
+        },
+        {
+            "name": "Spülmaschinentabs",
+            "expected": {
+                "icon": "spuelmaschinentabs",
+                "category": "household"
+            }
+        },
+        {
+            "name": "Hackfleisch",
+            "expected": {
+                "icon": "fleisch",
+                "category": "meat"
+            }
+        },
+        {
+            "name": "Vollkornbrot",
+            "expected": {
+                "icon": "brot",
+                "category": "bread"
+            }
+        },
+        {
+            "name": "Äpfel",
+            "expected": {
+                "icon": "apfel",
+                "category": "fruit"
+            }
+        },
+        {
+            "name": "Bio-Äpfel Elstar",
+            "expected": {
+                "icon": "apfel",
+                "category": "fruit"
+            }
+        },
+        {
+            "name": "Apfel",
+            "expected": {
+                "icon": "apfel",
+                "category": "fruit"
+            }
+        },
+        {
+            "name": "Birnen",
+            "expected": {
+                "icon": "birne",
+                "category": "fruit"
+            }
+        },
+        {
+            "name": "Kirschen",
+            "expected": {
+                "icon": "kirsche",
+                "category": "fruit"
+            }
+        },
+        {
+            "name": "Weintrauben kernlos",
+            "expected": {
+                "icon": "trauben",
+                "category": "fruit"
+            }
+        },
+        {
+            "name": "Heidelbeeren",
+            "expected": {
+                "icon": "trauben",
+                "category": "fruit"
+            }
+        },
+        {
+            "name": "Erdbeeren",
+            "expected": {
+                "icon": "erdbeere",
+                "category": "fruit"
+            }
+        },
+        {
+            "name": "Himbeeren",
+            "expected": {
+                "icon": "erdbeere",
+                "category": "fruit"
+            }
+        },
+        {
+            "name": "Orangen",
+            "expected": {
+                "icon": "orange",
+                "category": "fruit"
+            }
+        },
+        {
+            "name": "Mandarinen",
+            "expected": {
+                "icon": "orange",
+                "category": "fruit"
+            }
+        },
+        {
+            "name": "Zitronen",
+            "expected": {
+                "icon": "zitrone",
+                "category": "fruit"
+            }
+        },
+        {
+            "name": "Limetten",
+            "expected": {
+                "icon": "zitrone",
+                "category": "fruit"
+            }
+        },
+        {
+            "name": "Wassermelone",
+            "expected": {
+                "icon": "melone",
+                "category": "fruit"
+            }
+        },
+        {
+            "name": "Ananas",
+            "expected": {
+                "icon": "ananas",
+                "category": "fruit"
+            }
+        },
+        {
+            "name": "Avocados",
+            "expected": {
+                "icon": "avocado",
+                "category": "fruit"
+            }
+        },
+        {
+            "name": "Kiwis",
+            "expected": {
+                "icon": "apfel",
+                "category": "fruit"
+            }
+        },
+        {
+            "name": "Nektarinen",
+            "expected": {
+                "icon": "apfel",
+                "category": "fruit"
+            }
+        },
+        {
+            "name": "Karotten",
+            "expected": {
+                "icon": "karotte",
+                "category": "vegetables"
+            }
+        },
+        {
+            "name": "Möhren",
+            "expected": {
+                "icon": "karotte",
+                "category": "vegetables"
+            }
+        },
+        {
+            "name": "Kartoffeln festkochend",
+            "expected": {
+                "icon": "kartoffel",
+                "category": "vegetables"
+            }
+        },
+        {
+            "name": "Süßkartoffel",
+            "expected": {
+                "icon": "kartoffel",
+                "category": "vegetables"
+            }
+        },
+        {
+            "name": "Tomaten",
+            "expected": {
+                "icon": "tomate",
+                "category": "vegetables"
+            }
+        },
+        {
+            "name": "Cherrytomaten",
+            "expected": {
+                "icon": "tomate",
+                "category": "vegetables"
+            }
+        },
+        {
+            "name": "Salatgurke",
+            "expected": {
+                "icon": "gurke",
+                "category": "vegetables"
+            }
+        },
+        {
+            "name": "Paprika rot",
+            "expected": {
+                "icon": "paprika",
+                "category": "vegetables"
+            }
+        },
+        {
+            "name": "Zwiebeln",
+            "expected": {
+                "icon": "zwiebel",
+                "category": "vegetables"
+            }
+        },
+        {
+            "name": "Frühlingszwiebeln",
+            "expected": {
+                "icon": "zwiebel",
+                "category": "vegetables"
+            }
+        },
+        {
+            "name": "Knoblauch",
+            "expected": {
+                "icon": "knoblauch",
+                "category": "vegetables"
+            }
+        },
+        {
+            "name": "Eisbergsalat",
+            "expected": {
+                "icon": "salat",
+                "category": "vegetables"
+            }
+        },
+        {
+            "name": "Feldsalat",
+            "expected": {
+                "icon": "salat",
+                "category": "vegetables"
+            }
+        },
+        {
+            "name": "Brokkoli",
+            "expected": {
+                "icon": "brokkoli",
+                "category": "vegetables"
+            }
+        },
+        {
+            "name": "Blumenkohl",
+            "expected": {
+                "icon": "brokkoli",
+                "category": "vegetables"
+            }
+        },
+        {
+            "name": "Champignons",
+            "expected": {
+                "icon": "pilze",
+                "category": "vegetables"
+            }
+        },
+        {
+            "name": "Grüne Bohnen",
+            "expected": {
+                "icon": "bohnen",
+                "category": "vegetables"
+            }
+        },
+        {
+            "name": "Petersilie glatt",
+            "expected": {
+                "icon": "kraeuter",
+                "category": "vegetables"
+            }
+        },
+        {
+            "name": "Schnittlauch",
+            "expected": {
+                "icon": "kraeuter",
+                "category": "vegetables"
+            }
+        },
+        {
+            "name": "Zucchini",
+            "expected": {
+                "icon": "gemuese",
+                "category": "vegetables"
+            }
+        },
+        {
+            "name": "Lauch",
+            "expected": {
+                "icon": "gemuese",
+                "category": "vegetables"
+            }
+        },
+        {
+            "name": "Rosenkohl",
+            "expected": {
+                "icon": "gemuese",
+                "category": "vegetables"
+            }
+        },
+        {
+            "name": "Brot",
+            "expected": {
+                "icon": "brot",
+                "category": "bread"
+            }
+        },
+        {
+            "name": "Toastbrot",
+            "expected": {
+                "icon": "brot",
+                "category": "bread"
+            }
+        },
+        {
+            "name": "Knäckebrot",
+            "expected": {
+                "icon": "brot",
+                "category": "bread"
+            }
+        },
+        {
+            "name": "Brötchen",
+            "expected": {
+                "icon": "broetchen",
+                "category": "bread"
+            }
+        },
+        {
+            "name": "Laugenbrötchen",
+            "expected": {
+                "icon": "broetchen",
+                "category": "bread"
+            }
+        },
+        {
+            "name": "Baguette",
+            "expected": {
+                "icon": "baguette",
+                "category": "bread"
+            }
+        },
+        {
+            "name": "Brezeln",
+            "expected": {
+                "icon": "brezel",
+                "category": "bread"
+            }
+        },
+        {
+            "name": "Croissants",
+            "expected": {
+                "icon": "croissant",
+                "category": "bread"
+            }
+        },
+        {
+            "name": "Käsekuchen",
+            "expected": {
+                "icon": "kuchen",
+                "category": "bread"
+            }
+        },
+        {
+            "name": "Apfelkuchen",
+            "expected": {
+                "icon": "kuchen",
+                "category": "bread"
+            }
+        },
+        {
+            "name": "Milch 1,5 %",
+            "expected": {
+                "icon": "milch",
+                "category": "dairy"
+            }
+        },
+        {
+            "name": "H-Milch",
+            "expected": {
+                "icon": "milch",
+                "category": "dairy"
+            }
+        },
+        {
+            "name": "Vollmilch",
+            "expected": {
+                "icon": "milch",
+                "category": "dairy"
+            }
+        },
+        {
+            "name": "Hafermilch",
+            "expected": {
+                "icon": "milch",
+                "category": "dairy"
+            }
+        },
+        {
+            "name": "Haferdrink",
+            "expected": {
+                "icon": "milch",
+                "category": "dairy"
+            }
+        },
+        {
+            "name": "Joghurt natur",
+            "expected": {
+                "icon": "becher",
+                "category": "dairy"
+            }
+        },
+        {
+            "name": "Magerquark",
+            "expected": {
+                "icon": "becher",
+                "category": "dairy"
+            }
+        },
+        {
+            "name": "Schlagsahne",
+            "expected": {
+                "icon": "becher",
+                "category": "dairy"
+            }
+        },
+        {
+            "name": "Crème fraîche",
+            "expected": {
+                "icon": "becher",
+                "category": "dairy"
+            }
+        },
+        {
+            "name": "Butter",
+            "expected": {
+                "icon": "butter",
+                "category": "dairy"
+            }
+        },
+        {
+            "name": "Margarine",
+            "expected": {
+                "icon": "butter",
+                "category": "dairy"
+            }
+        },
+        {
+            "name": "Eier",
+            "expected": {
+                "icon": "eier",
+                "category": "dairy"
+            }
+        },
+        {
+            "name": "Freilandeier Gr. M",
+            "expected": {
+                "icon": "eier",
+                "category": "dairy"
+            }
+        },
+        {
+            "name": "Ei",
+            "expected": {
+                "icon": "eier",
+                "category": "dairy"
+            }
+        },
+        {
+            "name": "Gouda jung am Stück",
+            "expected": {
+                "icon": "kaese",
+                "category": "cheese"
+            }
+        },
+        {
+            "name": "Reibekäse",
+            "expected": {
+                "icon": "kaese",
+                "category": "cheese"
+            }
+        },
+        {
+            "name": "Mozzarella",
+            "expected": {
+                "icon": "kaese",
+                "category": "cheese"
+            }
+        },
+        {
+            "name": "Frischkäse",
+            "expected": {
+                "icon": "kaese",
+                "category": "cheese"
+            }
+        },
+        {
+            "name": "Parmesan",
+            "expected": {
+                "icon": "kaese",
+                "category": "cheese"
+            }
+        },
+        {
+            "name": "Rinderhack",
+            "expected": {
+                "icon": "fleisch",
+                "category": "meat"
+            }
+        },
+        {
+            "name": "Schweineschnitzel",
+            "expected": {
+                "icon": "fleisch",
+                "category": "meat"
+            }
+        },
+        {
+            "name": "Schweinebauch",
+            "expected": {
+                "icon": "fleisch",
+                "category": "meat"
+            }
+        },
+        {
+            "name": "Hähnchenbrustfilet",
+            "expected": {
+                "icon": "haehnchen",
+                "category": "meat"
+            }
+        },
+        {
+            "name": "Putenbrust",
+            "expected": {
+                "icon": "haehnchen",
+                "category": "meat"
+            }
+        },
+        {
+            "name": "Hähnchenschenkel",
+            "expected": {
+                "icon": "haehnchen",
+                "category": "meat"
+            }
+        },
+        {
+            "name": "Kochschinken",
+            "expected": {
+                "icon": "schinken",
+                "category": "meat"
+            }
+        },
+        {
+            "name": "Speckwürfel",
+            "expected": {
+                "icon": "schinken",
+                "category": "meat"
+            }
+        },
+        {
+            "name": "Salami",
+            "expected": {
+                "icon": "wurst",
+                "category": "meat"
+            }
+        },
+        {
+            "name": "Wiener Würstchen",
+            "expected": {
+                "icon": "wurst",
+                "category": "meat"
+            }
+        },
+        {
+            "name": "Bratwurst",
+            "expected": {
+                "icon": "wurst",
+                "category": "meat"
+            }
+        },
+        {
+            "name": "Leberwurst",
+            "expected": {
+                "icon": "wurst",
+                "category": "meat"
+            }
+        },
+        {
+            "name": "Lachsfilet",
+            "expected": {
+                "icon": "fisch",
+                "category": "fish"
+            }
+        },
+        {
+            "name": "Räucherlachs",
+            "expected": {
+                "icon": "fisch",
+                "category": "fish"
+            }
+        },
+        {
+            "name": "Thunfisch",
+            "expected": {
+                "icon": "fisch",
+                "category": "fish"
+            }
+        },
+        {
+            "name": "Garnelen",
+            "expected": {
+                "icon": "garnelen",
+                "category": "fish"
+            }
+        },
+        {
+            "name": "Fischstäbchen",
+            "expected": {
+                "icon": "fisch",
+                "category": "frozen"
+            }
+        },
+        {
+            "name": "Spaghetti",
+            "expected": {
+                "icon": "nudeln",
+                "category": "grains"
+            }
+        },
+        {
+            "name": "Nudeln",
+            "expected": {
+                "icon": "nudeln",
+                "category": "grains"
+            }
+        },
+        {
+            "name": "Fusilli",
+            "expected": {
+                "icon": "nudeln",
+                "category": "grains"
+            }
+        },
+        {
+            "name": "Basmatireis",
+            "expected": {
+                "icon": "reis",
+                "category": "grains"
+            }
+        },
+        {
+            "name": "Reis",
+            "expected": {
+                "icon": "reis",
+                "category": "grains"
+            }
+        },
+        {
+            "name": "Haferflocken",
+            "expected": {
+                "icon": "getreide",
+                "category": "grains"
+            }
+        },
+        {
+            "name": "Müsli",
+            "expected": {
+                "icon": "getreide",
+                "category": "grains"
+            }
+        },
+        {
+            "name": "Cornflakes",
+            "expected": {
+                "icon": "getreide",
+                "category": "grains"
+            }
+        },
+        {
+            "name": "Dosentomaten",
+            "expected": {
+                "icon": "tomate",
+                "category": "vegetables"
+            }
+        },
+        {
+            "name": "Kidneybohnen Dose",
+            "expected": {
+                "icon": "bohnen",
+                "category": "vegetables"
+            }
+        },
+        {
+            "name": "Mais",
+            "expected": {
+                "icon": "dose",
+                "category": "canned"
+            }
+        },
+        {
+            "name": "Kokosmilch",
+            "expected": {
+                "icon": "dose",
+                "category": "canned"
+            }
+        },
+        {
+            "name": "Gewürzgurken",
+            "expected": {
+                "icon": "glas",
+                "category": "canned"
+            }
+        },
+        {
+            "name": "Tomatenmark",
+            "expected": {
+                "icon": "glas",
+                "category": "canned"
+            }
+        },
+        {
+            "name": "Erdbeermarmelade",
+            "expected": {
+                "icon": "glas",
+                "category": "sweets"
+            }
+        },
+        {
+            "name": "Honig",
+            "expected": {
+                "icon": "glas",
+                "category": "sweets"
+            }
+        },
+        {
+            "name": "Nutella",
+            "expected": {
+                "icon": "glas",
+                "category": "sweets"
+            }
+        },
+        {
+            "name": "Tomatensuppe",
+            "expected": {
+                "icon": "suppe",
+                "category": "canned"
+            }
+        },
+        {
+            "name": "Gemüsebrühe",
+            "expected": {
+                "icon": "suppe",
+                "category": "canned"
+            }
+        },
+        {
+            "name": "Ketchup",
+            "expected": {
+                "icon": "sauce",
+                "category": "canned"
+            }
+        },
+        {
+            "name": "Senf mittelscharf",
+            "expected": {
+                "icon": "sauce",
+                "category": "canned"
+            }
+        },
+        {
+            "name": "Mayonnaise",
+            "expected": {
+                "icon": "sauce",
+                "category": "canned"
+            }
+        },
+        {
+            "name": "Kartoffelsalat",
+            "expected": {
+                "icon": "karton",
+                "category": "canned"
+            }
+        },
+        {
+            "name": "TK-Pizza",
+            "expected": {
+                "icon": "tiefkuehl",
+                "category": "frozen"
+            }
+        },
+        {
+            "name": "Pizza Margherita",
+            "expected": {
+                "icon": "pizza",
+                "category": "frozen"
+            }
+        },
+        {
+            "name": "Pommes frites",
+            "expected": {
+                "icon": "pommes",
+                "category": "frozen"
+            }
+        },
+        {
+            "name": "Vanilleeis",
+            "expected": {
+                "icon": "eis",
+                "category": "frozen"
+            }
+        },
+        {
+            "name": "Erdbeereis",
+            "expected": {
+                "icon": "eis",
+                "category": "frozen"
+            }
+        },
+        {
+            "name": "Eiswürfel",
+            "expected": {
+                "icon": "tiefkuehl",
+                "category": "frozen"
+            }
+        },
+        {
+            "name": "Schokolade Vollmilch",
+            "expected": {
+                "icon": "schokolade",
+                "category": "sweets"
+            }
+        },
+        {
+            "name": "Milchschokolade",
+            "expected": {
+                "icon": "schokolade",
+                "category": "sweets"
+            }
+        },
+        {
+            "name": "Gummibärchen",
+            "expected": {
+                "icon": "bonbons",
+                "category": "sweets"
+            }
+        },
+        {
+            "name": "Kaugummi",
+            "expected": {
+                "icon": "bonbons",
+                "category": "sweets"
+            }
+        },
+        {
+            "name": "Butterkekse",
+            "expected": {
+                "icon": "kekse",
+                "category": "sweets"
+            }
+        },
+        {
+            "name": "Kartoffelchips",
+            "expected": {
+                "icon": "chips",
+                "category": "sweets"
+            }
+        },
+        {
+            "name": "Erdnussflips",
+            "expected": {
+                "icon": "chips",
+                "category": "sweets"
+            }
+        },
+        {
+            "name": "Salzstangen",
+            "expected": {
+                "icon": "chips",
+                "category": "sweets"
+            }
+        },
+        {
+            "name": "Popcorn",
+            "expected": {
+                "icon": "popcorn",
+                "category": "sweets"
+            }
+        },
+        {
+            "name": "Erdnüsse",
+            "expected": {
+                "icon": "nuesse",
+                "category": "sweets"
+            }
+        },
+        {
+            "name": "Studentenfutter",
+            "expected": {
+                "icon": "nuesse",
+                "category": "sweets"
+            }
+        },
+        {
+            "name": "Haselnüsse gemahlen",
+            "expected": {
+                "icon": "nuesse",
+                "category": "sweets"
+            }
+        },
+        {
+            "name": "Mineralwasser still",
+            "expected": {
+                "icon": "flasche",
+                "category": "drinks"
+            }
+        },
+        {
+            "name": "Apfelsaft",
+            "expected": {
+                "icon": "saft",
+                "category": "drinks"
+            }
+        },
+        {
+            "name": "Orangensaft",
+            "expected": {
+                "icon": "saft",
+                "category": "drinks"
+            }
+        },
+        {
+            "name": "Apfelschorle",
+            "expected": {
+                "icon": "saft",
+                "category": "drinks"
+            }
+        },
+        {
+            "name": "Cola",
+            "expected": {
+                "icon": "limo",
+                "category": "drinks"
+            }
+        },
+        {
+            "name": "Coca-Cola Zero",
+            "expected": {
+                "icon": "limo",
+                "category": "drinks"
+            }
+        },
+        {
+            "name": "Eistee Pfirsich",
+            "expected": {
+                "icon": "limo",
+                "category": "drinks"
+            }
+        },
+        {
+            "name": "Pils",
+            "expected": {
+                "icon": "bier",
+                "category": "drinks"
+            }
+        },
+        {
+            "name": "Weizenbier",
+            "expected": {
+                "icon": "bier",
+                "category": "drinks"
+            }
+        },
+        {
+            "name": "Rotwein",
+            "expected": {
+                "icon": "wein",
+                "category": "drinks"
+            }
+        },
+        {
+            "name": "Sekt",
+            "expected": {
+                "icon": "wein",
+                "category": "drinks"
+            }
+        },
+        {
+            "name": "Kaffee",
+            "expected": {
+                "icon": "kaffee",
+                "category": "coffee_tea"
+            }
+        },
+        {
+            "name": "Kaffeebohnen",
+            "expected": {
+                "icon": "kaffee",
+                "category": "coffee_tea"
+            }
+        },
+        {
+            "name": "Kaffeekapseln",
+            "expected": {
+                "icon": "kaffee",
+                "category": "coffee_tea"
+            }
+        },
+        {
+            "name": "Pfefferminztee",
+            "expected": {
+                "icon": "tee",
+                "category": "coffee_tea"
+            }
+        },
+        {
+            "name": "Früchtetee",
+            "expected": {
+                "icon": "tee",
+                "category": "coffee_tea"
+            }
+        },
+        {
+            "name": "Kakao",
+            "expected": {
+                "icon": "kaffee",
+                "category": "coffee_tea"
+            }
+        },
+        {
+            "name": "Mehl Type 405",
+            "expected": {
+                "icon": "mehl",
+                "category": "baking"
+            }
+        },
+        {
+            "name": "Weizenmehl",
+            "expected": {
+                "icon": "mehl",
+                "category": "baking"
+            }
+        },
+        {
+            "name": "Trockenhefe",
+            "expected": {
+                "icon": "mehl",
+                "category": "baking"
+            }
+        },
+        {
+            "name": "Zucker",
+            "expected": {
+                "icon": "zucker",
+                "category": "baking"
+            }
+        },
+        {
+            "name": "Puderzucker",
+            "expected": {
+                "icon": "zucker",
+                "category": "baking"
+            }
+        },
+        {
+            "name": "Salz",
+            "expected": {
+                "icon": "salz",
+                "category": "baking"
+            }
+        },
+        {
+            "name": "Meersalz",
+            "expected": {
+                "icon": "salz",
+                "category": "baking"
+            }
+        },
+        {
+            "name": "Pfeffer schwarz",
+            "expected": {
+                "icon": "salz",
+                "category": "baking"
+            }
+        },
+        {
+            "name": "Olivenöl",
+            "expected": {
+                "icon": "oel",
+                "category": "baking"
+            }
+        },
+        {
+            "name": "Öl",
+            "expected": {
+                "icon": "oel",
+                "category": "baking"
+            }
+        },
+        {
+            "name": "Balsamico",
+            "expected": {
+                "icon": "oel",
+                "category": "baking"
+            }
+        },
+        {
+            "name": "Toilettenpapier",
+            "expected": {
+                "icon": "toilettenpapier",
+                "category": "drugstore"
+            }
+        },
+        {
+            "name": "Klopapier",
+            "expected": {
+                "icon": "toilettenpapier",
+                "category": "drugstore"
+            }
+        },
+        {
+            "name": "Taschentücher",
+            "expected": {
+                "icon": "taschentuecher",
+                "category": "drugstore"
+            }
+        },
+        {
+            "name": "Zahnpasta",
+            "expected": {
+                "icon": "zahnbuerste",
+                "category": "drugstore"
+            }
+        },
+        {
+            "name": "Zahncreme",
+            "expected": {
+                "icon": "zahnbuerste",
+                "category": "drugstore"
+            }
+        },
+        {
+            "name": "Duschgel",
+            "expected": {
+                "icon": "seife",
+                "category": "drugstore"
+            }
+        },
+        {
+            "name": "Flüssigseife",
+            "expected": {
+                "icon": "seife",
+                "category": "drugstore"
+            }
+        },
+        {
+            "name": "Shampoo",
+            "expected": {
+                "icon": "shampoo",
+                "category": "drugstore"
+            }
+        },
+        {
+            "name": "Handcreme",
+            "expected": {
+                "icon": "creme",
+                "category": "drugstore"
+            }
+        },
+        {
+            "name": "Sonnenmilch",
+            "expected": {
+                "icon": "creme",
+                "category": "drugstore"
+            }
+        },
+        {
+            "name": "Deo",
+            "expected": {
+                "icon": "deo",
+                "category": "drugstore"
+            }
+        },
+        {
+            "name": "Ibuprofen",
+            "expected": {
+                "icon": "medikamente",
+                "category": "drugstore"
+            }
+        },
+        {
+            "name": "Hustensaft",
+            "expected": {
+                "icon": "medikamente",
+                "category": "drugstore"
+            }
+        },
+        {
+            "name": "Pflaster",
+            "expected": {
+                "icon": "pflaster",
+                "category": "drugstore"
+            }
+        },
+        {
+            "name": "Rasierer",
+            "expected": {
+                "icon": "allgemein",
+                "category": "drugstore"
+            }
+        },
+        {
+            "name": "Waschmittel",
+            "expected": {
+                "icon": "waschmittel",
+                "category": "household"
+            }
+        },
+        {
+            "name": "Colorwaschmittel",
+            "expected": {
+                "icon": "waschmittel",
+                "category": "household"
+            }
+        },
+        {
+            "name": "Weichspüler",
+            "expected": {
+                "icon": "waschmittel",
+                "category": "household"
+            }
+        },
+        {
+            "name": "Spülmittel",
+            "expected": {
+                "icon": "spuelmittel",
+                "category": "household"
+            }
+        },
+        {
+            "name": "Geschirrspültabs",
+            "expected": {
+                "icon": "spuelmaschinentabs",
+                "category": "household"
+            }
+        },
+        {
+            "name": "Spülmaschinensalz",
+            "expected": {
+                "icon": "spuelmaschinentabs",
+                "category": "household"
+            }
+        },
+        {
+            "name": "Glasreiniger",
+            "expected": {
+                "icon": "reiniger",
+                "category": "household"
+            }
+        },
+        {
+            "name": "WC-Reiniger",
+            "expected": {
+                "icon": "reiniger",
+                "category": "household"
+            }
+        },
+        {
+            "name": "Scheuermilch",
+            "expected": {
+                "icon": "reiniger",
+                "category": "household"
+            }
+        },
+        {
+            "name": "Schwämme",
+            "expected": {
+                "icon": "schwamm",
+                "category": "household"
+            }
+        },
+        {
+            "name": "Geschirrtuch",
+            "expected": {
+                "icon": "schwamm",
+                "category": "household"
+            }
+        },
+        {
+            "name": "Müllbeutel",
+            "expected": {
+                "icon": "muellbeutel",
+                "category": "household"
+            }
+        },
+        {
+            "name": "Gefrierbeutel",
+            "expected": {
+                "icon": "karton",
+                "category": "household"
+            }
+        },
+        {
+            "name": "Alufolie",
+            "expected": {
+                "icon": "karton",
+                "category": "household"
+            }
+        },
+        {
+            "name": "Küchenrolle",
+            "expected": {
+                "icon": "toilettenpapier",
+                "category": "household"
+            }
+        },
+        {
+            "name": "Batterien AA",
+            "expected": {
+                "icon": "batterien",
+                "category": "household"
+            }
+        },
+        {
+            "name": "Glühbirne",
+            "expected": {
+                "icon": "gluehbirne",
+                "category": "household"
+            }
+        },
+        {
+            "name": "Teelichter",
+            "expected": {
+                "icon": "allgemein",
+                "category": "household"
+            }
+        },
+        {
+            "name": "Windeln Gr. 4",
+            "expected": {
+                "icon": "windeln",
+                "category": "baby"
+            }
+        },
+        {
+            "name": "Babybrei",
+            "expected": {
+                "icon": "baby",
+                "category": "baby"
+            }
+        },
+        {
+            "name": "Milchpulver",
+            "expected": {
+                "icon": "babyflasche",
+                "category": "baby"
+            }
+        },
+        {
+            "name": "Katzenfutter",
+            "expected": {
+                "icon": "katze",
+                "category": "pets"
+            }
+        },
+        {
+            "name": "Katzenstreu",
+            "expected": {
+                "icon": "katze",
+                "category": "pets"
+            }
+        },
+        {
+            "name": "Hundefutter",
+            "expected": {
+                "icon": "hund",
+                "category": "pets"
+            }
+        },
+        {
+            "name": "Vogelfutter",
+            "expected": {
+                "icon": "tierfutter",
+                "category": "pets"
+            }
+        },
+        {
+            "name": "Blumen",
+            "expected": {
+                "icon": "blumen",
+                "category": "other"
+            }
+        },
+        {
+            "name": "Rosen",
+            "expected": {
+                "icon": "blumen",
+                "category": "other"
+            }
+        },
+        {
+            "name": "Blumenerde",
+            "expected": {
+                "icon": "blumen",
+                "category": "other"
+            }
+        },
+        {
+            "name": "Geschenkpapier",
+            "expected": {
+                "icon": "geschenk",
+                "category": "other"
+            }
+        },
+        {
+            "name": "Zeitung",
+            "expected": {
+                "icon": "zeitung",
+                "category": "other"
+            }
+        },
+        {
+            "name": "Joghurt Erdbeere",
+            "expected": {
+                "icon": "becher",
+                "category": "dairy"
+            }
+        },
+        {
+            "name": "TK Erbsen",
+            "expected": {
+                "icon": "tiefkuehl",
+                "category": "frozen"
+            }
+        },
+        {
+            "name": "Tee Pfefferminz",
+            "expected": {
+                "icon": "tee",
+                "category": "coffee_tea"
+            }
+        },
+        {
+            "name": "Chips Paprika",
+            "expected": {
+                "icon": "chips",
+                "category": "sweets"
+            }
+        },
+        {
+            "name": "Erbsen",
+            "expected": {
+                "icon": "bohnen",
+                "category": "vegetables"
+            }
+        },
+        {
+            "name": "Mehl",
+            "expected": {
+                "icon": "mehl",
+                "category": "baking"
+            }
+        },
+        {
+            "name": "Nussnougatcreme",
+            "expected": {
+                "icon": "glas",
+                "category": "sweets"
+            }
+        },
+        {
+            "name": "Gutes Zeug",
+            "expected": null
+        },
+        {
+            "name": "Xyz",
+            "expected": null
+        },
+        {
+            "name": "Grillkohle",
+            "expected": {
+                "icon": "allgemein",
+                "category": "household"
+            }
+        },
+        {
+            "name": "Gartenschlauch",
+            "expected": {
+                "icon": "allgemein",
+                "category": "household"
+            }
+        },
+        {
+            "name": "Briefmarken",
+            "expected": null
+        },
+        {
+            "name": "Druckerpatrone",
+            "expected": null
+        },
+        {
+            "name": "",
+            "expected": null
+        },
+        {
+            "name": "  ",
+            "expected": null
+        },
+        {
+            "name": "Brei",
+            "expected": null
+        },
+        {
+            "name": "Alkohol",
+            "expected": null
+        },
+        {
+            "name": "Steckdosenleiste",
+            "expected": null
+        }
+    ]
+}

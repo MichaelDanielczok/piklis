@@ -10,11 +10,15 @@
  * oder man legt ausdrücklich ein neues an; ähnliche Namen werden nie
  * zusammengeführt.
  *
+ * Beim Anlegen schlägt es außerdem Kategorie und Ersatzicon aus dem Namen
+ * vor (`products/suggest.js`), solange man beide nicht selbst gewählt hat;
+ * nichts davon ist Pflicht, unbekannt bleibt allgemein und ohne Kategorie.
+ *
  * Speichert selbst (`createProduct`/`updateProduct`) und meldet das Ergebnis.
  * Props: product (null = neu), initialName · Emits: saved(product), cancel,
  * open(product)
  */
-import { computed, nextTick, onMounted, reactive, ref, useId } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref, useId, watch } from 'vue';
 import { CircleAlert } from '@lucide/vue';
 import AppButton from '@/components/ui/AppButton.vue';
 import IconPicker from './IconPicker.vue';
@@ -28,7 +32,8 @@ import {
     useProducts
 } from '@/composables/useProducts.js';
 import { showToast } from '@/composables/useToast.js';
-import { CATEGORIES, DEFAULT_ICON, iconOf } from '@/products/catalog.js';
+import { CATEGORIES, categoryOf, DEFAULT_ICON, iconOf } from '@/products/catalog.js';
+import { suggestForName } from '@/products/suggest.js';
 import { t } from '@/i18n/index.js';
 
 const NAME_MAX = 120;
@@ -65,6 +70,28 @@ const form = reactive({
     description: props.product?.description ?? ''
 });
 
+// Vorschlag aus dem Namen gilt nur, bis man Kategorie bzw. Icon selbst wählt
+const categoryTouched = ref(false);
+const iconTouched = ref(false);
+const suggested = ref(null);
+
+if (isNew.value) {
+    watch(() => form.name, (name) => {
+        suggested.value = suggestForName(name);
+
+        if (!categoryTouched.value) {
+            form.category = suggested.value?.category ?? '';
+        }
+
+        if (!iconTouched.value) {
+            form.icon = suggested.value?.icon ?? DEFAULT_ICON;
+        }
+    }, { immediate: true });
+}
+
+const categorySuggested = computed(() => isNew.value && !categoryTouched.value && Boolean(suggested.value));
+const iconSuggested = computed(() => isNew.value && !iconTouched.value && Boolean(suggested.value));
+
 const imageChange = ref(null);
 const pickerOpen = ref(false);
 const pending = ref(false);
@@ -79,6 +106,8 @@ const ids = {
     suggestions: useId(),
     packageSize: useId(),
     category: useId(),
+    categoryHint: useId(),
+    iconHint: useId(),
     description: useId()
 };
 
@@ -249,7 +278,7 @@ onMounted(async () => {
                         :aria-label="t('productForm.open', { name: item.name })"
                         @click="emit('open', item)"
                     >
-                        <ProductImage :image-url="item.imageUrl" :icon="iconOf(item)" />
+                        <ProductImage :image-url="item.imageUrl" :icon="iconOf(item)" :category="categoryOf(item)" />
                         <span class="product-form__suggestion-name">{{ item.name }}</span>
                     </button>
                 </li>
@@ -272,13 +301,23 @@ onMounted(async () => {
 
         <div class="form-field">
             <label :for="ids.category" class="form-field__label">{{ t('productForm.category') }}</label>
-            <select :id="ids.category" v-model="form.category" class="form-field__input" name="category">
+            <select
+                :id="ids.category"
+                v-model="form.category"
+                class="form-field__input"
+                name="category"
+                :aria-describedby="categorySuggested ? ids.categoryHint : undefined"
+                @change="categoryTouched = true"
+            >
                 <option value="">{{ t('productForm.noCategory') }}</option>
                 <option v-for="key in CATEGORIES" :key="key" :value="key">{{ t('categories.' + key) }}</option>
             </select>
+            <span v-if="categorySuggested" :id="ids.categoryHint" class="form-field__hint">
+                {{ t('productForm.suggested') }}
+            </span>
         </div>
 
-        <ProductImageField v-model="imageChange" :product="product" :icon="form.icon" />
+        <ProductImageField v-model="imageChange" :product="product" :icon="form.icon" :category="form.category || null" />
 
         <div class="form-field">
             <span class="form-field__label">
@@ -289,13 +328,15 @@ onMounted(async () => {
                 type="button"
                 class="product-form__icon"
                 :aria-label="t('productForm.icon') + ': ' + t('icons.' + form.icon) + ', ' + t('productForm.changeIcon')"
+                :aria-describedby="iconSuggested ? ids.iconHint : undefined"
                 aria-haspopup="dialog"
                 @click="pickerOpen = true"
             >
-                <ProductImage :icon="form.icon" size="tile" />
+                <ProductImage :icon="form.icon" :category="form.category || null" size="tile" />
                 <span class="product-form__icon-name">{{ t('icons.' + form.icon) }}</span>
                 <span class="product-form__icon-action">{{ t('productForm.changeIcon') }}</span>
             </button>
+            <span v-if="iconSuggested" :id="ids.iconHint" class="form-field__hint">{{ t('productForm.suggested') }}</span>
         </div>
 
         <div class="form-field">
@@ -325,7 +366,7 @@ onMounted(async () => {
             </AppButton>
         </div>
 
-        <IconPicker v-model:open="pickerOpen" v-model="form.icon" />
+        <IconPicker v-model:open="pickerOpen" v-model="form.icon" @update:model-value="iconTouched = true" />
     </form>
 </template>
 

@@ -32,6 +32,10 @@ const props = defineProps({
         type: String,
         default: undefined
     },
+    category: {
+        type: String,
+        default: null
+    },
     unit: {
         type: String,
         default: null
@@ -79,13 +83,13 @@ function decrease() {
 </script>
 
 <template>
-    <div class="add-tile" :class="{ 'add-tile--selected': selected }">
+    <div class="add-tile" :class="{ 'add-tile--selected': selected }" :data-category="category || undefined">
         <button v-if="openLabel" type="button" class="add-tile__head add-tile__head--button" :aria-label="openLabel" @click="emit('open')">
-            <ProductImage size="tile" :image-url="imageUrl" :icon="icon" />
+            <ProductImage size="tile" :image-url="imageUrl" :icon="icon" :category="category" />
             <span class="add-tile__name">{{ name }}</span>
         </button>
         <div v-else class="add-tile__head">
-            <ProductImage size="tile" :image-url="imageUrl" :icon="icon" />
+            <ProductImage size="tile" :image-url="imageUrl" :icon="icon" :category="category" />
             <span class="add-tile__name">{{ name }}</span>
         </div>
 

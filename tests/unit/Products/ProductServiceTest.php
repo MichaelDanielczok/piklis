@@ -47,6 +47,39 @@ class ProductServiceTest extends TestCase
         $this->assertSame($result['product'], $this->Store->find(self::GOUDA));
     }
 
+    public function testCreatingSuggestsCategoryAndIconFromTheName(): void
+    {
+        $Product = $this->Service->create(self::GOUDA, ['name' => 'Bananen'], self::TOMASZ)['product'];
+
+        $this->assertSame('fruit', $Product->category);
+        $this->assertSame('banane', $Product->icon);
+    }
+
+    public function testSentValuesBeatTheSuggestion(): void
+    {
+        $Product = $this->Service->create(
+            self::GOUDA,
+            ['name' => 'Bananen', 'category' => null, 'icon' => null],
+            self::TOMASZ
+        )['product'];
+
+        $this->assertNull($Product->category);
+        $this->assertNull($Product->icon);
+
+        $Milk = $this->Service->create(self::MILK, ['name' => 'Hafermilch', 'icon' => 'flasche'], self::TOMASZ)['product'];
+
+        $this->assertSame('dairy', $Milk->category);
+        $this->assertSame('flasche', $Milk->icon);
+    }
+
+    public function testUnknownNamesStayWithoutSuggestion(): void
+    {
+        $Product = $this->Service->create(self::GOUDA, ['name' => 'Gutes Zeug'], self::TOMASZ)['product'];
+
+        $this->assertNull($Product->category);
+        $this->assertNull($Product->icon);
+    }
+
     public function testCreatingTheSameIdAgainIsIdempotent(): void
     {
         $this->Service->create(self::GOUDA, ['name' => 'Gouda jung'], self::MICHAEL);

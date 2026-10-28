@@ -1,0 +1,490 @@
+{
+    "_comment": "Ersatzicons in Reihenfolge der Auswahl: Schlüssel (Symbol #pk-<key>), Kategorie der Icon-Auswahl, Quelle (lucide:<name> aus @lucide/vue, ISC; design:<id> aus dem Designpaket „Leinen“; own = build/icons/own.svg). Den Sprite erzeugt `npm run icons`. Namen in frontend/i18n (icons.<key>).",
+    "icons": [
+        {
+            "key": "apfel",
+            "category": "fruit",
+            "source": "lucide:apple"
+        },
+        {
+            "key": "banane",
+            "category": "fruit",
+            "source": "lucide:banana"
+        },
+        {
+            "key": "birne",
+            "category": "fruit",
+            "source": "own"
+        },
+        {
+            "key": "kirsche",
+            "category": "fruit",
+            "source": "lucide:cherry"
+        },
+        {
+            "key": "trauben",
+            "category": "fruit",
+            "source": "lucide:grape"
+        },
+        {
+            "key": "erdbeere",
+            "category": "fruit",
+            "source": "own"
+        },
+        {
+            "key": "orange",
+            "category": "fruit",
+            "source": "lucide:citrus"
+        },
+        {
+            "key": "zitrone",
+            "category": "fruit",
+            "source": "own"
+        },
+        {
+            "key": "melone",
+            "category": "fruit",
+            "source": "own"
+        },
+        {
+            "key": "ananas",
+            "category": "fruit",
+            "source": "own"
+        },
+        {
+            "key": "avocado",
+            "category": "fruit",
+            "source": "own"
+        },
+        {
+            "key": "gemuese",
+            "category": "vegetables",
+            "source": "design:gemuese"
+        },
+        {
+            "key": "karotte",
+            "category": "vegetables",
+            "source": "lucide:carrot"
+        },
+        {
+            "key": "kartoffel",
+            "category": "vegetables",
+            "source": "own"
+        },
+        {
+            "key": "tomate",
+            "category": "vegetables",
+            "source": "own"
+        },
+        {
+            "key": "gurke",
+            "category": "vegetables",
+            "source": "own"
+        },
+        {
+            "key": "paprika",
+            "category": "vegetables",
+            "source": "own"
+        },
+        {
+            "key": "zwiebel",
+            "category": "vegetables",
+            "source": "own"
+        },
+        {
+            "key": "knoblauch",
+            "category": "vegetables",
+            "source": "own"
+        },
+        {
+            "key": "salat",
+            "category": "vegetables",
+            "source": "lucide:leafy-green"
+        },
+        {
+            "key": "brokkoli",
+            "category": "vegetables",
+            "source": "lucide:broccoli"
+        },
+        {
+            "key": "pilze",
+            "category": "vegetables",
+            "source": "own"
+        },
+        {
+            "key": "bohnen",
+            "category": "vegetables",
+            "source": "lucide:bean"
+        },
+        {
+            "key": "kraeuter",
+            "category": "vegetables",
+            "source": "lucide:sprout"
+        },
+        {
+            "key": "brot",
+            "category": "bread",
+            "source": "design:brot"
+        },
+        {
+            "key": "broetchen",
+            "category": "bread",
+            "source": "own"
+        },
+        {
+            "key": "baguette",
+            "category": "bread",
+            "source": "own"
+        },
+        {
+            "key": "brezel",
+            "category": "bread",
+            "source": "own"
+        },
+        {
+            "key": "croissant",
+            "category": "bread",
+            "source": "lucide:croissant"
+        },
+        {
+            "key": "kuchen",
+            "category": "bread",
+            "source": "lucide:cake-slice"
+        },
+        {
+            "key": "milch",
+            "category": "dairy",
+            "source": "lucide:milk"
+        },
+        {
+            "key": "becher",
+            "category": "dairy",
+            "source": "design:becher"
+        },
+        {
+            "key": "butter",
+            "category": "dairy",
+            "source": "design:butter"
+        },
+        {
+            "key": "eier",
+            "category": "dairy",
+            "source": "lucide:egg"
+        },
+        {
+            "key": "kaese",
+            "category": "cheese",
+            "source": "design:kaese"
+        },
+        {
+            "key": "fleisch",
+            "category": "meat",
+            "source": "lucide:beef"
+        },
+        {
+            "key": "haehnchen",
+            "category": "meat",
+            "source": "lucide:drumstick"
+        },
+        {
+            "key": "schinken",
+            "category": "meat",
+            "source": "lucide:ham"
+        },
+        {
+            "key": "wurst",
+            "category": "meat",
+            "source": "own"
+        },
+        {
+            "key": "fisch",
+            "category": "fish",
+            "source": "lucide:fish"
+        },
+        {
+            "key": "garnelen",
+            "category": "fish",
+            "source": "lucide:shrimp"
+        },
+        {
+            "key": "nudeln",
+            "category": "grains",
+            "source": "design:nudeln"
+        },
+        {
+            "key": "reis",
+            "category": "grains",
+            "source": "own"
+        },
+        {
+            "key": "getreide",
+            "category": "grains",
+            "source": "lucide:wheat"
+        },
+        {
+            "key": "dose",
+            "category": "canned",
+            "source": "lucide:can"
+        },
+        {
+            "key": "glas",
+            "category": "canned",
+            "source": "own"
+        },
+        {
+            "key": "suppe",
+            "category": "canned",
+            "source": "lucide:soup"
+        },
+        {
+            "key": "sauce",
+            "category": "canned",
+            "source": "own"
+        },
+        {
+            "key": "karton",
+            "category": "canned",
+            "source": "design:karton"
+        },
+        {
+            "key": "tiefkuehl",
+            "category": "frozen",
+            "source": "lucide:snowflake"
+        },
+        {
+            "key": "pizza",
+            "category": "frozen",
+            "source": "lucide:pizza"
+        },
+        {
+            "key": "pommes",
+            "category": "frozen",
+            "source": "own"
+        },
+        {
+            "key": "eis",
+            "category": "frozen",
+            "source": "lucide:ice-cream-cone"
+        },
+        {
+            "key": "schokolade",
+            "category": "sweets",
+            "source": "own"
+        },
+        {
+            "key": "bonbons",
+            "category": "sweets",
+            "source": "lucide:candy"
+        },
+        {
+            "key": "kekse",
+            "category": "sweets",
+            "source": "lucide:cookie"
+        },
+        {
+            "key": "chips",
+            "category": "sweets",
+            "source": "own"
+        },
+        {
+            "key": "popcorn",
+            "category": "sweets",
+            "source": "lucide:popcorn"
+        },
+        {
+            "key": "nuesse",
+            "category": "sweets",
+            "source": "lucide:nut"
+        },
+        {
+            "key": "flasche",
+            "category": "drinks",
+            "source": "design:flasche"
+        },
+        {
+            "key": "saft",
+            "category": "drinks",
+            "source": "own"
+        },
+        {
+            "key": "limo",
+            "category": "drinks",
+            "source": "lucide:can-soda"
+        },
+        {
+            "key": "bier",
+            "category": "drinks",
+            "source": "lucide:beer"
+        },
+        {
+            "key": "wein",
+            "category": "drinks",
+            "source": "lucide:wine"
+        },
+        {
+            "key": "kaffee",
+            "category": "coffee_tea",
+            "source": "lucide:coffee"
+        },
+        {
+            "key": "tee",
+            "category": "coffee_tea",
+            "source": "own"
+        },
+        {
+            "key": "mehl",
+            "category": "baking",
+            "source": "own"
+        },
+        {
+            "key": "zucker",
+            "category": "baking",
+            "source": "own"
+        },
+        {
+            "key": "salz",
+            "category": "baking",
+            "source": "own"
+        },
+        {
+            "key": "oel",
+            "category": "baking",
+            "source": "own"
+        },
+        {
+            "key": "toilettenpapier",
+            "category": "drugstore",
+            "source": "design:toilettenpapier"
+        },
+        {
+            "key": "taschentuecher",
+            "category": "drugstore",
+            "source": "own"
+        },
+        {
+            "key": "zahnbuerste",
+            "category": "drugstore",
+            "source": "lucide:toothbrush"
+        },
+        {
+            "key": "seife",
+            "category": "drugstore",
+            "source": "lucide:soap-dispenser-droplet"
+        },
+        {
+            "key": "shampoo",
+            "category": "drugstore",
+            "source": "own"
+        },
+        {
+            "key": "creme",
+            "category": "drugstore",
+            "source": "lucide:tube-lotion"
+        },
+        {
+            "key": "deo",
+            "category": "drugstore",
+            "source": "lucide:spray-can"
+        },
+        {
+            "key": "medikamente",
+            "category": "drugstore",
+            "source": "lucide:pill"
+        },
+        {
+            "key": "pflaster",
+            "category": "drugstore",
+            "source": "lucide:bandage"
+        },
+        {
+            "key": "waschmittel",
+            "category": "household",
+            "source": "design:waschmittel"
+        },
+        {
+            "key": "spuelmittel",
+            "category": "household",
+            "source": "own"
+        },
+        {
+            "key": "spuelmaschinentabs",
+            "category": "household",
+            "source": "own"
+        },
+        {
+            "key": "reiniger",
+            "category": "household",
+            "source": "own"
+        },
+        {
+            "key": "schwamm",
+            "category": "household",
+            "source": "own"
+        },
+        {
+            "key": "muellbeutel",
+            "category": "household",
+            "source": "lucide:trash"
+        },
+        {
+            "key": "batterien",
+            "category": "household",
+            "source": "lucide:battery"
+        },
+        {
+            "key": "gluehbirne",
+            "category": "household",
+            "source": "lucide:lightbulb"
+        },
+        {
+            "key": "baby",
+            "category": "baby",
+            "source": "lucide:baby"
+        },
+        {
+            "key": "windeln",
+            "category": "baby",
+            "source": "own"
+        },
+        {
+            "key": "babyflasche",
+            "category": "baby",
+            "source": "own"
+        },
+        {
+            "key": "tierfutter",
+            "category": "pets",
+            "source": "lucide:paw-print"
+        },
+        {
+            "key": "katze",
+            "category": "pets",
+            "source": "lucide:cat"
+        },
+        {
+            "key": "hund",
+            "category": "pets",
+            "source": "lucide:dog"
+        },
+        {
+            "key": "allgemein",
+            "category": "other",
+            "source": "design:allgemein"
+        },
+        {
+            "key": "blumen",
+            "category": "other",
+            "source": "lucide:flower-2"
+        },
+        {
+            "key": "geschenk",
+            "category": "other",
+            "source": "lucide:gift"
+        },
+        {
+            "key": "zeitung",
+            "category": "other",
+            "source": "lucide:newspaper"
+        }
+    ]
+}

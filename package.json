@@ -6,7 +6,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test --import ./tests/js/alias-hooks.js 'tests/js/**/*.test.js'"
+    "test": "node --test --import ./tests/js/alias-hooks.js 'tests/js/**/*.test.js'",
+    "icons": "node build/make-sprite.mjs"
   },
   "dependencies": {
     "@ionic/vue": "^9.0.6",

@@ -34,6 +34,17 @@ under `design/piklis-designpaket/`.
   icon picker by category; product maintenance in two columns on desktop;
   rights: everybody creates and edits their own products, maintainers edit
   all and hide them
+- Fallback icons and category colours: 97 product types in one style (49
+  Lucide, 11 from the design package, 37 drawn in the same style; sprite
+  from `npm run icons`), ten pastel colour families for surface and line by
+  category (`data-category`), overview of all icons at `/#/icons` in the dev
+  server
+- Suggestion of category and icon from the name (keyword list with word
+  stems, longest word end, no AI) when creating, also quick create; the icon
+  picker searches keywords too
+- Base catalog: 152 common products with category and icon, created once by
+  the package setup without creator (only product maintainers edit them),
+  existing products are never overwritten
 - Product images: take a photo, choose a file or paste a copied image on
   the desktop, square crop in the browser without a library (move, zoom),
   upload of the crop and the original reduced to the project limit, both
@@ -77,6 +88,7 @@ under `design/piklis-designpaket/`.
 npm install
 npm run dev     # Vite, proxies the API to APP_BACKEND
 npm run build   # before every commit; bin/app/ is committed
+npm run icons   # after changing data/icons.json or build/icons/*.svg
 npm test        # JS tests (node --test, shared fixtures with PHPUnit)
 ```
 
@@ -86,3 +98,8 @@ npm test        # JS tests (node --test, shared fixtures with PHPUnit)
   data model, sync and conflict rules, product catalog, product images,
   PWA, REST, login, texts
 - [Development](docs/development.md): instance, mock backend, Vite, tools
+
+## Third-party licences
+
+The fallback icon sprite contains icons from [Lucide](https://lucide.dev)
+(ISC licence, see `LICENSE-lucide.txt`).

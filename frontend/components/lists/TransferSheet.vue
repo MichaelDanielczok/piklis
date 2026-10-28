@@ -24,7 +24,7 @@ import SectionLabel from '@/components/ui/SectionLabel.vue';
 import EntryChecklist from './EntryChecklist.vue';
 import { ensureListLoaded, listEntries, loadLists, takeOverEntries, useLists } from '@/composables/useLists.js';
 import { useProducts } from '@/composables/useProducts.js';
-import { iconOf } from '@/products/catalog.js';
+import { categoryOf, iconOf } from '@/products/catalog.js';
 import { formatQuantity } from '@/utils/quantity.js';
 import { formatShopDate } from '@/utils/shopDate.js';
 import { planTakeOver } from '@/utils/takeOver.js';
@@ -88,6 +88,7 @@ const items = computed(() => props.entries.map((entry) => {
         name: product?.name ?? t('entry.unknownProduct'),
         imageUrl: product?.imageUrl ?? null,
         icon: product ? iconOf(product) : undefined,
+        category: categoryOf(product),
         note: entry.note,
         meta: entry.status === 'open' && isComplete.value ? t('entry.statusOpen') : '',
         quantity: entry.quantity

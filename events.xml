@@ -4,5 +4,7 @@
     <events>
         <!-- Service Worker und Manifest unter /sw.js und /manifest.webmanifest -->
         <event on="onRequest" fire="\MichaelDanielczok\Piklis\Pwa\EventHandler::onRequest"/>
+        <!-- Grundkatalog einmalig anlegen (data/catalog.json) -->
+        <event on="onPackageSetup" fire="\MichaelDanielczok\Piklis\Setup\EventHandler::onPackageSetup"/>
     </events>
 </quiqqer>

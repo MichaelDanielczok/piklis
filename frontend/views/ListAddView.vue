@@ -35,7 +35,7 @@ import { createProductOnList, isVisible, listView, loadList, setProductQuantity 
 import { loadProducts, loadSuggestions, useProducts } from '@/composables/useProducts.js';
 import { navigateBack } from '@/composables/usePageTransition.js';
 import { showToast } from '@/composables/useToast.js';
-import { iconOf } from '@/products/catalog.js';
+import { categoryOf, iconOf } from '@/products/catalog.js';
 import { countOrder, currentOrder, FIRST_PAGE, freezeOrder, nextLimit, sliceOrder } from '@/utils/pickerOrder.js';
 import { t } from '@/i18n/index.js';
 
@@ -363,6 +363,7 @@ onBeforeUnmount(() => {
                             :name="findProduct(productId).name"
                             :image-url="findProduct(productId).imageUrl"
                             :icon="iconOf(findProduct(productId))"
+                            :category="categoryOf(findProduct(productId))"
                             :unit="onList.active.get(productId)?.quantity.unit ?? null"
                             :meta="metaOf(findProduct(productId))"
                             :open-label="t('addProducts.openDetail', { name: findProduct(productId).name })"
@@ -399,6 +400,7 @@ onBeforeUnmount(() => {
                                     :name="findProduct(productId).name"
                                     :image-url="findProduct(productId).imageUrl"
                                     :icon="iconOf(findProduct(productId))"
+                                    :category="categoryOf(findProduct(productId))"
                                     :unit="onList.active.get(productId)?.quantity.unit ?? null"
                                     :meta="metaOf(findProduct(productId))"
                                     :open-label="t('addProducts.openDetail', { name: findProduct(productId).name })"

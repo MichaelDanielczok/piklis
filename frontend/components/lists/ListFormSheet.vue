@@ -22,7 +22,7 @@ import AppSheet from '@/components/ui/AppSheet.vue';
 import EntryChecklist from './EntryChecklist.vue';
 import { ensureListLoaded, listEntries, useLists } from '@/composables/useLists.js';
 import { useProducts } from '@/composables/useProducts.js';
-import { iconOf } from '@/products/catalog.js';
+import { categoryOf, iconOf } from '@/products/catalog.js';
 import { formatDay, shopDateFromToday } from '@/utils/shopDate.js';
 import { copyPlan } from '@/utils/takeOver.js';
 import { t } from '@/i18n/index.js';
@@ -103,6 +103,7 @@ const sourceItems = computed(() => {
             name: product?.name ?? t('entry.unknownProduct'),
             imageUrl: product?.imageUrl ?? null,
             icon: product ? iconOf(product) : undefined,
+            category: categoryOf(product),
             meta: item.status === 'done' ? '' : t(item.status === 'notGot' ? 'entry.statusNotGot' : 'entry.statusOpen')
         };
     });

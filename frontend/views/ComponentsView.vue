@@ -26,6 +26,9 @@ import tomatoes from '@/dev/samples/tomaten.webp';
 import bananas from '@/dev/samples/bananen.webp';
 import creamCheese from '@/dev/samples/frischkaese.webp';
 
+// Auswahl für die Musterseite; alle Icons zeigt /icons
+const SAMPLE_ICONS = ['apfel', 'karotte', 'brot', 'milch', 'kaese', 'fleisch', 'fisch', 'nudeln', 'dose', 'tiefkuehl', 'schokolade', 'flasche', 'kaffee', 'mehl', 'toilettenpapier', 'waschmittel'];
+
 const rows = reactive([
     { id: 1, name: 'Tomaten Rispe', amount: 500, unit: 'g', imageUrl: tomatoes, status: 'open' },
     { id: 2, name: 'Milch 1,5 %', amount: 2, unit: 'pack', imageUrl: milk, note: t('components.sampleNote'), status: 'open' },
@@ -105,27 +108,25 @@ function demoToast() {
                 <p class="patterns__hint">{{ t('components.productImageHint') }}</p>
                 <div class="patterns__images">
                     <ProductImage :image-url="milk" />
-                    <ProductImage icon="milch" />
+                    <ProductImage icon="milch" category="dairy" />
                     <ProductImage :image-url="tomatoes" size="tile" />
-                    <ProductImage icon="karotte" size="tile" />
+                    <ProductImage icon="karotte" category="vegetables" size="tile" />
                     <ProductImage :image-url="bananas" size="lg" />
-                    <ProductImage icon="banane" size="lg" />
+                    <ProductImage icon="banane" category="fruit" size="lg" />
                     <ProductImage :image-url="bananas" muted />
-                    <ProductImage icon="banane" muted />
+                    <ProductImage icon="banane" category="fruit" muted />
                     <ProductImage image-url="/gibt-es-nicht.webp" icon="apfel" />
                 </div>
             </section>
 
             <section class="patterns__section" aria-labelledby="patterns-icons">
                 <SectionLabel id="patterns-icons" :label="t('components.icons')" :count="FALLBACK_ICONS.length" />
-                <ul class="patterns__icons">
-                    <li v-for="name in FALLBACK_ICONS" :key="name" class="patterns__icon">
-                        <ProductImage :icon="name" />
-                        <span class="patterns__icon-name">{{ name }}</span>
-                    </li>
-                </ul>
+                <p class="patterns__hint">
+                    {{ t('components.iconsHint') }}
+                    <RouterLink to="/icons">{{ t('components.iconsLink') }}</RouterLink>
+                </p>
                 <div class="patterns__icons-raw" aria-hidden="true">
-                    <ProductIcon v-for="name in FALLBACK_ICONS" :key="name" :name="name" class="patterns__icon-raw" />
+                    <ProductIcon v-for="name in SAMPLE_ICONS" :key="name" :name="name" class="patterns__icon-raw" />
                 </div>
             </section>
 
@@ -250,6 +251,11 @@ function demoToast() {
     font-size: var(--font-size-note);
 }
 
+.patterns__hint a {
+    color: var(--color-accent-text);
+    font-weight: var(--font-weight-semibold);
+}
+
 .patterns__images {
     display: flex;
     flex-wrap: wrap;
@@ -259,28 +265,6 @@ function demoToast() {
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     background: var(--color-surface-1);
-}
-
-.patterns__icons {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr));
-    gap: var(--space-3);
-    padding: var(--space-4);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    background: var(--color-surface-1);
-}
-
-.patterns__icon {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--space-1);
-}
-
-.patterns__icon-name {
-    color: var(--color-text-2);
-    font-size: var(--font-size-caption);
 }
 
 .patterns__icons-raw {

@@ -7,6 +7,9 @@
  *
  * Dekorativ (alt=""): Der Produktname steht immer daneben.
  *
+ * category: färbt Feld und Linie des Ersatzicons dezent nach der Kategorie
+ * (`data-category`, Tokens `--cat-…` in tokens.css); ohne Kategorie neutral.
+ *
  * size: row (44 px, Listenzeile) · tile (48 px, Hinzufügen-Kachel) · lg (80 px) ·
  * hero (Produktdetail: quadratisch, volle Breite bis 240 px)
  * muted: erledigte Zeile (Foto mit Überlagerung, Icon gedämpft)
@@ -22,6 +25,10 @@ const props = defineProps({
     icon: {
         type: String,
         default: undefined
+    },
+    category: {
+        type: String,
+        default: null
     },
     size: {
         type: String,
@@ -44,6 +51,7 @@ watch(() => props.imageUrl, () => {
 <template>
     <span
         class="product-image"
+        :data-category="category || undefined"
         :class="[
             'product-image--' + size,
             {
@@ -77,8 +85,9 @@ watch(() => props.imageUrl, () => {
     height: var(--product-image-size);
     overflow: hidden;
     border-radius: var(--radius-sm);
-    background: var(--color-surface-2);
-    color: var(--color-icon);
+    /* Kategorienfarbe aus data-category (hier oder an der Kachel), sonst neutral */
+    background: var(--category-bg, var(--color-surface-2));
+    color: var(--category-line, var(--color-icon));
 }
 
 .product-image--tile {
@@ -114,7 +123,7 @@ watch(() => props.imageUrl, () => {
     height: calc(var(--product-image-size) * var(--thumb-icon-ratio));
 }
 
-/* erledigt: Foto mit Überlagerung im Seitenton, Icon gedämpft */
+/* erledigt: Foto mit Überlagerung im Seitenton, Icon gedämpft und ohne Kategorienfarbe */
 .product-image--muted.product-image--photo::after {
     content: "";
     position: absolute;
@@ -123,6 +132,7 @@ watch(() => props.imageUrl, () => {
 }
 
 .product-image--muted:not(.product-image--photo) {
+    background: var(--color-surface-2);
     color: var(--color-text-3);
 }
 </style>

@@ -9,7 +9,6 @@ use QUI;
  */
 final class Tables
 {
-    public const CATEGORIES = 'pk_categories';
     public const PRODUCTS = 'pk_products';
     public const LISTS = 'pk_lists';
     public const LIST_ENTRIES = 'pk_list_entries';

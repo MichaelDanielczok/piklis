@@ -91,6 +91,35 @@
     --glass-blur: blur(1.25rem);
     /* endregion */
 
+    /* region Kategorienfarben: Fläche und Linie der Ersatzicons, je Farbfamilie.
+       Pastellig und deutlich schwächer als die Statusfarben; Linie zur Fläche
+       mindestens 3 : 1 (hier 4,9–5,9 : 1). Zuordnung Kategorie → Familie unten
+       über data-category. Baby, Tier, Sonstiges und Produkte ohne Kategorie:
+       neutral (--color-surface-2, --color-icon). */
+    --cat-green-bg: #E4EEDD; /* Obst */
+    --cat-green-line: #4A6A3D;
+    --cat-orange-bg: #F7E6D7; /* Gemüse, Konserven */
+    --cat-orange-line: #8A5226;
+    --cat-sand-bg: #F1E8D9; /* Brot, Getreide, Backen */
+    --cat-sand-line: #77603F;
+    --cat-yellow-bg: #F5EDC9; /* Milchprodukte, Käse */
+    --cat-yellow-line: #6B5C1B;
+    --cat-rose-bg: #F6E2E2; /* Fleisch und Wurst */
+    --cat-rose-line: #8A4A4F;
+    --cat-blue-bg: #E0E9F4; /* Fisch */
+    --cat-blue-line: #3D5F80;
+    --cat-ice-bg: #DEF0F3; /* Tiefkühl */
+    --cat-ice-line: #376770;
+    --cat-pink-bg: #F6E1EC; /* Süßes */
+    --cat-pink-line: #874470;
+    --cat-teal-bg: #DAEEEA; /* Getränke, Kaffee und Tee */
+    --cat-teal-line: #2E6A61;
+    --cat-lilac-bg: #EAE4F4; /* Drogerie */
+    --cat-lilac-line: #5E4C86;
+    --cat-slate-bg: #E3E8ED; /* Haushalt */
+    --cat-slate-line: #4A5866;
+    /* endregion */
+
     /* region Schrift: Systemschrift (SF Pro, Roboto, Segoe UI), keine Webschrift */
     --font-text: system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
     --font-display: var(--font-text);
@@ -257,6 +286,29 @@
         --shadow-1: 0 1px 2px rgb(0 0 0 / 0.3);
         --shadow-menu: 0 0.75rem 2rem -0.5rem rgb(0 0 0 / 0.7);
         --shadow-float: 0 0.75rem 2rem -0.75rem rgb(0 0 0 / 0.8);
+        /* Kategorienfarben dunkel: Linie zur Fläche 7,4–8,2 : 1 */
+        --cat-green-bg: #233024;
+        --cat-green-line: #A9CC9A;
+        --cat-orange-bg: #35291F;
+        --cat-orange-line: #E8B48A;
+        --cat-sand-bg: #322C22;
+        --cat-sand-line: #D6BF9C;
+        --cat-yellow-bg: #33301C;
+        --cat-yellow-line: #DCCB82;
+        --cat-rose-bg: #362426;
+        --cat-rose-line: #E7AAB0;
+        --cat-blue-bg: #1F2B37;
+        --cat-blue-line: #9FC0E2;
+        --cat-ice-bg: #1D3033;
+        --cat-ice-line: #98CFD8;
+        --cat-pink-bg: #36222F;
+        --cat-pink-line: #E5A6CC;
+        --cat-teal-bg: #1B302C;
+        --cat-teal-line: #8FCFC3;
+        --cat-lilac-bg: #2A2536;
+        --cat-lilac-line: #C2B2E6;
+        --cat-slate-bg: #252B31;
+        --cat-slate-line: #B0BCC8;
     }
 }
 
@@ -305,6 +357,95 @@
     --shadow-1: 0 1px 2px rgb(0 0 0 / 0.3);
     --shadow-menu: 0 0.75rem 2rem -0.5rem rgb(0 0 0 / 0.7);
     --shadow-float: 0 0.75rem 2rem -0.75rem rgb(0 0 0 / 0.8);
+    /* Kategorienfarben dunkel: Linie zur Fläche 7,4–8,2 : 1 */
+    --cat-green-bg: #233024;
+    --cat-green-line: #A9CC9A;
+    --cat-orange-bg: #35291F;
+    --cat-orange-line: #E8B48A;
+    --cat-sand-bg: #322C22;
+    --cat-sand-line: #D6BF9C;
+    --cat-yellow-bg: #33301C;
+    --cat-yellow-line: #DCCB82;
+    --cat-rose-bg: #362426;
+    --cat-rose-line: #E7AAB0;
+    --cat-blue-bg: #1F2B37;
+    --cat-blue-line: #9FC0E2;
+    --cat-ice-bg: #1D3033;
+    --cat-ice-line: #98CFD8;
+    --cat-pink-bg: #36222F;
+    --cat-pink-line: #E5A6CC;
+    --cat-teal-bg: #1B302C;
+    --cat-teal-line: #8FCFC3;
+    --cat-lilac-bg: #2A2536;
+    --cat-lilac-line: #C2B2E6;
+    --cat-slate-bg: #252B31;
+    --cat-slate-line: #B0BCC8;
+}
+
+/*
+ * Kategorie → Farbfamilie. Kachel und Produktbild tragen die Kategorie als
+ * data-category; ProductImage liest --category-bg (Fläche) und --category-line
+ * (Linie). Baby, Tier, Sonstiges: neutral (nicht aufgeführt).
+ * Gleiche Liste: frontend/products/categories.js (CATEGORY_COLORS).
+ */
+[data-category="fruit"] {
+    --category-bg: var(--cat-green-bg);
+    --category-line: var(--cat-green-line);
+}
+
+[data-category="vegetables"],
+[data-category="canned"] {
+    --category-bg: var(--cat-orange-bg);
+    --category-line: var(--cat-orange-line);
+}
+
+[data-category="bread"],
+[data-category="grains"],
+[data-category="baking"] {
+    --category-bg: var(--cat-sand-bg);
+    --category-line: var(--cat-sand-line);
+}
+
+[data-category="dairy"],
+[data-category="cheese"] {
+    --category-bg: var(--cat-yellow-bg);
+    --category-line: var(--cat-yellow-line);
+}
+
+[data-category="meat"] {
+    --category-bg: var(--cat-rose-bg);
+    --category-line: var(--cat-rose-line);
+}
+
+[data-category="fish"] {
+    --category-bg: var(--cat-blue-bg);
+    --category-line: var(--cat-blue-line);
+}
+
+[data-category="frozen"] {
+    --category-bg: var(--cat-ice-bg);
+    --category-line: var(--cat-ice-line);
+}
+
+[data-category="sweets"] {
+    --category-bg: var(--cat-pink-bg);
+    --category-line: var(--cat-pink-line);
+}
+
+[data-category="drinks"],
+[data-category="coffee_tea"] {
+    --category-bg: var(--cat-teal-bg);
+    --category-line: var(--cat-teal-line);
+}
+
+[data-category="drugstore"] {
+    --category-bg: var(--cat-lilac-bg);
+    --category-line: var(--cat-lilac-line);
+}
+
+[data-category="household"] {
+    --category-bg: var(--cat-slate-bg);
+    --category-line: var(--cat-slate-line);
 }
 
 /* Bewegung reduzieren: Dauern auf 0 */

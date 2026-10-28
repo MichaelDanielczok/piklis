@@ -58,7 +58,7 @@ import { useDragSort } from '@/composables/useDragSort.js';
 import { loadProducts, useProducts } from '@/composables/useProducts.js';
 import { showToast } from '@/composables/useToast.js';
 import { navigateBack } from '@/composables/usePageTransition.js';
-import { iconOf } from '@/products/catalog.js';
+import { categoryOf, iconOf } from '@/products/catalog.js';
 import { formatDay, formatShopDate } from '@/utils/shopDate.js';
 import { formatQuantity } from '@/utils/quantity.js';
 import { mergeTakeOver } from '@/utils/takeOver.js';
@@ -145,6 +145,7 @@ function rowOf(entry) {
         name: product?.name ?? t('entry.unknownProduct'),
         imageUrl: product?.imageUrl ?? null,
         icon: product ? iconOf(product) : undefined,
+        category: categoryOf(product),
         transferredTo: entry.status === 'notGot' ? transferName(entry) : null
     };
 }
@@ -599,6 +600,7 @@ async function onDelete() {
                                 :unit="row.entry.quantity.unit"
                                 :image-url="row.imageUrl"
                                 :icon="row.icon"
+                                :category="row.category"
                                 status="open"
                                 readonly
                                 @details="openEntry(row.entry)"
@@ -618,6 +620,7 @@ async function onDelete() {
                                 :unit="row.entry.quantity.unit"
                                 :image-url="row.imageUrl"
                                 :icon="row.icon"
+                                :category="row.category"
                                 status="notGot"
                                 :transferred-to="row.transferredTo"
                                 readonly
@@ -638,6 +641,7 @@ async function onDelete() {
                                 :unit="row.entry.quantity.unit"
                                 :image-url="row.imageUrl"
                                 :icon="row.icon"
+                                :category="row.category"
                                 status="done"
                                 readonly
                                 @details="openEntry(row.entry)"
@@ -660,6 +664,7 @@ async function onDelete() {
                                 :unit="row.entry.quantity.unit"
                                 :image-url="row.imageUrl"
                                 :icon="row.icon"
+                                :category="row.category"
                                 status="open"
                                 :unsynced="isEntryUnsynced(row.entry.id)"
                                 :swipe="swipeNotGot"
@@ -707,6 +712,7 @@ async function onDelete() {
                                 :unit="row.entry.quantity.unit"
                                 :image-url="row.imageUrl"
                                 :icon="row.icon"
+                                :category="row.category"
                                 status="notGot"
                                 :transferred-to="row.transferredTo"
                                 :unsynced="isEntryUnsynced(row.entry.id)"
@@ -746,6 +752,7 @@ async function onDelete() {
                                 :unit="row.entry.quantity.unit"
                                 :image-url="row.imageUrl"
                                 :icon="row.icon"
+                                :category="row.category"
                                 status="done"
                                 @details="openEntry(row.entry)"
                                 @toggle="uncheck(row.entry)"

@@ -15,7 +15,7 @@
 import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useIonRouter } from '@ionic/vue';
-import { ChevronsUpDown, House, LayoutTemplate, LogOut, Settings, UserRound } from '@lucide/vue';
+import { ChevronsUpDown, House, LayoutTemplate, LogOut, Settings, Shapes, UserRound } from '@lucide/vue';
 import ThemeSwitch from '@/components/ui/ThemeSwitch.vue';
 import UserAvatar from '@/components/ui/UserAvatar.vue';
 import { logout, useSession } from '@/composables/useSession.js';
@@ -44,8 +44,13 @@ const links = computed(() => [
     { to: '/profile', labelKey: 'menu.profile', icon: UserRound },
     { to: '/household', labelKey: 'menu.household', icon: House },
     { to: '/settings', labelKey: 'menu.settings', icon: Settings },
-    // Musterseite der Grundkomponenten nur im Entwicklungsserver
-    ...(import.meta.env.DEV ? [{ to: '/components', labelKey: 'menu.components', icon: LayoutTemplate }] : [])
+    // Musterseite der Grundkomponenten und Icon-Übersicht nur im Entwicklungsserver
+    ...(import.meta.env.DEV
+        ? [
+            { to: '/components', labelKey: 'menu.components', icon: LayoutTemplate },
+            { to: '/icons', labelKey: 'menu.icons', icon: Shapes }
+        ]
+        : [])
 ]);
 
 function items() {

@@ -3,37 +3,23 @@
  *
  * - `CATEGORIES` (aus `categories.js`): Schlüssel in Reihenfolge der Auswahl.
  * - `ICONS`: jedes Ersatzicon des Sprites mit seiner Kategorie für die nach
- *   Kategorien gegliederte Icon-Auswahl; Namen: `t('icons.<key>')`.
- *   Kategorie und Icon eines Produkts sind trotzdem unabhängig.
- *   Vorerst die 16 Icons des Designpakets, Schritt 8 ergänzt weitere.
+ *   Kategorien gegliederte Icon-Auswahl (`data/icons.json`); Namen:
+ *   `t('icons.<key>')`. Kategorie und Icon eines Produkts sind trotzdem
+ *   unabhängig: Die Kategorie des Icons ist nur sein Platz in der Auswahl.
  */
-import { DEFAULT_ICON, FALLBACK_ICONS } from '@/icons/sprite.js';
-import { CATEGORIES } from './categories.js';
+import { DEFAULT_ICON, ICON_LIST } from '@/icons/sprite.js';
+import { CATEGORIES, CATEGORY_COLORS, colorOf } from './categories.js';
 
-const ICON_CATEGORY = {
-    apfel: 'fruit',
-    banane: 'fruit',
-    karotte: 'vegetables',
-    gemuese: 'vegetables',
-    brot: 'bread',
-    milch: 'dairy',
-    butter: 'dairy',
-    becher: 'dairy',
-    eier: 'dairy',
-    kaese: 'cheese',
-    nudeln: 'grains',
-    karton: 'canned',
-    flasche: 'drinks',
-    toilettenpapier: 'drugstore',
-    waschmittel: 'household',
-    allgemein: 'other'
-};
+export { CATEGORIES, CATEGORY_COLORS, colorOf, DEFAULT_ICON };
 
-export { CATEGORIES, DEFAULT_ICON };
-
-export const ICONS = Object.freeze(FALLBACK_ICONS.map((key) => ({ key, category: ICON_CATEGORY[key] ?? 'other' })));
+export const ICONS = Object.freeze(ICON_LIST.map(({ key, category }) => ({ key, category })));
 
 /** Icon eines Produkts: null heißt allgemein. */
 export function iconOf(product) {
     return product?.icon || DEFAULT_ICON;
+}
+
+/** Kategorie eines Produkts für die Farbe (data-category), null = neutral. */
+export function categoryOf(product) {
+    return product?.category || null;
 }

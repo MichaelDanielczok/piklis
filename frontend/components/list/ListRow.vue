@@ -59,6 +59,10 @@ const props = defineProps({
         type: String,
         default: undefined
     },
+    category: {
+        type: String,
+        default: null
+    },
     status: {
         type: String,
         default: 'open',
@@ -160,7 +164,7 @@ const { offset, dragging, runAction, listeners, onClickCapture } = useRowSwipe({
             </div>
 
             <button type="button" class="list-row__details" @click="emit('details')">
-                <ProductImage :image-url="imageUrl" :icon="icon" :muted="isDone" />
+                <ProductImage :image-url="imageUrl" :icon="icon" :category="category" :muted="isDone" />
 
                 <span class="list-row__text">
                     <span class="list-row__name">{{ name }}</span>

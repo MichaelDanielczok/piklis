@@ -9,7 +9,7 @@
 import { computed } from 'vue';
 import { ChevronRight, EyeOff } from '@lucide/vue';
 import ProductImage from './ProductImage.vue';
-import { iconOf } from '@/products/catalog.js';
+import { categoryOf, iconOf } from '@/products/catalog.js';
 import { t } from '@/i18n/index.js';
 
 const props = defineProps({
@@ -47,7 +47,12 @@ const meta = computed(() => {
         :aria-current="selected ? 'true' : undefined"
         @click="$emit('open', product)"
     >
-        <ProductImage :image-url="product.imageUrl" :icon="iconOf(product)" :muted="product.hidden" />
+        <ProductImage
+            :image-url="product.imageUrl"
+            :icon="iconOf(product)"
+            :category="categoryOf(product)"
+            :muted="product.hidden"
+        />
         <span class="product-row__text">
             <span class="product-row__name">{{ product.name }}</span>
             <span v-if="product.hidden" class="product-row__meta product-row__meta--hidden">

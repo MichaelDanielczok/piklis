@@ -7,22 +7,14 @@
                  docs/architecture.md, „Data model“ und „Sync“. IDs sind UUIDs aus
                  dem Browser (36 Zeichen), Benutzer QUIQQER-UUIDs (bis 50 Zeichen). -->
 
-            <!-- Kategorien des Katalogs: feste Schlüssel (z. B. fruit), Namen im
-                 Frontend-i18n (categories.<id>), Inhalt ab Schritt 8 beim Setup -->
-            <table name="pk_categories">
-                <field type="string" length="32" primary="true">id</field>
-                <!-- Reihenfolge in Auswahlen -->
-                <field type="integer" default="0">position</field>
-                <!-- Farbfamilie der Ersatzicons (Token-Name, z. B. green) -->
-                <field type="string" length="20" default="neutral">color</field>
-            </table>
-
             <!-- Globaler Produktkatalog (alle angemeldeten Benutzer) -->
             <table name="pk_products">
                 <field type="string" length="36" primary="true">id</field>
                 <field type="string" length="255">name</field>
                 <!-- Name klein und ohne Akzente für die Suche (Schritt 3) -->
                 <field type="string" length="255" default="">search_name</field>
+                <!-- feste Schlüssel aus Products\Categories (z. B. fruit), Farben nur als
+                     CSS-Tokens; null = ohne Kategorie -->
                 <field type="string" length="32" nullable="true" default="null">category</field>
                 <!-- Ersatzicon aus dem Sprite (#pk-<icon>), null = allgemein -->
                 <field type="string" length="64" nullable="true" default="null">icon</field>
@@ -38,6 +30,7 @@
                 <field type="boolean" default="0">hidden</field>
                 <field type="datetime" nullable="true" default="null">hidden_at</field>
                 <field type="string" length="50" nullable="true" default="null">hidden_by</field>
+                <!-- Benutzer-UUID; „catalog“ = Grundkatalog ohne Ersteller (Setup) -->
                 <field type="string" length="50">created_by</field>
                 <field type="datetime">created_at</field>
                 <field type="string" length="50">updated_by</field>

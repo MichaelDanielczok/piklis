@@ -21,7 +21,7 @@ import ImageViewer from './ImageViewer.vue';
 import ProductImage from './ProductImage.vue';
 import { canEditProduct, setProductHidden, useProducts } from '@/composables/useProducts.js';
 import { showToast } from '@/composables/useToast.js';
-import { iconOf } from '@/products/catalog.js';
+import { categoryOf, iconOf } from '@/products/catalog.js';
 import { t } from '@/i18n/index.js';
 
 const props = defineProps({
@@ -73,7 +73,13 @@ async function toggleHidden(hidden) {
             aria-haspopup="dialog"
             @click="viewerOpen = true"
         >
-            <ProductImage :image-url="product.image.medium" :icon="iconOf(product)" size="hero" :muted="product.hidden" />
+            <ProductImage
+                :image-url="product.image.medium"
+                :icon="iconOf(product)"
+                :category="categoryOf(product)"
+                size="hero"
+                :muted="product.hidden"
+            />
             <span class="product-detail__zoom-badge" aria-hidden="true">
                 <Maximize2 />
             </span>
@@ -82,6 +88,7 @@ async function toggleHidden(hidden) {
             v-else
             class="product-detail__image"
             :icon="iconOf(product)"
+            :category="categoryOf(product)"
             size="hero"
             :muted="product.hidden"
         />

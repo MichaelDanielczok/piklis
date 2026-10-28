@@ -82,13 +82,21 @@ const routes = [
         name: 'settings',
         component: () => import('./views/SettingsView.vue')
     },
-    // Musterseite nur im Entwicklungsserver; im Build fehlt sie samt Beispielbildern
+    // Musterseite und Icon-Übersicht nur im Entwicklungsserver; im Build fehlen sie
+    // samt Beispielbildern
     ...(import.meta.env.DEV
-        ? [{
-            path: '/components',
-            name: 'components',
-            component: () => import('./views/ComponentsView.vue')
-        }]
+        ? [
+            {
+                path: '/components',
+                name: 'components',
+                component: () => import('./views/ComponentsView.vue')
+            },
+            {
+                path: '/icons',
+                name: 'icons',
+                component: () => import('./views/IconsView.vue')
+            }
+        ]
         : []),
     {
         path: '/:pathMatch(.*)*',

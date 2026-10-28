@@ -1,7 +1,8 @@
 <script setup>
 /**
  * Auswahl des Ersatzicons als Sheet: durchsuchbar (Icon- oder
- * Kategoriename), nach Kategorien gegliedert. Das gewählte Icon trägt
+ * Kategoriename, auch Stichwörter wie „Joghurt“ für den Becher), nach
+ * Kategorien gegliedert und in den Kategorienfarben. Das gewählte Icon trägt
  * `aria-pressed` und eine grüne Kontur; Antippen übernimmt und schließt.
  *
  * v-model:open · v-model (Icon-Schlüssel, `allgemein` = Standard)
@@ -11,6 +12,7 @@ import AppSheet from '@/components/ui/AppSheet.vue';
 import SearchField from '@/components/ui/SearchField.vue';
 import ProductIcon from './ProductIcon.vue';
 import { CATEGORIES, DEFAULT_ICON, ICONS } from '@/products/catalog.js';
+import { ICON_KEYWORDS } from '@/products/suggest.js';
 import { normalizeSearchText, searchTokens } from '@/utils/productSearch.js';
 import { t } from '@/i18n/index.js';
 
@@ -35,7 +37,8 @@ const groups = computed(() => {
                 .filter((item) => item.category === category)
                 .map((item) => ({ ...item, name: t('icons.' + item.key) }))
                 .filter((item) => {
-                    const text = normalizeSearchText(item.name + ' ' + categoryName + ' ' + item.key);
+                    const text = normalizeSearchText(item.name + ' ' + categoryName + ' ' + item.key)
+                        + ' ' + (ICON_KEYWORDS[item.key] ?? '');
 
                     return tokens.every((token) => text.includes(token));
                 });
@@ -74,7 +77,7 @@ function choose(key) {
                             :aria-pressed="item.key === icon ? 'true' : 'false'"
                             @click="choose(item.key)"
                         >
-                            <span class="icon-picker__field">
+                            <span class="icon-picker__field" :data-category="group.category">
                                 <ProductIcon class="icon-picker__icon" :name="item.key" />
                             </span>
                             <span class="icon-picker__name">{{ item.name }}</span>
@@ -142,13 +145,12 @@ function choose(key) {
     height: var(--tap-size-main);
     border: 2px solid transparent;
     border-radius: var(--radius-sm);
-    background: var(--color-surface-2);
-    color: var(--color-icon);
+    background: var(--category-bg, var(--color-surface-2));
+    color: var(--category-line, var(--color-icon));
 }
 
 .icon-picker__option[aria-pressed="true"] .icon-picker__field {
     border-color: var(--color-accent);
-    background: var(--color-accent-soft);
 }
 
 .icon-picker__option[aria-pressed="true"] .icon-picker__name {

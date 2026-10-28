@@ -12,7 +12,7 @@
  * v-model die Änderung: null (keine), { type: 'set', image, original,
  * preview } oder { type: 'remove' }.
  *
- * Props: product (null = neu), icon (Ersatzicon für die Vorschau)
+ * Props: product (null = neu), icon und category (Ersatzicon für die Vorschau)
  */
 import { computed, onBeforeUnmount, onMounted, ref, useId } from 'vue';
 import { Camera, ClipboardPaste, Crop, ImagePlus, Images, Trash2, CircleAlert } from '@lucide/vue';
@@ -31,6 +31,10 @@ const props = defineProps({
     icon: {
         type: String,
         default: undefined
+    },
+    category: {
+        type: String,
+        default: null
     }
 });
 
@@ -224,7 +228,7 @@ onBeforeUnmount(() => {
         </span>
 
         <div class="image-field">
-            <ProductImage class="image-field__preview" :image-url="previewUrl" :icon="icon" size="lg" />
+            <ProductImage class="image-field__preview" :image-url="previewUrl" :icon="icon" :category="category" size="lg" />
 
             <div class="image-field__actions">
                 <template v-if="isTouch">

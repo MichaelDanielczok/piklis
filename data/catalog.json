@@ -1,0 +1,922 @@
+{
+    "_comment": [
+        "Grundkatalog (Obsidian „Piklis Konzept“ › „Schnelles Anlegen und vorhandene Produkte“): übliche Produkte mit Kategorie und Ersatzicon.",
+        "Wird einmalig beim Paket-Setup angelegt (Setup\\CatalogSeeder): ohne Ersteller (created_by „catalog“), nur Produktpfleger bearbeiten sie.",
+        "Vorhandene Produkte werden nie überschrieben: eine vorhandene ID oder ein gleicher Name (normalisiert) wird übersprungen.",
+        "IDs sind fest, damit ein späteres Setup dieselben Produkte erkennt. Neue Einträge bekommen eine neue UUID."
+    ],
+    "products": [
+        {
+            "id": "bfa67907-ef3a-43a4-8ad6-ed6fc9ad488d",
+            "name": "Äpfel",
+            "category": "fruit",
+            "icon": "apfel"
+        },
+        {
+            "id": "0ef4da72-147a-4527-b456-fd1a7d4570ce",
+            "name": "Bananen",
+            "category": "fruit",
+            "icon": "banane"
+        },
+        {
+            "id": "3b1e5da7-eb3d-403f-a83d-e089d138a07b",
+            "name": "Birnen",
+            "category": "fruit",
+            "icon": "birne"
+        },
+        {
+            "id": "abf39f35-704f-42db-a10f-dab7cdefe003",
+            "name": "Weintrauben",
+            "category": "fruit",
+            "icon": "trauben"
+        },
+        {
+            "id": "a30129ea-29a1-47b3-8a2f-50259db74dc8",
+            "name": "Erdbeeren",
+            "category": "fruit",
+            "icon": "erdbeere"
+        },
+        {
+            "id": "a0d5aef4-0373-4a16-a2e2-ab72a6f32b61",
+            "name": "Heidelbeeren",
+            "category": "fruit",
+            "icon": "trauben"
+        },
+        {
+            "id": "32b1dde8-af1f-412c-801d-8fd0f4f1fd55",
+            "name": "Orangen",
+            "category": "fruit",
+            "icon": "orange"
+        },
+        {
+            "id": "7620bde5-2eca-41f7-8db6-947630af67a4",
+            "name": "Mandarinen",
+            "category": "fruit",
+            "icon": "orange"
+        },
+        {
+            "id": "f28c30e0-45af-4f24-baa4-7dbe2d0528d0",
+            "name": "Zitronen",
+            "category": "fruit",
+            "icon": "zitrone"
+        },
+        {
+            "id": "a8d14329-25e8-494a-9792-2d4babb5331e",
+            "name": "Wassermelone",
+            "category": "fruit",
+            "icon": "melone"
+        },
+        {
+            "id": "d2bbc6bf-33cd-43eb-971d-8c9935140363",
+            "name": "Ananas",
+            "category": "fruit",
+            "icon": "ananas"
+        },
+        {
+            "id": "5c6c1a61-6b76-482e-bd5a-c6d7267243fd",
+            "name": "Avocados",
+            "category": "fruit",
+            "icon": "avocado"
+        },
+        {
+            "id": "6c1b521a-c3f3-4b9d-8d4c-9bc6f39bfa28",
+            "name": "Kartoffeln",
+            "category": "vegetables",
+            "icon": "kartoffel"
+        },
+        {
+            "id": "62304bb2-0db8-4a7f-8d42-8cc32671beb2",
+            "name": "Karotten",
+            "category": "vegetables",
+            "icon": "karotte"
+        },
+        {
+            "id": "79a6ac09-cd19-4a2b-b9dc-bec7939302a8",
+            "name": "Tomaten",
+            "category": "vegetables",
+            "icon": "tomate"
+        },
+        {
+            "id": "4c029920-b74c-4def-a9f8-18753cadd0a2",
+            "name": "Salatgurke",
+            "category": "vegetables",
+            "icon": "gurke"
+        },
+        {
+            "id": "6b8a08b2-8ff8-4843-bfb7-72d4e5ee8870",
+            "name": "Paprika",
+            "category": "vegetables",
+            "icon": "paprika"
+        },
+        {
+            "id": "7d492423-73f8-4718-98b5-15ef3b36bea6",
+            "name": "Zwiebeln",
+            "category": "vegetables",
+            "icon": "zwiebel"
+        },
+        {
+            "id": "a7d308fe-33d7-4f36-91f3-b1a68fdbb477",
+            "name": "Frühlingszwiebeln",
+            "category": "vegetables",
+            "icon": "zwiebel"
+        },
+        {
+            "id": "1b33f0c8-d1ca-4d5f-bfeb-0309fe71fbcb",
+            "name": "Knoblauch",
+            "category": "vegetables",
+            "icon": "knoblauch"
+        },
+        {
+            "id": "78ca7857-fae8-4e57-9f66-2cb5f3bc73e8",
+            "name": "Eisbergsalat",
+            "category": "vegetables",
+            "icon": "salat"
+        },
+        {
+            "id": "f0599532-8198-42ab-8cae-d4dd540d5537",
+            "name": "Feldsalat",
+            "category": "vegetables",
+            "icon": "salat"
+        },
+        {
+            "id": "7dddb6ba-54c0-4c91-afc8-e481d87ce02e",
+            "name": "Brokkoli",
+            "category": "vegetables",
+            "icon": "brokkoli"
+        },
+        {
+            "id": "4cbd0b9e-81ab-464c-b57f-49bd08791460",
+            "name": "Blumenkohl",
+            "category": "vegetables",
+            "icon": "brokkoli"
+        },
+        {
+            "id": "dd36fcf3-1805-451f-be7d-5282b87ecb60",
+            "name": "Zucchini",
+            "category": "vegetables",
+            "icon": "gemuese"
+        },
+        {
+            "id": "5a7926ea-0133-4e66-b37c-a6cc56333646",
+            "name": "Champignons",
+            "category": "vegetables",
+            "icon": "pilze"
+        },
+        {
+            "id": "49505943-155e-4d08-8a51-c567aacd46fd",
+            "name": "Lauch",
+            "category": "vegetables",
+            "icon": "gemuese"
+        },
+        {
+            "id": "cf816409-43d0-41ac-83e6-9c81586acf07",
+            "name": "Spinat",
+            "category": "vegetables",
+            "icon": "gemuese"
+        },
+        {
+            "id": "4c4c06f4-ee8f-4a16-84f8-a901c549dd1d",
+            "name": "Petersilie",
+            "category": "vegetables",
+            "icon": "kraeuter"
+        },
+        {
+            "id": "b121f342-ee26-4048-a5af-4548075982f5",
+            "name": "Schnittlauch",
+            "category": "vegetables",
+            "icon": "kraeuter"
+        },
+        {
+            "id": "3bc1a731-6dce-434c-8023-8a24fea7a457",
+            "name": "Brot",
+            "category": "bread",
+            "icon": "brot"
+        },
+        {
+            "id": "901c7d0a-2f74-4ef7-a44f-1ebfddcab7ca",
+            "name": "Vollkornbrot",
+            "category": "bread",
+            "icon": "brot"
+        },
+        {
+            "id": "3827d875-8d78-4cb2-997f-0ce8a8048b4c",
+            "name": "Toastbrot",
+            "category": "bread",
+            "icon": "brot"
+        },
+        {
+            "id": "672341a9-5346-4ab5-9c66-0f9782d9d318",
+            "name": "Brötchen",
+            "category": "bread",
+            "icon": "broetchen"
+        },
+        {
+            "id": "e398810a-82c7-4fd5-bd13-0f1d24a1f09f",
+            "name": "Baguette",
+            "category": "bread",
+            "icon": "baguette"
+        },
+        {
+            "id": "314730e9-98c5-4eaa-b312-33bad008eb25",
+            "name": "Brezeln",
+            "category": "bread",
+            "icon": "brezel"
+        },
+        {
+            "id": "5455fa77-f3d1-43df-9376-d2c5a7be594f",
+            "name": "Croissants",
+            "category": "bread",
+            "icon": "croissant"
+        },
+        {
+            "id": "b91bc1c5-dd72-45bb-97fd-3fefdcafb822",
+            "name": "Kuchen",
+            "category": "bread",
+            "icon": "kuchen"
+        },
+        {
+            "id": "4286f03c-1cc6-4356-8995-2eb06c672d8a",
+            "name": "Milch",
+            "category": "dairy",
+            "icon": "milch"
+        },
+        {
+            "id": "0ee78051-19cc-425c-9cd9-391c7525c30f",
+            "name": "Hafermilch",
+            "category": "dairy",
+            "icon": "milch"
+        },
+        {
+            "id": "5e5bb460-68c3-435b-aabf-fb429f12c47f",
+            "name": "Joghurt",
+            "category": "dairy",
+            "icon": "becher"
+        },
+        {
+            "id": "a7296184-0b94-4e53-a698-9e9df14a03ce",
+            "name": "Quark",
+            "category": "dairy",
+            "icon": "becher"
+        },
+        {
+            "id": "6d8f7ffe-6946-4090-b9b7-696f7a0a2589",
+            "name": "Schlagsahne",
+            "category": "dairy",
+            "icon": "becher"
+        },
+        {
+            "id": "c2dfe788-690c-409c-9e42-4b4b2d908069",
+            "name": "Crème fraîche",
+            "category": "dairy",
+            "icon": "becher"
+        },
+        {
+            "id": "ce845d5b-2eda-4ec9-b5d1-2a96ce48d320",
+            "name": "Butter",
+            "category": "dairy",
+            "icon": "butter"
+        },
+        {
+            "id": "c38fcd8c-05f0-4544-af21-0e87adbfc8d4",
+            "name": "Margarine",
+            "category": "dairy",
+            "icon": "butter"
+        },
+        {
+            "id": "26a0c1cd-4618-4468-8d3f-4756520487c5",
+            "name": "Eier",
+            "category": "dairy",
+            "icon": "eier"
+        },
+        {
+            "id": "68c779f4-a210-4d27-b4d8-096c19276747",
+            "name": "Gouda",
+            "category": "cheese",
+            "icon": "kaese"
+        },
+        {
+            "id": "ae99ebf9-9fd1-4671-bebd-6138edd2b74c",
+            "name": "Mozzarella",
+            "category": "cheese",
+            "icon": "kaese"
+        },
+        {
+            "id": "b3732856-33e8-4d91-8eb4-c91f640e3f70",
+            "name": "Parmesan",
+            "category": "cheese",
+            "icon": "kaese"
+        },
+        {
+            "id": "c3bf5863-7070-46ca-b925-441f77bee9af",
+            "name": "Frischkäse",
+            "category": "cheese",
+            "icon": "kaese"
+        },
+        {
+            "id": "e7e84639-5238-46d9-8e77-5b9f1fd825bb",
+            "name": "Reibekäse",
+            "category": "cheese",
+            "icon": "kaese"
+        },
+        {
+            "id": "85011d3f-a0d5-4800-91c5-6faf8ff0129e",
+            "name": "Hackfleisch",
+            "category": "meat",
+            "icon": "fleisch"
+        },
+        {
+            "id": "b18b453d-9e04-4105-a4fb-d7c82171e7a5",
+            "name": "Rinderhack",
+            "category": "meat",
+            "icon": "fleisch"
+        },
+        {
+            "id": "3e4242c9-0a45-4d30-9a01-30d54257853f",
+            "name": "Hähnchenbrustfilet",
+            "category": "meat",
+            "icon": "haehnchen"
+        },
+        {
+            "id": "f4de7771-43a4-455d-a20b-a8311c4ef972",
+            "name": "Putenbrust",
+            "category": "meat",
+            "icon": "haehnchen"
+        },
+        {
+            "id": "54f789f3-2683-4800-9f49-5fbc90573835",
+            "name": "Schweineschnitzel",
+            "category": "meat",
+            "icon": "fleisch"
+        },
+        {
+            "id": "edbb13d6-4c10-4abe-b2d9-e1e289ab4c85",
+            "name": "Kochschinken",
+            "category": "meat",
+            "icon": "schinken"
+        },
+        {
+            "id": "0843e6df-be42-4a2d-956d-115f9ef06b83",
+            "name": "Speckwürfel",
+            "category": "meat",
+            "icon": "schinken"
+        },
+        {
+            "id": "0d1c408c-299f-4c51-b0a7-4b09824ceeef",
+            "name": "Salami",
+            "category": "meat",
+            "icon": "wurst"
+        },
+        {
+            "id": "5e1d3266-66c4-4d83-a3b1-3467f18c1b9b",
+            "name": "Wiener Würstchen",
+            "category": "meat",
+            "icon": "wurst"
+        },
+        {
+            "id": "6fb30053-ad4b-429c-b787-7909dc9687d9",
+            "name": "Bratwurst",
+            "category": "meat",
+            "icon": "wurst"
+        },
+        {
+            "id": "be50f5e9-73f0-45c2-9df5-72a274e6f577",
+            "name": "Aufschnitt",
+            "category": "meat",
+            "icon": "wurst"
+        },
+        {
+            "id": "d235deb3-9c18-45bb-b727-9b6fcc6456b4",
+            "name": "Lachsfilet",
+            "category": "fish",
+            "icon": "fisch"
+        },
+        {
+            "id": "e19eecd7-90e4-4095-ad3d-5b03e6b3acba",
+            "name": "Räucherlachs",
+            "category": "fish",
+            "icon": "fisch"
+        },
+        {
+            "id": "38b67f98-a68a-44b1-8b72-4ee0f8da270c",
+            "name": "Thunfisch",
+            "category": "fish",
+            "icon": "fisch"
+        },
+        {
+            "id": "c51372b2-5a1d-459d-b2c3-1997f245a2c6",
+            "name": "Fischstäbchen",
+            "category": "frozen",
+            "icon": "fisch"
+        },
+        {
+            "id": "343e0375-a38e-4f12-b7f0-57eecaecd22d",
+            "name": "Garnelen",
+            "category": "fish",
+            "icon": "garnelen"
+        },
+        {
+            "id": "faebd251-045d-4da5-b2ea-2cd0d362cd14",
+            "name": "Nudeln",
+            "category": "grains",
+            "icon": "nudeln"
+        },
+        {
+            "id": "5f5c5ab3-bcd1-4711-bb73-12cfcfdaea2f",
+            "name": "Spaghetti",
+            "category": "grains",
+            "icon": "nudeln"
+        },
+        {
+            "id": "09b743eb-a400-4581-ac93-570cbe8b66f5",
+            "name": "Reis",
+            "category": "grains",
+            "icon": "reis"
+        },
+        {
+            "id": "452e7cc9-bb71-4de2-8ed0-50642339b566",
+            "name": "Basmatireis",
+            "category": "grains",
+            "icon": "reis"
+        },
+        {
+            "id": "cb2d06eb-69cb-46f6-944b-3f2f0a7db9e5",
+            "name": "Haferflocken",
+            "category": "grains",
+            "icon": "getreide"
+        },
+        {
+            "id": "795196d6-0044-4a2a-9939-8d312f2e6f8b",
+            "name": "Müsli",
+            "category": "grains",
+            "icon": "getreide"
+        },
+        {
+            "id": "8d2d248f-a112-448b-bf9a-47f9b7086f4b",
+            "name": "Cornflakes",
+            "category": "grains",
+            "icon": "getreide"
+        },
+        {
+            "id": "eb9c808d-7295-4401-957e-0bc167c3d13a",
+            "name": "Linsen",
+            "category": "grains",
+            "icon": "bohnen"
+        },
+        {
+            "id": "d9406d52-03bf-413c-bf3b-d897d6102d12",
+            "name": "Dosentomaten",
+            "category": "canned",
+            "icon": "dose"
+        },
+        {
+            "id": "5c7da4a0-b0cf-4c27-a8db-1d710cb0e79c",
+            "name": "Tomatenmark",
+            "category": "canned",
+            "icon": "glas"
+        },
+        {
+            "id": "b72eb4b0-17f3-4289-b961-746e1a582718",
+            "name": "Kidneybohnen",
+            "category": "canned",
+            "icon": "dose"
+        },
+        {
+            "id": "d533c575-14f1-4429-a9ab-bd19afa03c02",
+            "name": "Mais",
+            "category": "canned",
+            "icon": "dose"
+        },
+        {
+            "id": "96f134e9-f6c5-4021-ba53-efe9f819db59",
+            "name": "Kokosmilch",
+            "category": "canned",
+            "icon": "dose"
+        },
+        {
+            "id": "574a6fed-e653-4316-b521-70f7976fd331",
+            "name": "Gewürzgurken",
+            "category": "canned",
+            "icon": "glas"
+        },
+        {
+            "id": "824d724a-4020-4c90-8cfb-d3cd6ed3ef62",
+            "name": "Oliven",
+            "category": "canned",
+            "icon": "glas"
+        },
+        {
+            "id": "a6c9fe04-0b2a-42a8-92d7-4daa6b8cc241",
+            "name": "Gemüsebrühe",
+            "category": "canned",
+            "icon": "suppe"
+        },
+        {
+            "id": "0af32de4-69e9-46e1-8d72-b69978336fdb",
+            "name": "Ketchup",
+            "category": "canned",
+            "icon": "sauce"
+        },
+        {
+            "id": "92444a51-37e3-4b0f-9478-af0a7948b3e0",
+            "name": "Senf",
+            "category": "canned",
+            "icon": "sauce"
+        },
+        {
+            "id": "9fee5f86-e067-4592-9f6a-bbe3acdc8a8f",
+            "name": "Mayonnaise",
+            "category": "canned",
+            "icon": "sauce"
+        },
+        {
+            "id": "b6f4fa24-8014-40a0-99b8-28509e385e7c",
+            "name": "Marmelade",
+            "category": "sweets",
+            "icon": "glas"
+        },
+        {
+            "id": "77e35e2c-cde2-4abd-b82f-3aa5744acca0",
+            "name": "Honig",
+            "category": "sweets",
+            "icon": "glas"
+        },
+        {
+            "id": "64f78be9-fb5d-48ce-bcf4-e2a1376cce6b",
+            "name": "Nussnougatcreme",
+            "category": "sweets",
+            "icon": "glas"
+        },
+        {
+            "id": "a883d4c5-7aee-4b8a-a55f-a2c15309a816",
+            "name": "Erdnussbutter",
+            "category": "sweets",
+            "icon": "glas"
+        },
+        {
+            "id": "04396df3-37d5-4a07-8329-09d859d6c0ef",
+            "name": "Tiefkühlpizza",
+            "category": "frozen",
+            "icon": "pizza"
+        },
+        {
+            "id": "cd7b6900-bfbc-4d25-80f8-af968f9deaf5",
+            "name": "Pommes frites",
+            "category": "frozen",
+            "icon": "pommes"
+        },
+        {
+            "id": "b5a47b5c-ad07-4adb-a8ce-57701ec7961a",
+            "name": "Tiefkühlgemüse",
+            "category": "frozen",
+            "icon": "tiefkuehl"
+        },
+        {
+            "id": "f0fd2ce8-f95d-4da2-8679-f7e447210b1f",
+            "name": "Erbsen tiefgekühlt",
+            "category": "frozen",
+            "icon": "bohnen"
+        },
+        {
+            "id": "e30efb4e-2650-4fae-9689-ac7f8e2d87d8",
+            "name": "Vanilleeis",
+            "category": "frozen",
+            "icon": "eis"
+        },
+        {
+            "id": "f272e0e6-290d-4f17-a2ac-bb960db6ead9",
+            "name": "Schokolade",
+            "category": "sweets",
+            "icon": "schokolade"
+        },
+        {
+            "id": "fa94e747-787d-45e3-b3fb-cb65c2693a56",
+            "name": "Gummibärchen",
+            "category": "sweets",
+            "icon": "bonbons"
+        },
+        {
+            "id": "8566e8be-74a2-4ef6-a0e0-465bb4d22751",
+            "name": "Kekse",
+            "category": "sweets",
+            "icon": "kekse"
+        },
+        {
+            "id": "3be858b8-9da5-4919-8ce6-f24a3a1d3f15",
+            "name": "Kartoffelchips",
+            "category": "sweets",
+            "icon": "chips"
+        },
+        {
+            "id": "97c53c58-91c4-4d60-a5ae-fe80b8dff1a3",
+            "name": "Salzstangen",
+            "category": "sweets",
+            "icon": "chips"
+        },
+        {
+            "id": "6599697a-5c30-4232-b65c-9cc71a77d1ef",
+            "name": "Erdnüsse",
+            "category": "sweets",
+            "icon": "nuesse"
+        },
+        {
+            "id": "af1d3fe7-808b-4480-aa26-ff55f4a6f8b5",
+            "name": "Mineralwasser",
+            "category": "drinks",
+            "icon": "flasche"
+        },
+        {
+            "id": "9bb82e6f-0d70-4d31-964a-bda13338ba02",
+            "name": "Apfelsaft",
+            "category": "drinks",
+            "icon": "saft"
+        },
+        {
+            "id": "1590519b-e441-4ed8-8bc5-0e2dd9786831",
+            "name": "Orangensaft",
+            "category": "drinks",
+            "icon": "saft"
+        },
+        {
+            "id": "692ffd0c-069a-4f5b-bcd3-2994fca6901f",
+            "name": "Apfelschorle",
+            "category": "drinks",
+            "icon": "saft"
+        },
+        {
+            "id": "950be2d5-56a1-40c5-ad77-5df67ff100ee",
+            "name": "Cola",
+            "category": "drinks",
+            "icon": "limo"
+        },
+        {
+            "id": "b9da7096-dcc5-4257-b546-d5d98a27adfb",
+            "name": "Bier",
+            "category": "drinks",
+            "icon": "bier"
+        },
+        {
+            "id": "7bd6ae0a-0143-4b67-a3e3-235d7364becd",
+            "name": "Rotwein",
+            "category": "drinks",
+            "icon": "wein"
+        },
+        {
+            "id": "6eec0d84-2a75-43d1-9277-68d99c16589d",
+            "name": "Weißwein",
+            "category": "drinks",
+            "icon": "wein"
+        },
+        {
+            "id": "40f09202-bbb8-4e4c-9cce-cccadc0239eb",
+            "name": "Sekt",
+            "category": "drinks",
+            "icon": "wein"
+        },
+        {
+            "id": "2210aba0-a790-4b4d-acb4-44e93a9bbe11",
+            "name": "Kaffee",
+            "category": "coffee_tea",
+            "icon": "kaffee"
+        },
+        {
+            "id": "8010a9f1-d15d-40b1-96c7-6412687c66e6",
+            "name": "Schwarzer Tee",
+            "category": "coffee_tea",
+            "icon": "tee"
+        },
+        {
+            "id": "1b4fb8d5-936a-4ff1-81ca-809c53795380",
+            "name": "Kräutertee",
+            "category": "coffee_tea",
+            "icon": "tee"
+        },
+        {
+            "id": "01807080-2505-499f-8e7c-06a9e12296d0",
+            "name": "Kakao",
+            "category": "coffee_tea",
+            "icon": "kaffee"
+        },
+        {
+            "id": "23136a9a-5c69-4a61-a67b-18d76d30c24e",
+            "name": "Mehl",
+            "category": "baking",
+            "icon": "mehl"
+        },
+        {
+            "id": "28361fec-6d6c-4633-afd5-bf528efd817e",
+            "name": "Zucker",
+            "category": "baking",
+            "icon": "zucker"
+        },
+        {
+            "id": "d2672947-ffc7-4874-a85b-a5a73036b353",
+            "name": "Backpulver",
+            "category": "baking",
+            "icon": "mehl"
+        },
+        {
+            "id": "3e248607-9d91-4748-83dc-066027b30655",
+            "name": "Trockenhefe",
+            "category": "baking",
+            "icon": "mehl"
+        },
+        {
+            "id": "bc4f819a-a25e-478a-b7cf-78189d0f4994",
+            "name": "Salz",
+            "category": "baking",
+            "icon": "salz"
+        },
+        {
+            "id": "d55f4390-bf2e-4353-8644-2ef571bcf402",
+            "name": "Pfeffer",
+            "category": "baking",
+            "icon": "salz"
+        },
+        {
+            "id": "b5d91bd5-b146-4f57-a7fb-54c5a96923b5",
+            "name": "Olivenöl",
+            "category": "baking",
+            "icon": "oel"
+        },
+        {
+            "id": "c91f657c-eaf7-4113-b96b-ff9a927ddbfa",
+            "name": "Rapsöl",
+            "category": "baking",
+            "icon": "oel"
+        },
+        {
+            "id": "ee218362-f328-42a0-ba08-67f26bc3c0ee",
+            "name": "Essig",
+            "category": "baking",
+            "icon": "oel"
+        },
+        {
+            "id": "46d9830f-6332-4029-8d0d-ae8c652a7551",
+            "name": "Toilettenpapier",
+            "category": "drugstore",
+            "icon": "toilettenpapier"
+        },
+        {
+            "id": "55ffc139-1d7a-48e6-b0a6-3e01801c3dfd",
+            "name": "Taschentücher",
+            "category": "drugstore",
+            "icon": "taschentuecher"
+        },
+        {
+            "id": "3e45c648-6d77-42c2-a2a0-50c3f73e11a0",
+            "name": "Zahnpasta",
+            "category": "drugstore",
+            "icon": "zahnbuerste"
+        },
+        {
+            "id": "b907aa74-4f1b-41b5-9bbf-2e8ff0d8198a",
+            "name": "Zahnbürste",
+            "category": "drugstore",
+            "icon": "zahnbuerste"
+        },
+        {
+            "id": "c1099843-4b74-4548-a3c2-fb88ef904523",
+            "name": "Duschgel",
+            "category": "drugstore",
+            "icon": "seife"
+        },
+        {
+            "id": "36a5a1a5-32f4-4cc4-9f8d-b8ec339741ef",
+            "name": "Flüssigseife",
+            "category": "drugstore",
+            "icon": "seife"
+        },
+        {
+            "id": "f4ff757e-0a31-4132-b6f6-c75bbe15249f",
+            "name": "Shampoo",
+            "category": "drugstore",
+            "icon": "shampoo"
+        },
+        {
+            "id": "c5289212-f064-4c18-b468-6a8dfd2582c8",
+            "name": "Deo",
+            "category": "drugstore",
+            "icon": "deo"
+        },
+        {
+            "id": "88ec51af-a72a-4678-a0b3-31e0fd1ebfff",
+            "name": "Handcreme",
+            "category": "drugstore",
+            "icon": "creme"
+        },
+        {
+            "id": "99ab526d-8b61-413a-a098-3aa3d22638d4",
+            "name": "Sonnencreme",
+            "category": "drugstore",
+            "icon": "creme"
+        },
+        {
+            "id": "a1ab4e36-badc-4b18-bec6-891a0d769d03",
+            "name": "Pflaster",
+            "category": "drugstore",
+            "icon": "pflaster"
+        },
+        {
+            "id": "c4403011-b8b8-42e7-b622-b79aa0b47afd",
+            "name": "Wattepads",
+            "category": "drugstore",
+            "icon": "taschentuecher"
+        },
+        {
+            "id": "5165e5b2-1a36-44ec-b39a-48ef8689487d",
+            "name": "Waschmittel",
+            "category": "household",
+            "icon": "waschmittel"
+        },
+        {
+            "id": "95da592e-633d-4f25-89b9-cea5d9da65be",
+            "name": "Spülmittel",
+            "category": "household",
+            "icon": "spuelmittel"
+        },
+        {
+            "id": "97e609d2-b6b4-4f1b-8a2f-5727c1725bb4",
+            "name": "Spülmaschinentabs",
+            "category": "household",
+            "icon": "spuelmaschinentabs"
+        },
+        {
+            "id": "46cdcb0f-04c0-48f5-9a47-372cdb5f3d6a",
+            "name": "WC-Reiniger",
+            "category": "household",
+            "icon": "reiniger"
+        },
+        {
+            "id": "37b4dd60-2070-42dc-8f32-032174ece758",
+            "name": "Schwämme",
+            "category": "household",
+            "icon": "schwamm"
+        },
+        {
+            "id": "329ae9bb-df02-422d-b20a-775ff1b034c6",
+            "name": "Müllbeutel",
+            "category": "household",
+            "icon": "muellbeutel"
+        },
+        {
+            "id": "0e50a8e3-05ba-41de-ae6d-c63b726be757",
+            "name": "Küchenrolle",
+            "category": "household",
+            "icon": "toilettenpapier"
+        },
+        {
+            "id": "b9190cde-ee29-4d62-b081-55d65a50d758",
+            "name": "Alufolie",
+            "category": "household",
+            "icon": "karton"
+        },
+        {
+            "id": "97463d2f-72ed-47a9-852f-1b8a7886bb52",
+            "name": "Frischhaltefolie",
+            "category": "household",
+            "icon": "karton"
+        },
+        {
+            "id": "3a9780ab-effa-416b-aa75-a871c157cba1",
+            "name": "Backpapier",
+            "category": "household",
+            "icon": "karton"
+        },
+        {
+            "id": "98b77925-47cc-421b-9341-8616fc39ac38",
+            "name": "Batterien",
+            "category": "household",
+            "icon": "batterien"
+        },
+        {
+            "id": "452d95c9-88c0-487a-b6a6-851d09c5ccbd",
+            "name": "Windeln",
+            "category": "baby",
+            "icon": "windeln"
+        },
+        {
+            "id": "fd941e72-2c99-49a8-8baa-31ce8c55b244",
+            "name": "Babybrei",
+            "category": "baby",
+            "icon": "baby"
+        },
+        {
+            "id": "37fa1b92-e6f9-4f03-a96f-abf205fea464",
+            "name": "Katzenfutter",
+            "category": "pets",
+            "icon": "katze"
+        },
+        {
+            "id": "afcf2bf2-146e-417f-9268-c469b30957ac",
+            "name": "Hundefutter",
+            "category": "pets",
+            "icon": "hund"
+        },
+        {
+            "id": "f15fed73-218b-485e-80c5-54407cc723e5",
+            "name": "Blumen",
+            "category": "other",
+            "icon": "blumen"
+        }
+    ]
+}

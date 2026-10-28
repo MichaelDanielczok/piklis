@@ -13,7 +13,7 @@ import { computed } from 'vue';
 import { User } from '@lucide/vue';
 import ProductImage from '@/components/products/ProductImage.vue';
 import { useProducts } from '@/composables/useProducts.js';
-import { iconOf } from '@/products/catalog.js';
+import { categoryOf, iconOf } from '@/products/catalog.js';
 import { formatShopDate } from '@/utils/shopDate.js';
 import { t } from '@/i18n/index.js';
 
@@ -42,7 +42,8 @@ const thumbs = computed(() => (props.list.preview ?? []).map((productId) => {
     return {
         id: productId,
         imageUrl: product?.imageUrl ?? null,
-        icon: product ? iconOf(product) : undefined
+        icon: product ? iconOf(product) : undefined,
+        category: categoryOf(product)
     };
 }));
 
@@ -81,6 +82,7 @@ const more = computed(() => Math.max(0, counts.value.open - thumbs.value.length)
                     :key="thumb.id"
                     :image-url="thumb.imageUrl"
                     :icon="thumb.icon"
+                    :category="thumb.category"
                 />
                 <span v-if="more > 0" class="list-card__more">
                     <span aria-hidden="true">{{ t('lists.more', { count: more }) }}</span>

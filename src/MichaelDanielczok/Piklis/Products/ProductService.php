@@ -4,6 +4,7 @@ namespace MichaelDanielczok\Piklis\Products;
 
 use DateTimeImmutable;
 
+use function array_key_exists;
 use function is_string;
 use function preg_match;
 use function strtolower;
@@ -20,8 +21,11 @@ final class ProductService
 
     private const UUID_PATTERN = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/';
 
-    public function __construct(private readonly ProductStore $Store)
+    private ProductSuggestion $Suggestion;
+
+    public function __construct(private readonly ProductStore $Store, ?ProductSuggestion $Suggestion = null)
     {
+        $this->Suggestion = $Suggestion ?? ProductSuggestion::default();
     }
 
     /**
@@ -31,6 +35,9 @@ final class ProductService
      * Ein gleichnamiges Produkt verhindert nichts: ähnliche oder gleiche Namen
      * werden nie zusammengeführt.
      *
+     * Fehlen `category` oder `icon` ganz, ergänzt der Vorschlag aus dem Namen
+     * (`ProductSuggestion`) sie; ein gesendetes null bleibt null.
+     *
      * @param array<array-key, mixed> $input
      * @return array{status: string, product: Product}
      * @throws InvalidProductException
@@ -39,7 +46,7 @@ final class ProductService
     public function create(mixed $id, array $input, string $userId, ?DateTimeImmutable $now = null): array
     {
         $id = self::uuid($id);
-        $Input = ProductInput::forCreate($input);
+        $Input = ProductInput::forCreate($this->withSuggestion($input));
         $Existing = $this->Store->find($id);
 
         if ($Existing !== null) {
@@ -149,6 +156,33 @@ final class ProductService
         }
 
         return $Product;
+    }
+
+    /**
+     * @param array<array-key, mixed> $input
+     * @return array<array-key, mixed>
+     */
+    private function withSuggestion(array $input): array
+    {
+        $missing = !array_key_exists('category', $input) || !array_key_exists('icon', $input);
+
+        if (!$missing || !is_string($input['name'] ?? null)) {
+            return $input;
+        }
+
+        $suggestion = $this->Suggestion->suggest($input['name']);
+
+        if ($suggestion === null) {
+            return $input;
+        }
+
+        foreach ($suggestion as $field => $value) {
+            if (!array_key_exists($field, $input)) {
+                $input[$field] = $value;
+            }
+        }
+
+        return $input;
     }
 
     /**

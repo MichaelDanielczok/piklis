@@ -9,8 +9,9 @@ use function in_array;
  * im Frontend-i18n (`categories.<key>`), nicht hier.
  *
  * Dieselbe Liste steht in `frontend/products/categories.js`; beide Tests prüfen
- * sie gegen `tests/fixtures/categories.json`. Farben und die Tabelle
- * `pk_categories` kommen mit dem Grundkatalog (Schritt 8).
+ * sie gegen `tests/fixtures/categories.json`. Die Farben je Kategorie sind
+ * reine Gestaltung und stehen nur als Tokens in `frontend/styles/tokens.css`
+ * (Attribut `data-category`), nicht in der Datenbank.
  */
 final class Categories
 {

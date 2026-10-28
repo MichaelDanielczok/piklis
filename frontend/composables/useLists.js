@@ -22,6 +22,7 @@ import { createOperationQueue, operations, OPERATION_TYPES as T } from '@/api/op
 import { showToast } from './useToast.js';
 import { onLogout } from './useSession.js';
 import { addLocalProduct, confirmProduct, dropLocalProduct } from './useProducts.js';
+import { suggestForName } from '@/products/suggest.js';
 import {
     activeEntryOf,
     appendKey,
@@ -445,9 +446,15 @@ export function setProductQuantity(listId, productId, amount) {
  * @returns {string} ID des neuen Produkts
  */
 export function createProductOnList(listId, name) {
-    const op = operations.createProduct({ name: name.trim() });
+    // Kategorie und Icon aus dem Namen vorschlagen, wie beim Anlegen im Formular
+    const suggestion = suggestForName(name);
+    const op = operations.createProduct({
+        name: name.trim(),
+        category: suggestion?.category ?? null,
+        icon: suggestion?.icon ?? null
+    });
 
-    addLocalProduct({ id: op.productId, name: op.product.name });
+    addLocalProduct({ id: op.productId, ...op.product });
     enqueue(op).catch((error) => console.error(error));
     setProductQuantity(listId, op.productId, 1);
 

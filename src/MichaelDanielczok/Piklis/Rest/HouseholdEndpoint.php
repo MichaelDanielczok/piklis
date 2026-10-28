@@ -172,7 +172,7 @@ class HouseholdEndpoint
     }
 
     /**
-     * Kurzform für `GET /me`: `{ id, name, role }` oder null.
+     * Kurzform für `GET /me` und `GET /lists`: `{ id, name, role }` oder null.
      *
      * @return array{id: string, name: string, role: string}|null
      * @throws DBALException

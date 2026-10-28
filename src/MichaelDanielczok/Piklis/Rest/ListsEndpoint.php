@@ -29,7 +29,10 @@ class ListsEndpoint
 {
     /**
      * `GET /lists`: zugängliche Listen ohne Einträge, mit Rolle, Zählern und
-     * den Produkt-IDs der ersten offenen Einträge (`preview`).
+     * den Produkt-IDs der ersten offenen Einträge (`preview`), dazu der
+     * Haushalt in Kurzform (`household: { id, name, role } | null` wie bei
+     * `GET /me`): Die App fragt die Übersicht regelmäßig ab und merkt so auch,
+     * wenn sie aus dem Haushalt entfernt oder er aufgelöst wurde.
      *
      * @param array<string, string> $args
      */
@@ -42,6 +45,7 @@ class ListsEndpoint
 
         try {
             $lists = (new ListRepository())->listsForUser($userId);
+            $household = HouseholdEndpoint::summary($userId);
         } catch (DBALException $Exception) {
             QUI\System\Log::writeException($Exception);
 
@@ -58,7 +62,7 @@ class ListsEndpoint
             $lists
         );
 
-        return Json::respondWithEtag($Request, $Response, ['lists' => $data]);
+        return Json::respondWithEtag($Request, $Response, ['lists' => $data, 'household' => $household]);
     }
 
     /**

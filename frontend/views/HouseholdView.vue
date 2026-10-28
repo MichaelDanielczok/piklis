@@ -107,6 +107,13 @@ const formattedCode = computed(() => {
 
 const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
 
+/** Erwartete Antworten (4xx) zeigt die Ansicht; nur Unerwartetes in die Konsole. */
+function logUnexpected(failure) {
+    if (!(failure instanceof ApiError) || failure.status === 0 || failure.status >= 500) {
+        console.error(failure);
+    }
+}
+
 function errorText(error) {
     if (error instanceof ApiError && error.status === 0) {
         return t('household.errors.network');
@@ -139,7 +146,7 @@ async function create() {
         name.value = '';
         showToast(t('household.created', { name: result?.name ?? '' }), { icon: 'info' });
     } catch (error) {
-        console.error(error);
+        logUnexpected(error);
         nameError.value = errorText(error);
     } finally {
         pending.value = false;
@@ -161,7 +168,7 @@ async function join() {
         code.value = '';
         showToast(t('household.joined', { name: result?.name ?? '' }), { icon: 'info' });
     } catch (error) {
-        console.error(error);
+        logUnexpected(error);
         codeError.value = errorText(error);
     } finally {
         pending.value = false;
@@ -179,7 +186,7 @@ async function renew() {
         await renewInvite();
         showToast(t('household.inviteRenewed'), { icon: 'info' });
     } catch (error) {
-        console.error(error);
+        logUnexpected(error);
         showToast(errorText(error), { icon: 'notgot' });
     } finally {
         pending.value = false;

@@ -34,6 +34,13 @@ watch(open, (isOpen) => {
     }
 });
 
+/** Erwartete Antworten (4xx) zeigt die Ansicht; nur Unerwartetes in die Konsole. */
+function logUnexpected(failure) {
+    if (!(failure instanceof ApiError) || failure.status === 0 || failure.status >= 500) {
+        console.error(failure);
+    }
+}
+
 function errorText(error) {
     if (error instanceof ApiError && error.status === 0) {
         return t('household.errors.network');
@@ -59,7 +66,7 @@ async function run(action, toastKey) {
         open.value = false;
         showToast(t(toastKey, { name }), { icon: 'info' });
     } catch (error) {
-        console.error(error);
+        logUnexpected(error);
         showToast(errorText(error), { icon: 'notgot' });
     } finally {
         pending.value = false;

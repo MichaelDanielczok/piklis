@@ -122,6 +122,13 @@ function listHint(list) {
     return parts.join(' · ');
 }
 
+/** Erwartete Antworten (4xx) zeigt die Ansicht; nur Unerwartetes in die Konsole. */
+function logUnexpected(failure) {
+    if (!(failure instanceof ApiError) || failure.status === 0 || failure.status >= 500) {
+        console.error(failure);
+    }
+}
+
 function errorText(failure) {
     if (failure instanceof ApiError && failure.status === 0) {
         return t('household.errors.network');
@@ -179,7 +186,7 @@ async function confirm() {
         open.value = false;
         showToast(toast, { icon: 'info' });
     } catch (failure) {
-        console.error(failure);
+        logUnexpected(failure);
         error.value = errorText(failure);
     } finally {
         pending.value = false;
@@ -293,7 +300,7 @@ async function confirm() {
     height: var(--space-6);
     margin: 0;
     border: 2px solid var(--color-ring);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-xs);
     background: var(--color-surface-1);
     appearance: none;
     -webkit-appearance: none;

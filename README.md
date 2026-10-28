@@ -53,7 +53,7 @@ under `design/piklis-designpaket/`.
   WebP in 128/640/1600 px from the media cache (`quiqqer/cache`); replace,
   re-crop from the original, remove; large view with zoom from the detail
 - Shopping lists: overview of the active lists (name, date, origin “nur
-  ich”, progress, first products), create with a free name and optional
+  ich” or “Haushalt”, progress, first products), create with a free name and optional
   date, rename, delete; the list in the shop with quantity, unit and note
   per entry (edited in a sheet), new entries in the order they were added,
   sorting only by the drag handle (finger, mouse, arrow keys), checking on
@@ -61,6 +61,15 @@ under `design/piklis-designpaket/`.
   collapsible “Erledigt” section, unchecked entries return to their old
   place; product details in the list context with quantity and note;
   every change goes through the operations (`POST /ops`), shown at once
+- Household (user menu › Haushalt): create, invite code (7 days, reusable,
+  renewable by admins, share or copy), join with the code, roles member and
+  administrator (appoint, demote, remove members, dissolve; the last admin
+  must hand over first), switch to another household, leave and dissolve
+  with the offer to keep household lists as personal copies. With a
+  household new lists belong to it by default (“Nur für mich” selectable);
+  existing personal lists stay private and can be moved or copied into the
+  household. Rights are checked on the server for every list route and
+  operation
 - Adding products: picker without keyboard on open, two columns of tiles
   (frequently bought first, weighted over 90 days, then the catalog A–Z,
   48 tiles and 24 more while scrolling, order fixed while open), plus

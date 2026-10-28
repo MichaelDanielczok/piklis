@@ -14,6 +14,9 @@
  * aktiver Listen (je Benutzer, `localStorage`) und zeigt so viele
  * Skeleton-Karten; bei 0 hält ein unsichtbarer leerer Zustand die Höhe.
  * So steht „Neue Liste“ schon beim Laden an seinem Platz.
+ *
+ * Live-Abgleich: alle 30 s `GET /lists` (ETag, nur bei sichtbarer App);
+ * Listen anderer, Fortschritt und Haushalt kommen so ohne Neuladen an.
  */
 import { computed, ref, watch } from 'vue';
 import { onIonViewWillEnter, useIonRouter } from '@ionic/vue';
@@ -27,6 +30,7 @@ import ListCardSkeleton from '@/components/lists/ListCardSkeleton.vue';
 import ListFormSheet from '@/components/lists/ListFormSheet.vue';
 import { createListWith, loadLists, useLists } from '@/composables/useLists.js';
 import { loadProducts } from '@/composables/useProducts.js';
+import { OVERVIEW_POLL_MS, useLivePoll } from '@/composables/useLivePoll.js';
 import { useSession } from '@/composables/useSession.js';
 import { formatDayHeading, t } from '@/i18n/index.js';
 
@@ -106,6 +110,8 @@ function reload() {
 }
 
 onIonViewWillEnter(reload);
+
+useLivePoll(loadLists, OVERVIEW_POLL_MS);
 
 function openList(list) {
     ionRouter.push('/lists/' + encodeURIComponent(list.id));

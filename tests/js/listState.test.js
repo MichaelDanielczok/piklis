@@ -9,10 +9,12 @@ import {
     appendKey,
     applyOperation,
     applyOperations,
+    changesState,
     countEntries,
     mergeEntries,
     planMove,
-    sortedEntries
+    sortedEntries,
+    translateMove
 } from '@/utils/listState.js';
 
 const LIST = '11111111-1111-4111-8111-111111111111';
@@ -244,4 +246,52 @@ test('planMove: gleiche Schlüssel der Nachbarn verschieben zuerst den rechten',
     assert.equal(moves[0].entry.id, 'c');
     assert.ok(moves[0].sortKey > 'k' && moves[0].sortKey < 'm');
     assert.ok(moves[1].sortKey > 'k' && moves[1].sortKey < moves[0].sortKey);
+});
+
+test('mergeEntries: ältere Revision ersetzt keinen neueren Eintrag (Abfrage und Antwort überholen sich)', () => {
+    const known = new Map([['a', entry('a', 'i', { revision: 7, quantity: { amount: 3, unit: null } })]]);
+
+    const older = mergeEntries(known, { full: false, entries: [entry('a', 'i', { revision: 6 })] });
+    assert.equal(older.get('a').quantity.amount, 3);
+
+    const newer = mergeEntries(known, { full: false, entries: [entry('a', 'i', { revision: 8, note: 'bio' })] });
+    assert.equal(newer.get('a').note, 'bio');
+
+    const full = mergeEntries(known, { full: true, entries: [entry('a', 'i', { revision: 6 })] });
+    assert.equal(full.get('a').revision, 6, 'der ganze Stand gilt');
+});
+
+test('changesState: leere Antwort „seit N“ bei gleicher Revision ändert nichts', () => {
+    const list = { id: LIST, name: 'Lidl' };
+    const detail = { revision: 5, list };
+
+    assert.equal(changesState(detail, { full: false, revision: 5, list: { ...list }, entries: [] }), false);
+    assert.equal(changesState(detail, { full: false, revision: 6, list, entries: [] }), true);
+    assert.equal(changesState(detail, { full: false, revision: 5, list: { ...list, name: 'Rewe' }, entries: [] }), true);
+    assert.equal(changesState(detail, { full: false, revision: 6, list, entries: [entry('a', 'i')] }), true);
+    assert.equal(changesState(detail, { full: true, revision: 5, list, entries: [] }), true);
+});
+
+test('translateMove: Ablegen nach dem Ziehen gilt für den aktuellen Stand', () => {
+    const frozen = ['a', 'b', 'c', 'd'];
+    const same = [entry('a', 'a'), entry('b', 'b'), entry('c', 'c'), entry('d', 'd')];
+
+    // unverändert: dieselben Indizes
+    assert.deepEqual(translateMove(same, frozen, 0, 2), { from: 0, to: 2 });
+    assert.deepEqual(translateMove(same, frozen, 3, 0), { from: 3, to: 0 });
+
+    // inzwischen kam „x“ hinter „a“ dazu: c landet weiter hinter a
+    const added = [entry('a', 'a'), entry('x', 'ai'), entry('b', 'b'), entry('c', 'c'), entry('d', 'd')];
+    assert.deepEqual(translateMove(added, frozen, 2, 1), { from: 3, to: 1 });
+
+    // inzwischen wurde „b“ abgehakt: hinter den nächsten Nachbarn davor
+    const checked = [entry('a', 'a'), entry('c', 'c'), entry('d', 'd')];
+    assert.deepEqual(translateMove(checked, frozen, 3, 2), { from: 2, to: 1 });
+
+    // alle Nachbarn davor weg: vor den ersten danach
+    const gone = [entry('c', 'c'), entry('d', 'd')];
+    assert.deepEqual(translateMove(gone, frozen, 3, 2), { from: 1, to: 0 });
+
+    // der gezogene Eintrag ist nicht mehr offen
+    assert.equal(translateMove(checked, frozen, 1, 3), null);
 });

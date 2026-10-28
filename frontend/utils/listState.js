@@ -27,6 +27,10 @@ export function isVisible(entry) {
  * übernehmen. Verweise (`mergedInto`) fallen heraus, entfernte bleiben
  * markiert.
  *
+ * Abfrage und Antworten auf eigene Operationen kommen in beliebiger
+ * Reihenfolge an: Ein Eintrag mit kleinerer Revision als der bekannte ist
+ * älter und ersetzt ihn nicht (gilt nicht für `full`, das ist der ganze Stand).
+ *
  * @param {Map<string, object>|null} entries
  * @param {{ full: boolean, entries: object[] }} response
  * @returns {Map<string, object>}
@@ -35,6 +39,12 @@ export function mergeEntries(entries, response) {
     const result = response.full || !entries ? new Map() : new Map(entries);
 
     for (const entry of response.entries) {
+        const known = result.get(entry.id);
+
+        if (known && isOlder(entry, known)) {
+            continue;
+        }
+
         if (entry.mergedInto) {
             result.delete(entry.id);
             continue;
@@ -44,6 +54,27 @@ export function mergeEntries(entries, response) {
     }
 
     return result;
+}
+
+function isOlder(entry, known) {
+    return typeof entry.revision === 'number' && typeof known.revision === 'number' && entry.revision < known.revision;
+}
+
+/**
+ * Ändert eine Antwort „seit N“ den bekannten Stand? Ohne neue Einträge, bei
+ * gleicher Revision und gleichem Listenkopf nicht (die übliche Antwort der
+ * Abfrage alle paar Sekunden): Dann bleibt der Stand unverändert und Vue
+ * rendert nichts neu.
+ *
+ * @param {{ revision: number, list: object|null }} detail
+ * @param {{ full: boolean, revision: number, list: object, entries: object[] }} response
+ */
+export function changesState(detail, response) {
+    if (response.full || response.entries.length > 0 || response.revision !== detail.revision) {
+        return true;
+    }
+
+    return JSON.stringify(detail.list) !== JSON.stringify(response.list);
 }
 
 /** Ein Eintrag aus einer Antwort auf eine Operation. */
@@ -266,6 +297,54 @@ export function appendKey(entries) {
  */
 export function activeEntryOf(entries, productId) {
     return openEntryOf(entries, productId);
+}
+
+/**
+ * Ablegen nach dem Ziehen auf den aktuellen Stand übertragen. Während des
+ * Ziehens zeigt die Liste eine eingefrorene Reihenfolge (`frozenIds`);
+ * inzwischen können Einträge anderer dazugekommen, abgehakt oder entfernt
+ * worden sein. Maßgeblich ist der Nachbar, hinter dem der Eintrag abgelegt
+ * wurde, sonst der erste noch vorhandene danach.
+ *
+ * @param {{ id: string }[]} open offene Einträge im aktuellen Stand, sortiert
+ * @param {string[]} frozenIds Reihenfolge beim Ziehen
+ * @param {number} from Index in `frozenIds`
+ * @param {number} to Zielindex in `frozenIds` (wie bei `planMove`)
+ * @returns {{ from: number, to: number }|null} null: Eintrag nicht mehr offen
+ */
+export function translateMove(open, frozenIds, from, to) {
+    const movedId = frozenIds[from];
+    const liveFrom = open.findIndex((entry) => entry.id === movedId);
+
+    if (liveFrom === -1) {
+        return null;
+    }
+
+    const others = frozenIds.filter((id, index) => index !== from);
+    const liveOthers = open.filter((entry) => entry.id !== movedId);
+    const indexOf = (id) => liveOthers.findIndex((entry) => entry.id === id);
+
+    if (to <= 0) {
+        return { from: liveFrom, to: 0 };
+    }
+
+    for (let i = Math.min(to, others.length) - 1; i >= 0; i--) {
+        const index = indexOf(others[i]);
+
+        if (index !== -1) {
+            return { from: liveFrom, to: index + 1 };
+        }
+    }
+
+    for (let i = to; i < others.length; i++) {
+        const index = indexOf(others[i]);
+
+        if (index !== -1) {
+            return { from: liveFrom, to: index };
+        }
+    }
+
+    return { from: liveFrom, to: 0 };
 }
 
 /**

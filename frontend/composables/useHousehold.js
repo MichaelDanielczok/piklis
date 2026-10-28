@@ -5,11 +5,13 @@
  * Ändert sich die Mitgliedschaft (anlegen, beitreten, wechseln, austreten,
  * auflösen), bekommt die Session die Kurzform (Standard für neue Listen) und
  * die Listen werden neu geladen: Haushaltslisten kommen dazu oder fallen weg.
+ * Ändert sie jemand anderes (entfernt, aufgelöst), merkt es der Live-Abgleich
+ * der Übersicht (`GET /lists` liefert die Kurzform mit).
  */
 import { ref } from 'vue';
 import { api } from '@/api/index.js';
 import { onLogout, setSessionHousehold } from './useSession.js';
-import { reloadAfterHouseholdChange } from './useLists.js';
+import { onHouseholdChange, reloadAfterHouseholdChange } from './useLists.js';
 
 /** undefined: noch nicht geladen · null: kein Haushalt · sonst { id, name, role, members, invite } */
 const household = ref(undefined);
@@ -18,6 +20,14 @@ const status = ref('idle'); // idle · loading · ready · error
 onLogout(() => {
     household.value = undefined;
     status.value = 'idle';
+});
+
+// Die Übersicht fragt regelmäßig ab und meldet, wenn sich der Haushalt
+// geändert hat (entfernt, aufgelöst, Rolle): geladenen Stand neu holen
+onHouseholdChange(() => {
+    if (household.value !== undefined) {
+        loadHousehold().catch((error) => console.error(error));
+    }
 });
 
 function apply(next, { membershipChanged = false } = {}) {

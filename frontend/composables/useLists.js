@@ -11,28 +11,39 @@
  *   die App Zähler und Vorschau selbst aus dem lokalen Stand.
  * - Eine Liste: `GET /lists/{id}`, danach „seit Revision N“, sobald eine
  *   Antwort eine Lücke in den Revisionen zeigt (andere haben geändert).
+ * - Live-Abgleich: Die offene Liste fragt alle 5 s „seit N“ ab
+ *   (`refreshList`), die Übersicht alle 30 s `GET /lists` (`loadLists`), nur
+ *   bei sichtbarer App (`useLivePoll`). Die Übersicht vergleicht dabei die
+ *   Revision jeder geladenen Liste und holt geänderte nach; nicht mehr
+ *   zugängliche Listen (entfernt, Haushalt aufgelöst) fallen heraus.
  * - Abgelehnte Operationen meldet ein Toast; ihr Effekt verschwindet, weil
  *   sie nicht mehr in der Warteschlange stehen.
+ * - Konflikte (gleichzeitig verschieden geändert, alter Haken, inzwischen
+ *   entfernt) sammelt `conflicts`; die App fragt nach (`ConflictSheet`) und
+ *   schickt die Antwort mit `resolveConflict`. Nichts wird still
+ *   überschrieben.
  *
- * Live-Abgleich (Schritt 10) und IndexedDB (Schritt 13) setzen hier an.
+ * IndexedDB (Schritt 13) setzt hier an.
  */
 import { computed, reactive, ref, shallowRef } from 'vue';
 import { api } from '@/api/index.js';
 import { createOperationQueue, operations, OPERATION_TYPES as T } from '@/api/operations.js';
 import { showToast } from './useToast.js';
-import { onLogout } from './useSession.js';
+import { onLogout, setSessionHousehold, useSession } from './useSession.js';
 import { addLocalProduct, confirmProduct, dropLocalProduct } from './useProducts.js';
 import { suggestForName } from '@/products/suggest.js';
 import {
     activeEntryOf,
     appendKey,
     applyOperations,
+    changesState,
     countEntries,
     EMPTY_COUNTS,
     isVisible,
     mergeEntries,
     planMove,
     sortedEntries,
+    translateMove,
     upsertEntry
 } from '@/utils/listState.js';
 import { formatQuantity, MAX_AMOUNT } from '@/utils/quantity.js';
@@ -64,6 +75,21 @@ const details = shallowRef({});
 
 const pullsWanted = new Set();
 
+/** Laufende Abrufe je Liste: nie zwei gleichzeitig für dieselbe Liste. */
+const pulling = new Map();
+
+/**
+ * Offene Konflikte, ältester zuerst: { key, listId, entryId, productId, op,
+ * conflict }. `entryId` ist der Eintrag auf dem Server (bei Verweisen das
+ * Ziel), `conflict` wie in der Antwort (`type` quantity · note · checkedLess
+ * · removed).
+ */
+const conflicts = shallowRef([]);
+
+const householdListeners = new Set();
+
+const { household: sessionHousehold } = useSession();
+
 function setDetail(listId, detail) {
     details.value = { ...details.value, [listId]: Object.freeze(detail) };
 }
@@ -92,7 +118,31 @@ function upsertOverview(list) {
         return;
     }
 
-    overview.lists[index] = { ...overview.lists[index], ...list };
+    const known = overview.lists[index];
+
+    // die Abfrage liefert meist denselben Kopf: dann nichts neu rendern
+    if (Object.keys(list).every((key) => JSON.stringify(known[key]) === JSON.stringify(list[key]))) {
+        return;
+    }
+
+    overview.lists[index] = { ...known, ...list };
+}
+
+function addConflicts(result, op) {
+    const entryId = result.mergedInto ?? result.entry?.id ?? op.entryId ?? null;
+    const productId = result.entry?.productId ?? op.productId ?? null;
+    const added = (result.conflicts ?? []).map((conflict, index) => ({
+        key: op.id + ':' + index,
+        listId: op.listId,
+        entryId,
+        productId,
+        op,
+        conflict
+    }));
+
+    if (added.length > 0) {
+        conflicts.value = [...conflicts.value.filter((item) => !added.some((next) => next.key === item.key)), ...added];
+    }
 }
 
 /** Gewünschtes Nachladen ausführen, sobald für die Liste nichts mehr wartet. */
@@ -140,8 +190,7 @@ queue.onResult((result, op) => {
     }
 
     if (result.status === 'conflict') {
-        // Konfliktauswahl kommt mit dem gemeinsamen Bearbeiten (Schritt 10)
-        console.info('Konflikt', op.type, result.conflicts);
+        addConflicts(result, op);
     }
 
     const detail = details.value[op.listId];
@@ -201,18 +250,95 @@ onLogout(() => {
     overview.lists = [];
     details.value = {};
     pullsWanted.clear();
+    conflicts.value = [];
 });
 
-/** Übersicht laden (ETag: unverändert kostet fast nichts). */
+/**
+ * Haushalt hat sich laut Übersicht geändert (entfernt, aufgelöst, Rolle):
+ * `listener(household)`; `useHousehold` lädt dann seinen Stand neu.
+ */
+export function onHouseholdChange(listener) {
+    householdListeners.add(listener);
+
+    return () => householdListeners.delete(listener);
+}
+
+function noteHousehold(household) {
+    const known = sessionHousehold.value;
+    const next = household ?? null;
+
+    if ((known?.id ?? null) === (next?.id ?? null) && (known?.role ?? null) === (next?.role ?? null)
+        && (known?.name ?? null) === (next?.name ?? null)) {
+        return;
+    }
+
+    setSessionHousehold(next);
+
+    for (const listener of householdListeners) {
+        listener(next);
+    }
+}
+
+/**
+ * Geladene Listen mit der Übersicht abgleichen: geänderte (höhere Revision)
+ * „seit N“ nachladen, nicht mehr zugängliche verwerfen. `knownBefore`: nur
+ * Listen, die schon vor der Anfrage bekannt waren, können fehlen (eine eben
+ * angelegte steht vielleicht noch nicht in der Antwort).
+ */
+function syncLoadedLists(lists, knownBefore) {
+    const byId = new Map(lists.map((item) => [item.id, item]));
+
+    for (const [listId, detail] of Object.entries(details.value)) {
+        if (detail.status !== 'ready') {
+            continue;
+        }
+
+        const server = byId.get(listId);
+
+        if (!server) {
+            if (knownBefore.has(listId) && !hasPendingCreate(listId)) {
+                setDetail(listId, { status: 'missing', list: null, revision: 0, entries: null });
+            }
+
+            continue;
+        }
+
+        if (server.revision > detail.revision) {
+            pullsWanted.add(listId);
+        }
+    }
+
+    pullWhenIdle();
+}
+
+/**
+ * Übersicht laden (ETag: unverändert kostet fast nichts). Auch der
+ * Live-Abgleich der Übersicht (alle 30 s).
+ */
 export async function loadLists() {
     if (overview.status !== 'ready') {
         overview.status = 'loading';
     }
 
+    const knownBefore = new Set(Object.entries(details.value)
+        .filter(([, detail]) => detail.status === 'ready' && detail.list && detail.revision > 0)
+        .map(([listId]) => listId));
+
     try {
         const data = await api.getLists();
-        overview.lists = data.lists ?? [];
+        const lists = data.lists ?? [];
+
+        if (JSON.stringify(lists) !== JSON.stringify(overview.lists)) {
+            overview.lists = lists;
+        }
+
         overview.status = 'ready';
+
+        if ('household' in data) {
+            noteHousehold(data.household);
+        }
+
+        syncLoadedLists(lists, knownBefore);
     } catch (error) {
         if (overview.status !== 'ready') {
             overview.status = 'error';
@@ -226,7 +352,21 @@ export async function loadLists() {
  * Eine Liste laden: ganz oder mit `since` nur Änderungen seit dem bekannten
  * Stand.
  */
-export async function loadList(listId, { since = false } = {}) {
+export function loadList(listId, { since = false } = {}) {
+    const running = pulling.get(listId);
+
+    if (running) {
+        return running;
+    }
+
+    const promise = pullList(listId, since).finally(() => pulling.delete(listId));
+
+    pulling.set(listId, promise);
+
+    return promise;
+}
+
+async function pullList(listId, since) {
     const detail = details.value[listId];
     const known = detail?.status === 'ready';
 
@@ -237,14 +377,22 @@ export async function loadList(listId, { since = false } = {}) {
     try {
         const response = await queue.pull(listId, since && known ? detail.revision : null);
         const current = details.value[listId];
-        const base = current?.status === 'ready' ? current.entries : null;
+        const ready = current?.status === 'ready';
 
-        setDetail(listId, {
-            status: 'ready',
-            list: response.list,
-            revision: response.revision,
-            entries: mergeEntries(base, response)
-        });
+        // inzwischen weiter (Antwort auf eine eigene Operation): diese Antwort ist älter
+        if (ready && response.revision < current.revision) {
+            return;
+        }
+
+        if (!ready || changesState(current, response)) {
+            setDetail(listId, {
+                status: 'ready',
+                list: response.list,
+                revision: response.revision,
+                entries: mergeEntries(ready ? current.entries : null, response)
+            });
+        }
+
         upsertOverview(response.list);
     } catch (error) {
         if (error?.code === 'list_not_found' && hasPendingCreate(listId)) {
@@ -264,6 +412,20 @@ export async function loadList(listId, { since = false } = {}) {
 
         throw error;
     }
+}
+
+/**
+ * Live-Abgleich der offenen Liste (alle 5 s): Änderungen „seit N“. Noch nicht
+ * geladene Listen lädt die Ansicht selbst.
+ */
+export function refreshList(listId) {
+    const detail = details.value[listId];
+
+    if (detail?.status !== 'ready' || (detail.revision === 0 && hasPendingCreate(listId))) {
+        return Promise.resolve();
+    }
+
+    return loadList(listId, { since: true });
 }
 
 /** Lokaler Stand einer Liste (Server + eigene Operationen) oder null. */
@@ -505,6 +667,24 @@ export async function moveOpenEntry(listId, from, to) {
     }
 }
 
+/**
+ * Ablegen nach dem Ziehen: `frozenIds` ist die Reihenfolge, die während des
+ * Ziehens zu sehen war. Inzwischen eingetroffene Änderungen anderer bleiben
+ * erhalten; der Eintrag landet hinter demselben Nachbarn wie beim Ablegen.
+ */
+export async function moveOpenEntryFrom(listId, frozenIds, from, to) {
+    const open = sortedEntries(currentEntries(listId), 'open');
+    const move = translateMove(open, frozenIds, from, to);
+
+    if (!move) {
+        return;
+    }
+
+    for (const { entry, sortKey } of planMove(open, move.from, move.to)) {
+        await enqueue(operations.moveEntry(entry, sortKey));
+    }
+}
+
 /** Eintrag im angezeigten Stand (auch entfernte), z. B. für „Rückgängig“. */
 export function findEntry(listId, entryId) {
     return currentEntries(listId)?.get(entryId) ?? null;
@@ -693,6 +873,62 @@ export function reloadAfterHouseholdChange() {
     return loadLists();
 }
 
+/**
+ * Antwort auf einen Konflikt (`ConflictSheet`):
+ *
+ * - quantity / note: `yours` schickt die eigene Änderung erneut, mit dem
+ *   jetzigen Stand als `base`; `theirs` lässt es, wie es ist.
+ * - checkedLess: `done` hakt mit der jetzigen Menge ab; `open` lässt offen.
+ * - removed: `restore` holt den Eintrag zurück und wiederholt die Änderung;
+ *   `keep` lässt ihn entfernt.
+ *
+ * @param {object} item aus `conflicts`
+ * @param {'yours'|'theirs'|'done'|'open'|'restore'|'keep'} choice
+ */
+export async function resolveConflict(item, choice) {
+    conflicts.value = conflicts.value.filter((other) => other.key !== item.key);
+
+    const entry = findEntry(item.listId, item.entryId);
+
+    if (!entry) {
+        return;
+    }
+
+    const { conflict, op } = item;
+
+    if (conflict.type === 'quantity' && choice === 'yours') {
+        await enqueue(operations.setEntry(entry, { quantity: conflict.yours }));
+    } else if (conflict.type === 'note' && choice === 'yours') {
+        await enqueue(operations.setEntry(entry, { note: conflict.yours }));
+    } else if (conflict.type === 'checkedLess' && choice === 'done') {
+        await enqueue(operations.checkEntry(entry));
+    } else if (conflict.type === 'removed' && choice === 'restore') {
+        await enqueue(operations.restoreEntry(entry));
+        await repeatOperation(op, findEntry(item.listId, item.entryId) ?? entry);
+    }
+}
+
+/** Änderung nach „wiederherstellen“ noch einmal, als neue Operation. */
+function repeatOperation(op, entry) {
+    switch (op.type) {
+        case T.ENTRY_SET:
+            return enqueue(operations.setEntry(entry, op.set));
+        case T.ENTRY_MOVE:
+            return enqueue(operations.moveEntry(entry, op.sortKey));
+        case T.ENTRY_SET_STATUS:
+            return enqueue(operations.setEntryStatus(entry, op.status));
+        case T.ENTRY_TRANSFER:
+            return enqueue(operations.transferEntry(entry, op.transferredTo));
+        default:
+            return Promise.resolve();
+    }
+}
+
+/** Konflikt ohne Antwort schließen: Es bleibt beim Stand in der Liste. */
+export function dismissConflict(item) {
+    conflicts.value = conflicts.value.filter((other) => other.key !== item.key);
+}
+
 export { isVisible, activeEntryOf as activeEntryOfProduct };
 
 export function useLists() {
@@ -701,6 +937,7 @@ export function useLists() {
         activeLists,
         archivedLists,
         pendingOps,
-        syncTrouble
+        syncTrouble,
+        conflicts
     };
 }

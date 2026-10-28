@@ -23,8 +23,15 @@
  *   „Neue Liste daraus“ (früheren Einkauf übernehmen).
  *
  * Alle Änderungen laufen als Operationen über `useLists`.
+ *
+ * Live-Abgleich: alle 5 s „seit N“ (`refreshList`, nur bei sichtbarer App).
+ * Änderungen anderer erscheinen ohne Springen: neue Zeilen öffnen sich,
+ * abgehakte schließen sich, verschobene gleiten an ihren Platz
+ * (`TransitionGroup`). Während des Ziehens bleibt die Anzeige stehen
+ * (`useDragSort` arbeitet am DOM); was inzwischen kam, erscheint beim
+ * Ablegen, und der gezogene Eintrag landet hinter demselben Nachbarn.
  */
-import { computed, nextTick, ref, useTemplateRef } from 'vue';
+import { computed, nextTick, ref, shallowRef, useTemplateRef, watch } from 'vue';
 import { onIonViewWillEnter, useIonRouter } from '@ionic/vue';
 import { Archive, ChevronDown, CloudOff, Ellipsis, History, ListPlus, Plus, RotateCcw, SearchX, TriangleAlert } from '@lucide/vue';
 import { useRoute } from 'vue-router';
@@ -51,12 +58,15 @@ import {
     markOpen,
     moveListToHousehold,
     moveOpenEntry,
+    moveOpenEntryFrom,
+    refreshList,
     reopenList,
     uncheckEntry,
     updateList,
     useLists
 } from '@/composables/useLists.js';
 import { useDragSort } from '@/composables/useDragSort.js';
+import { LIST_POLL_MS, useLivePoll } from '@/composables/useLivePoll.js';
 import { loadProducts, useProducts } from '@/composables/useProducts.js';
 import { showToast } from '@/composables/useToast.js';
 import { navigateBack } from '@/composables/usePageTransition.js';
@@ -77,7 +87,11 @@ const ionRouter = useIonRouter();
 
 // Ionic hält Seiten im Verlauf; die ID gehört zu dieser Seite
 const listId = String(route.params.id ?? '');
-const view = listView(listId);
+const live = listView(listId);
+
+// Stand beim Anheben einer Zeile; solange gezogen wird, zeigt die Liste ihn
+const frozen = shallowRef(null);
+const view = computed(() => frozen.value ?? live.value);
 const { pendingOps, syncTrouble, activeLists, archivedLists, overview } = useLists();
 const { findProduct, status: productStatus } = useProducts();
 
@@ -91,7 +105,10 @@ const transferMode = ref('transfer');
 const transferEntries = ref([]);
 const announcement = ref('');
 const doneOpen = ref(readDoneOpen());
+// Zeilen, deren Öffnen und Schließen die Ansicht selbst animiert (eigene Aktion)
 const busy = new Set();
+// kurz nach dem Ablegen keine Gleit-Animation: die gezogene Zeile fällt selbst an ihren Platz
+const settling = ref(false);
 
 const list = computed(() => view.value.list);
 const counts = computed(() => view.value.counts);
@@ -186,6 +203,8 @@ function reload() {
 
 onIonViewWillEnter(reload);
 
+useLivePoll(() => refreshList(listId), LIST_POLL_MS);
+
 function reducedMotion() {
     return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 }
@@ -253,6 +272,50 @@ async function expand(entryId) {
             row.style.overflow = '';
         });
 }
+
+/**
+ * TransitionGroup: Zeilen, die durch Änderungen anderer (oder ohne eigene
+ * Animation) dazukommen oder wegfallen, öffnen bzw. schließen sich.
+ */
+function quiet(element) {
+    const entryId = element.dataset?.entryId;
+
+    return !entryId || busy.has(entryId) || reducedMotion();
+}
+
+function onRowEnter(element, done) {
+    if (quiet(element)) {
+        done();
+        return;
+    }
+
+    const height = element.offsetHeight;
+
+    element.style.overflow = 'hidden';
+    element.animate(
+        [
+            { height: '0px', minHeight: '0px', opacity: 0 },
+            { height: height + 'px', minHeight: '0px', opacity: 1 }
+        ],
+        { duration: ROW_ANIMATION_MS, easing: 'cubic-bezier(0.2, 0, 0, 1)' }
+    ).finished
+        .catch(() => {})
+        .finally(() => {
+            element.style.overflow = '';
+            done();
+        });
+}
+
+function onRowLeave(element, done) {
+    if (quiet(element)) {
+        done();
+        return;
+    }
+
+    collapse(element).then(done);
+}
+
+const moveClass = computed(() => (dragging.value || settling.value ? 'list-row--still' : 'list-row--moving'));
 
 /** Animation zurücksetzen, falls die Zeile doch stehen bleibt (z. B. abgelehnt). */
 async function release(row, animation) {
@@ -339,14 +402,27 @@ function announceMove(entryId) {
     }
 }
 
-const { start: startDrag } = useDragSort({
+const { start: startDrag, dragging } = useDragSort({
     list: openListRef,
     async onDrop(entryId, from, to) {
-        await moveOpenEntry(listId, from, to);
+        // from/to gelten für die eingefrorene Reihenfolge, die beim Ziehen zu sehen war
+        const order = view.value.open.map((entry) => entry.id);
+
+        settling.value = true;
+        await moveOpenEntryFrom(listId, order, from, to);
+        frozen.value = null;
         await nextTick();
         announceMove(entryId);
+        window.setTimeout(() => {
+            settling.value = false;
+        }, ROW_ANIMATION_MS * 2);
     }
 });
+
+// synchron, damit schon das erste Bild des Ziehens den eingefrorenen Stand zeigt
+watch(dragging, (value) => {
+    frozen.value = value ? live.value : null;
+}, { flush: 'sync' });
 
 async function moveByKey(entry, index, direction) {
     const to = index + direction;
@@ -398,7 +474,7 @@ async function notGot(entry) {
                 const current = findEntry(listId, entry.id);
 
                 if (current?.status === 'notGot') {
-                    markOpen(current).then(() => expand(entry.id));
+                    backToOpen(current);
                 }
             }
         }
@@ -406,8 +482,14 @@ async function notGot(entry) {
 }
 
 async function backToOpen(entry) {
-    await markOpen(entry);
-    expand(entry.id);
+    busy.add(entry.id);
+
+    try {
+        await markOpen(entry);
+        await expand(entry.id);
+    } finally {
+        busy.delete(entry.id);
+    }
 }
 
 function openTransfer(entries, mode = 'transfer') {
@@ -679,7 +761,16 @@ async function onDelete() {
                 <template v-else>
                     <h2 class="visually-hidden">{{ t('list.sectionOpen') }}</h2>
                     <div class="list__sortable">
-                        <ul v-if="openRows.length > 0" ref="openList" class="list__rows">
+                        <TransitionGroup
+                            v-if="openRows.length > 0"
+                            ref="openList"
+                            tag="ul"
+                            class="list__rows"
+                            :css="false"
+                            :move-class="moveClass"
+                            @enter="onRowEnter"
+                            @leave="onRowLeave"
+                        >
                             <ListRow
                                 v-for="(row, index) in openRows"
                                 :key="row.entry.id"
@@ -700,7 +791,7 @@ async function onDelete() {
                                 @handle-pointerdown="startDrag($event, row.entry.id)"
                                 @move="moveByKey(row.entry, index, $event)"
                             />
-                        </ul>
+                        </TransitionGroup>
                         <p v-else class="list__all-done">
                             <strong>{{ t('list.allDone') }}</strong>
                             {{ t('list.allDoneText') }}
@@ -727,7 +818,14 @@ async function onDelete() {
                                 {{ t('list.transferAll') }}
                             </button>
                         </div>
-                        <ul class="list__rows">
+                        <TransitionGroup
+                            tag="ul"
+                            class="list__rows"
+                            :css="false"
+                            :move-class="moveClass"
+                            @enter="onRowEnter"
+                            @leave="onRowLeave"
+                        >
                             <ListRow
                                 v-for="row in notGotRows"
                                 :key="row.entry.id"
@@ -747,7 +845,7 @@ async function onDelete() {
                                 @swipe-action="backToOpen(row.entry)"
                                 @transfer="openTransfer([row.entry])"
                             />
-                        </ul>
+                        </TransitionGroup>
                     </section>
 
                     <section v-if="doneRows.length > 0" class="list__section">
@@ -767,7 +865,16 @@ async function onDelete() {
                                 </span>
                             </button>
                         </h2>
-                        <ul v-if="doneOpen" ref="doneList" class="list__rows">
+                        <TransitionGroup
+                            v-if="doneOpen"
+                            ref="doneList"
+                            tag="ul"
+                            class="list__rows"
+                            :css="false"
+                            :move-class="moveClass"
+                            @enter="onRowEnter"
+                            @leave="onRowLeave"
+                        >
                             <ListRow
                                 v-for="row in doneRows"
                                 :key="row.entry.id"
@@ -783,7 +890,7 @@ async function onDelete() {
                                 @details="openEntry(row.entry)"
                                 @toggle="uncheck(row.entry)"
                             />
-                        </ul>
+                        </TransitionGroup>
                     </section>
 
                     <div class="list__complete">
@@ -1183,6 +1290,11 @@ async function onDelete() {
 </style>
 
 <style>
+/* Änderungen anderer: verschobene Zeilen gleiten an ihren Platz (TransitionGroup) */
+.list__rows > .list-row.list-row--moving {
+    transition: transform var(--duration-medium) var(--ease-out);
+}
+
 /* Sortieren (useDragSort setzt die Klassen direkt am DOM) */
 .list__rows.is-sorting > .list-row {
     transition: transform var(--duration-medium) var(--ease-out);
@@ -1215,7 +1327,8 @@ async function onDelete() {
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .list__rows.is-sorting > .list-row {
+    .list__rows.is-sorting > .list-row,
+    .list__rows > .list-row.list-row--moving {
         transition: none;
     }
 }

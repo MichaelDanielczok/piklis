@@ -85,6 +85,14 @@ under `design/piklis-designpaket/`.
   entries, the list goes into the archive (reachable from the overview),
   stays readable and can be reopened; a new list starts empty or from an
   earlier purchase with quantities and order, products can be deselected
+- Live updates of shared lists: the open list polls “since N” every 5 s,
+  the overview `GET /lists` every 30 s, only while the app is visible, with
+  ETag/304; changes of others appear without reloading and without jumps
+  (new rows open, checked rows close, moved rows glide), a drag in progress
+  is not disturbed (changes appear on release); removal from the household
+  or its dissolution reaches the overview at the next poll. Real conflicts
+  (different quantities or notes, an old check, a change to a removed
+  entry) ask in a sheet; nothing is silently overwritten
 - REST API `/api/piklis/v1` (`GET /me`, `PATCH /me/settings`, `GET /config`,
   `POST /ops`, `GET /lists`, `GET /lists/{id}`, `GET|POST /products`,
   `GET /products/search`, `GET /products/suggestions`, `GET|PATCH /products/{id}`,

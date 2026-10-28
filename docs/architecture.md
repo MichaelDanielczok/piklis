@@ -506,7 +506,9 @@ again and gets `duplicate` for the others).
 - `GET /lists`: lists of the user without entries, each with `role`,
   `counts` (`open`, `done`, `notGot`, `total` of visible entries) and
   `preview` (product IDs of the first four open entries in list order,
-  `Lists\ListPreview`, for the images in the overview). ETag/304.
+  `Lists\ListPreview`, for the images in the overview), plus the user's
+  `household` in short form (`{ id, name, role }` or null, as in `GET /me`),
+  so the polling overview notices removal or dissolution. ETag/304.
   Own personal lists and the lists of the user's household (role `member`);
   shares follow in step 11.
 - `GET /lists/{id}`: `{ list (with role), revision, full: true, entries }`
@@ -516,10 +518,22 @@ again and gets `duplicate` for the others).
   `mergedInto`) so the app can drop them. An unknown N (above the current
   revision) answers like without `since`.
 - Errors: `404 list_not_found`, `410 list_deleted`, `403 no_access`.
-- Live updates (step 10): poll every 5 s while a list is open and every
-  30 s in the overview, only while the app is visible, with ETag (`304`
-  costs almost nothing). No WebSockets. The overview compares each list's
-  `revision` with the local one and pulls `since` for changed lists.
+- Live updates: poll every 5 s while a list is open (`refreshList`, “since
+  N”) and every 30 s in the overview (`loadLists`), only while the app is
+  visible (`composables/useLivePoll.js` on `utils/poller.js`: started by
+  `ionViewDidEnter`, stopped by `ionViewWillLeave`, paused on
+  `visibilitychange` hidden, one poll at once visible again or `online`;
+  never two polls at the same time, the next one `interval` after the end
+  of the last). ETag: the responses carry `Cache-Control: private,
+  no-cache`, so the browser asks with `If-None-Match` and an unchanged list
+  answers `304` (about 300 bytes). No WebSockets.
+- The overview compares each loaded list's `revision` with the local one
+  and pulls “since N” for changed lists (so cards of loaded lists, whose
+  counts the app computes itself, stay current); a loaded list that is
+  missing from the answer (removed from the household, household
+  dissolved, list deleted) is dropped (`missing`), unless it was created
+  locally after the request started. A changed `household` updates the
+  session (default for new lists) and lets `useHousehold` reload.
 
 ### Revisions
 
@@ -644,6 +658,11 @@ merge rules in `Sync\TakeOverMerge`, cases shared with
 - Unsent changes of the same entry are coalesced: several plus taps become
   one `entry.set` with the first `base`; back at the start value it is
   dropped. Moves of one entry keep only the last key.
+- Polls and answers to own operations arrive in any order: an entry with a
+  lower `revision` than the known one never replaces it (`mergeEntries`),
+  a pull answer older than the known revision is ignored, and an empty
+  answer “since N” (same revision, same list head, `changesState`) changes
+  nothing, so Vue does not render every 5 s.
 - `pending(listId)` and `isEntryPending(entryId)` drive the mark “noch nicht
   übertragen”; `onResult(listener)` gets every answer (conflicts, rejections);
   `pull(listId, since)` reads changes; `applyPulledEntries()` merges them
@@ -653,7 +672,17 @@ merge rules in `Sync\TakeOverMerge`, cases shared with
 - `composables/useLists.js` holds the one queue of the app and the loaded
   lists: display state = server state + pending operations
   (`utils/listState.js`, `applyOperations`), so a rejected operation simply
-  disappears (toast “Eine Änderung hat der Server abgelehnt.”). Answers
+  disappears (toast “Eine Änderung hat der Server abgelehnt.”). Conflicts
+  are collected in `conflicts` (one item per conflict, oldest first) and
+  asked in `components/lists/ConflictSheet.vue`, mounted in `App.vue` so
+  they arrive on every page: quantity and note “Deine Änderung · Andere
+  Änderung”, old check “2 abgehakt, inzwischen 3 benötigt” (Erledigt ·
+  Offen lassen), removed entry (Wiederherstellen · Entfernt lassen);
+  `resolveConflict()` sends the answer as in the table above, closing the
+  sheet without a choice keeps the list as it is (the server state is
+  already shown). `entry.takeOver` asks before sending (unit step in the
+  transfer sheet); a unit met only on the server falls back to `note`,
+  which loses nothing, so there is no conflict sheet for it. Answers
   update the server state (`entry`, `list`); a revision that is not exactly
   +1 means someone else changed the list, then it pulls “since N” once
   nothing is pending. Sending again on `online` and when the app becomes
@@ -800,7 +829,18 @@ screens 01–07 and 10.
   (`entry.move`, usually one operation; if both neighbours share a key the
   right one moves first), and once the new order is rendered the row glides
   from the finger into its place. Arrow up/down on the focused handle move
-  by one; a live region announces the new position.
+  by one; a live region announces the new position. While a row is
+  lifted the view shows the state of that moment (`frozen` in
+  `ListView.vue`); changes of others that arrive meanwhile appear on
+  release, and the drop is translated to the current state
+  (`translateMove`: behind the same neighbour as on screen, else before the
+  first remaining one after it; not at all if the entry is no longer open).
+- **Changes of others** (live updates) do not make the list jump: the
+  sections are `TransitionGroup`s with JS hooks, new rows open (height
+  0 → full), rows that leave close, rows moved by somebody else glide to
+  their place (`list-row--moving`); rows the view animates itself (own
+  check, not got, reopen) are skipped. No glide right after an own drop.
+  `prefers-reduced-motion` skips all of it.
 - **Checking** on the check area: the row closes with a short height
   animation (the rows below follow evenly, nothing jumps), then
   `entry.setStatus` done with `seen`; toast “„Milch“ erledigt” with
@@ -1121,7 +1161,7 @@ picture of SmartPicker.
 | `POST` | `/lists/{id}/copy` | `{ id, to: 'household' \| 'personal' }`: copy (201, again 200 `unchanged`) |
 | `GET` | `/config` | `images`: `maxPixels`, `maxBytes` (project settings), `cropSize` |
 | `POST` | `/ops` | operations on lists and entries, and `product.create`, see [Sync](#sync) |
-| `GET` | `/lists` | accessible lists without entries, with `role`, `counts` and `preview` (ETag) |
+| `GET` | `/lists` | accessible lists without entries, with `role`, `counts` and `preview`, plus `household` (ETag) |
 | `GET` | `/lists/{id}?since=N` | one list: all visible entries, or with `since` only entries changed after revision N (ETag) |
 | `GET` | `/products` | whole catalog including hidden products (ETag) |
 | `GET` | `/products/search?q=&limit=` | suggestions without hidden products, best first (limit 20, at most 100; `hidden=1` for maintainers) |

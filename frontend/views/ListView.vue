@@ -12,7 +12,11 @@
  *   Haken in „Erledigt“) steht sie wieder an ihrer bisherigen Stelle, weil
  *   der Sortierschlüssel bleibt.
  * - Tippen auf Bild oder Name öffnet das Produkt im Listenkontext.
- * - „…“ öffnet „Liste bearbeiten“ (Name, Datum, Löschen).
+ * - „…“ öffnet „Liste bearbeiten“ (Name, Datum, Löschen, Teilen); bei einer
+ *   mit einem geteilten Liste (Gast) stattdessen „Geteilte Liste“ mit
+ *   „Liste verlassen“ (`ListShareSheet`).
+ * - Freigabe entzogen oder Liste gelöscht (auch beim Live-Abgleich): eine
+ *   klare Meldung statt der Liste.
  * - Nach links wischen: „Nicht bekommen“ (eigener Abschnitt, mit
  *   „Rückgängig“ im Toast); dort wischen: „Wieder offen“. Der Pfeil in der
  *   Zeile oder „Alle übernehmen …“ übernimmt in eine andere Liste
@@ -33,7 +37,21 @@
  */
 import { computed, nextTick, ref, shallowRef, useTemplateRef, watch } from 'vue';
 import { onIonViewWillEnter, useIonRouter } from '@ionic/vue';
-import { Archive, ChevronDown, CloudOff, Ellipsis, History, ListPlus, Plus, RotateCcw, SearchX, TriangleAlert } from '@lucide/vue';
+import {
+    Archive,
+    ChevronDown,
+    CloudOff,
+    Ellipsis,
+    History,
+    ListPlus,
+    LogOut,
+    Plus,
+    RotateCcw,
+    SearchX,
+    Trash2,
+    TriangleAlert,
+    UserX
+} from '@lucide/vue';
 import { useRoute } from 'vue-router';
 import AppPage from '@/components/layout/AppPage.vue';
 import AppButton from '@/components/ui/AppButton.vue';
@@ -42,6 +60,7 @@ import SectionLabel from '@/components/ui/SectionLabel.vue';
 import ListRow from '@/components/list/ListRow.vue';
 import SkeletonRow from '@/components/list/SkeletonRow.vue';
 import ListFormSheet from '@/components/lists/ListFormSheet.vue';
+import ListShareSheet from '@/components/lists/ListShareSheet.vue';
 import TransferSheet from '@/components/lists/TransferSheet.vue';
 import {
     checkEntry,
@@ -99,6 +118,7 @@ const openListRef = useTemplateRef('openList');
 const doneListRef = useTemplateRef('doneList');
 
 const formOpen = ref(false);
+const shareOpen = ref(false);
 const newFromOpen = ref(false);
 const transferOpen = ref(false);
 const transferMode = ref('transfer');
@@ -113,6 +133,21 @@ const settling = ref(false);
 const list = computed(() => view.value.list);
 const counts = computed(() => view.value.counts);
 const isCompleted = computed(() => list.value?.status === 'completed');
+const isGuest = computed(() => list.value?.role === 'guest');
+
+/** Meldung, wenn die Liste nicht (mehr) da ist: Symbol, Titel, Text. */
+const missing = computed(() => {
+    switch (view.value.reason) {
+        case 'no_access':
+            return { icon: UserX, title: t('lists.noAccessTitle'), text: t('lists.noAccessText') };
+        case 'list_deleted':
+            return { icon: Trash2, title: t('lists.deletedTitle'), text: t('lists.deletedText') };
+        case 'left':
+            return { icon: LogOut, title: t('lists.leftTitle'), text: t('lists.leftText') };
+        default:
+            return { icon: SearchX, title: t('lists.notFoundTitle'), text: t('lists.notFoundText') };
+    }
+});
 const completedDay = computed(() => formatDay(list.value?.completedAt));
 
 const loading = computed(() => {
@@ -131,7 +166,10 @@ const subtitle = computed(() => {
         return '';
     }
 
-    const parts = [list.value.householdId ? t('lists.originHousehold') : t('lists.originPersonal')];
+    const origin = isGuest.value
+        ? t('lists.sharedBy', { name: list.value.sharedBy?.name ?? '' })
+        : (list.value.householdId ? t('lists.originHousehold') : t('lists.originPersonal'));
+    const parts = [origin];
     const date = formatShopDate(list.value.shopDate);
 
     if (date) {
@@ -593,6 +631,23 @@ async function onCopy() {
     }
 }
 
+function openActions() {
+    if (isGuest.value) {
+        shareOpen.value = true;
+    } else {
+        formOpen.value = true;
+    }
+}
+
+function onShare() {
+    shareOpen.value = true;
+}
+
+function onLeft(name) {
+    showToast(t('lists.leftToast', { name }), { icon: 'info' });
+    navigateBack(ionRouter, '/');
+}
+
 async function onDelete() {
     const name = list.value?.name ?? '';
 
@@ -611,9 +666,9 @@ async function onDelete() {
             <button
                 type="button"
                 class="list__more"
-                :aria-label="t('list.actions')"
+                :aria-label="isGuest ? t('list.sharedActions') : t('list.actions')"
                 aria-haspopup="dialog"
-                @click="formOpen = true"
+                @click="openActions"
             >
                 <Ellipsis aria-hidden="true" />
             </button>
@@ -641,9 +696,9 @@ async function onDelete() {
 
             <EmptyState
                 v-if="view.status === 'missing'"
-                :icon="SearchX"
-                :title="t('lists.notFoundTitle')"
-                :text="t('lists.notFoundText')"
+                :icon="missing.icon"
+                :title="missing.title"
+                :text="missing.text"
             >
                 <AppButton variant="secondary" @click="navigateBack(ionRouter, '/')">{{ t('lists.toOverview') }}</AppButton>
             </EmptyState>
@@ -915,7 +970,10 @@ async function onDelete() {
             @delete="onDelete"
             @move="onMove"
             @copy="onCopy"
+            @share="onShare"
         />
+
+        <ListShareSheet v-if="list" v-model:open="shareOpen" :list="list" @left="onLeft" />
 
         <ListFormSheet v-if="list" v-model:open="newFromOpen" :source-list-id="listId" @submit="onCreateFrom" />
 

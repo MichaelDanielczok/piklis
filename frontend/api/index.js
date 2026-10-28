@@ -190,6 +190,56 @@ export const api = {
     },
 
     /**
+     * Einladungslink zu einer Liste erzeugen (Besitzer, Mitglieder):
+     * { token, invite: { id, createdBy, createdAt, expiresAt } }. Das Token
+     * gibt es nur in dieser Antwort.
+     */
+    createListInvite(listId) {
+        return request('POST', '/lists/' + encodeURIComponent(listId) + '/invites');
+    },
+
+    /**
+     * Teilnehmer und offene Links einer Liste: { shares: [{ id, name,
+     * initials, avatarUrl, invitedBy, acceptedAt }], invites: [...] }.
+     */
+    getListShares(listId, { signal } = {}) {
+        return request('GET', '/lists/' + encodeURIComponent(listId) + '/shares', undefined, { signal });
+    },
+
+    /**
+     * Freigabe entziehen: wie getListShares. Mit der eigenen ID verlässt ein
+     * Gast die Liste: { status: 'left' }.
+     */
+    removeListShare(listId, userId) {
+        return request(
+            'DELETE',
+            '/lists/' + encodeURIComponent(listId) + '/shares/' + encodeURIComponent(userId)
+        );
+    },
+
+    /** Offenen Link zurückziehen: wie getListShares. */
+    withdrawListInvite(listId, inviteId) {
+        return request(
+            'DELETE',
+            '/lists/' + encodeURIComponent(listId) + '/invites/' + encodeURIComponent(inviteId)
+        );
+    },
+
+    /**
+     * Einladung ansehen: { invite: { list: { id, name, shopDate }, invitedBy,
+     * expiresAt }, access: null | 'owner' | 'member' | 'guest' }.
+     * Ungültig: `invite_invalid` (404/410) mit `reason`.
+     */
+    getInvite(token, { signal } = {}) {
+        return request('GET', '/invites/' + encodeURIComponent(token), undefined, { signal });
+    },
+
+    /** Einladung annehmen: { status: 'accepted' | 'already', list }. */
+    acceptInvite(token) {
+        return request('POST', '/invites/' + encodeURIComponent(token) + '/accept');
+    },
+
+    /**
      * Eigener Haushalt: { household: { id, name, role, members, invite } | null }.
      * `invite` ({ code, expiresAt }) nur für Administratoren.
      */

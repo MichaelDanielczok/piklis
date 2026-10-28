@@ -42,6 +42,13 @@ const routes = [
         name: 'list-entry',
         component: () => import('./views/ListEntryView.vue')
     },
+    // Einladung zu einer Liste (Link aus „Liste teilen“); ohne Anmeldung
+    // erst zur Anmeldung, danach zurück hierher (`?redirect=`)
+    {
+        path: '/invite/:token',
+        name: 'invite',
+        component: () => import('./views/InviteView.vue')
+    },
     {
         path: '/products',
         name: 'products',

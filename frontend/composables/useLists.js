@@ -68,8 +68,11 @@ const overview = reactive({
 });
 
 /**
- * Geladene Listen: id → { status, list, revision, entries }.
- * status: loading · ready · error · missing (gelöscht oder kein Zugriff)
+ * Geladene Listen: id → { status, list, revision, entries, reason }.
+ * status: loading · ready · error · missing (gelöscht oder kein Zugriff);
+ * `reason` bei missing: `no_access` (Freigabe entzogen, Haushalt verlassen),
+ * `list_deleted`, `list_not_found`, `left` (als Gast verlassen) oder null
+ * (fehlt in der Übersicht).
  */
 const details = shallowRef({});
 
@@ -94,6 +97,15 @@ function setDetail(listId, detail) {
     details.value = { ...details.value, [listId]: Object.freeze(detail) };
 }
 
+function dropDetail(listId) {
+    if (listId in details.value) {
+        const next = { ...details.value };
+
+        delete next[listId];
+        details.value = next;
+    }
+}
+
 function patchDetail(listId, change) {
     const detail = details.value[listId];
 
@@ -108,6 +120,13 @@ function pendingFor(listId) {
 
 function hasPendingCreate(listId) {
     return pendingOps.value.some((op) => op.type === T.LIST_CREATE && op.listId === listId);
+}
+
+/** Liste ist nicht mehr zugänglich: aus der Übersicht nehmen (ohne auf deren Abfrage zu warten). */
+function dropFromOverview(listId) {
+    if (overview.lists.some((item) => item.id === listId)) {
+        overview.lists = overview.lists.filter((item) => item.id !== listId);
+    }
 }
 
 function upsertOverview(list) {
@@ -183,7 +202,7 @@ queue.onResult((result, op) => {
         showToast(t('lists.syncRejected'), { icon: 'notgot' });
 
         if (result.error === 'list_deleted' || result.error === 'no_access') {
-            patchDetail(op.listId, { status: 'missing' });
+            patchDetail(op.listId, { status: 'missing', reason: result.error });
         }
 
         return;
@@ -297,7 +316,10 @@ function syncLoadedLists(lists, knownBefore) {
 
         if (!server) {
             if (knownBefore.has(listId) && !hasPendingCreate(listId)) {
-                setDetail(listId, { status: 'missing', list: null, revision: 0, entries: null });
+                // eine geteilte Liste fehlt: Freigabe entzogen (gelöscht kann sie auch sein)
+                const reason = detail.list?.role === 'guest' ? 'no_access' : null;
+
+                setDetail(listId, { status: 'missing', list: null, revision: 0, entries: null, reason });
             }
 
             continue;
@@ -402,7 +424,8 @@ async function pullList(listId, since) {
         }
 
         if (error?.code === 'list_not_found' || error?.code === 'list_deleted' || error?.code === 'no_access') {
-            setDetail(listId, { status: 'missing', list: null, revision: 0, entries: null });
+            setDetail(listId, { status: 'missing', list: null, revision: 0, entries: null, reason: error.code });
+            dropFromOverview(listId);
             return;
         }
 
@@ -507,6 +530,7 @@ export function listView(listId) {
 
         return {
             status,
+            reason: status === 'missing' ? (detail?.reason ?? (state.list?.deleted ? 'list_deleted' : null)) : null,
             list: state.list,
             entries,
             open: sortedEntries(entries, 'open'),
@@ -860,6 +884,41 @@ export async function copyListTo(listId, to) {
     loadLists().catch((error) => console.error(error));
 
     return list;
+}
+
+/**
+ * Einladung zu einer Liste annehmen (Link): Danach steht sie in der
+ * Übersicht. Gibt `{ status: 'accepted' | 'already', list }` zurück.
+ */
+export async function acceptListInvite(token) {
+    const result = await api.acceptInvite(token);
+
+    upsertOverview(result.list);
+
+    const detail = details.value[result.list.id];
+
+    // vorher ohne Zugriff geladen (z. B. nach einem Entzug): neu laden lassen
+    if (detail && detail.status !== 'ready') {
+        dropDetail(result.list.id);
+    }
+
+    loadLists().catch((error) => console.error(error));
+
+    return result;
+}
+
+/**
+ * Als Gast eine geteilte Liste verlassen: Sie verschwindet aus der
+ * Übersicht; wieder dabei nur mit einem neuen Link.
+ */
+export async function leaveSharedList(listId, userId) {
+    await api.removeListShare(listId, userId);
+
+    dropFromOverview(listId);
+
+    if (details.value[listId]) {
+        setDetail(listId, { status: 'missing', list: null, revision: 0, entries: null, reason: 'left' });
+    }
 }
 
 /**

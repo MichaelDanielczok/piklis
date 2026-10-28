@@ -1,7 +1,7 @@
 <script setup>
 /**
  * Karte einer aktiven Liste in der Übersicht (Designpaket 01): Name und
- * Datum, Herkunft als Chip („nur ich“ oder „Haushalt“, mit Symbol und
+ * Datum, Herkunft als Chip („nur ich“, „Haushalt“ oder „geteilt“, mit Symbol und
  * ausgeschriebener Bedeutung für Screenreader), Fortschritt als Balken
  * mit „8 von 30“, darunter die Bilder der ersten offenen Produkte und
  * „+ N“ für die übrigen offenen.
@@ -11,7 +11,7 @@
  * Emits: open
  */
 import { computed } from 'vue';
-import { House, User } from '@lucide/vue';
+import { House, Share2, User } from '@lucide/vue';
 import ProductImage from '@/components/products/ProductImage.vue';
 import { useProducts } from '@/composables/useProducts.js';
 import { categoryOf, iconOf } from '@/products/catalog.js';
@@ -50,6 +50,22 @@ const thumbs = computed(() => (props.list.preview ?? []).map((productId) => {
 
 const isHousehold = computed(() => Boolean(props.list.householdId));
 
+/** Herkunft: mit mir geteilt (Gast) · Haushalt · nur ich */
+const origin = computed(() => {
+    if (props.list.role === 'guest') {
+        return {
+            kind: 'shared',
+            icon: Share2,
+            text: t('lists.originShared'),
+            label: t('lists.originSharedLabel', { name: props.list.sharedBy?.name ?? '' })
+        };
+    }
+
+    return isHousehold.value
+        ? { kind: 'household', icon: House, text: t('lists.originHousehold'), label: t('lists.originHouseholdLabel') }
+        : { kind: 'personal', icon: User, text: t('lists.originPersonal'), label: t('lists.originPersonalLabel') };
+});
+
 const more = computed(() => Math.max(0, counts.value.open - thumbs.value.length));
 </script>
 
@@ -62,12 +78,10 @@ const more = computed(() => Math.max(0, counts.value.open - thumbs.value.length)
                     <span v-if="date" class="list-card__date">{{ date }}</span>
                 </button>
             </component>
-            <span class="list-card__origin" :class="{ 'list-card__origin--household': isHousehold }">
-                <component :is="isHousehold ? House : User" class="list-card__origin-icon" aria-hidden="true" />
-                <span aria-hidden="true">{{ isHousehold ? t('lists.originHousehold') : t('lists.originPersonal') }}</span>
-                <span class="visually-hidden">
-                    {{ isHousehold ? t('lists.originHouseholdLabel') : t('lists.originPersonalLabel') }}
-                </span>
+            <span class="list-card__origin" :class="'list-card__origin--' + origin.kind">
+                <component :is="origin.icon" class="list-card__origin-icon" aria-hidden="true" />
+                <span aria-hidden="true">{{ origin.text }}</span>
+                <span class="visually-hidden">{{ origin.label }}</span>
             </span>
         </div>
 
@@ -199,6 +213,12 @@ const more = computed(() => Math.max(0, counts.value.open - thumbs.value.length)
 .list-card__origin--household {
     background: var(--color-accent-soft);
     color: var(--color-accent-text);
+}
+
+/* geteilt: eigene, ruhige Farbe; die Bedeutung tragen Symbol und Text */
+.list-card__origin--shared {
+    background: var(--cat-lilac-bg);
+    color: var(--cat-lilac-line);
 }
 
 .list-card__origin-icon {

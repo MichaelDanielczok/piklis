@@ -24,6 +24,7 @@ import SectionLabel from '@/components/ui/SectionLabel.vue';
 import EntryChecklist from './EntryChecklist.vue';
 import { ensureListLoaded, listEntries, loadLists, takeOverEntries, useLists } from '@/composables/useLists.js';
 import { useProducts } from '@/composables/useProducts.js';
+import { useSession } from '@/composables/useSession.js';
 import { categoryOf, iconOf } from '@/products/catalog.js';
 import { formatQuantity } from '@/utils/quantity.js';
 import { formatShopDate } from '@/utils/shopDate.js';
@@ -144,6 +145,21 @@ watch(target, (value) => {
 });
 
 /** Zielliste schon beim Wählen laden, damit „Übernehmen“ nicht wartet. */
+const { household } = useSession();
+
+/**
+ * Eine neue Ziel-Liste gehört dorthin, wohin die Ursprungsliste gehört; aus
+ * einer mit mir geteilten Liste (Gast) dorthin, wo meine neuen Listen
+ * standardmäßig landen (eigener Haushalt, sonst persönlich).
+ */
+function newListHouseholdId() {
+    if (props.list.role === 'guest') {
+        return household.value?.id ?? null;
+    }
+
+    return props.list.householdId ?? null;
+}
+
 function preload(listId) {
     if (listId && listId !== 'none' && listId !== 'new') {
         ensureListLoaded(listId).catch((loadError) => console.error(loadError));
@@ -230,7 +246,7 @@ async function submit() {
 
         const result = await takeOverEntries(chosen, target.value === 'new'
             // neue Liste gehört dorthin, wohin die Ursprungsliste gehört
-            ? { newList: { name: newName.value.trim(), shopDate: null, householdId: props.list.householdId ?? null } }
+            ? { newList: { name: newName.value.trim(), shopDate: null, householdId: newListHouseholdId() } }
             : { targetListId: target.value, answers: answers.value });
 
         emit('finished', { result, targetName: targetName.value });

@@ -1,9 +1,11 @@
 <script setup>
 /**
  * Anmeldung mit QUIQQER-Benutzer (Core-Ajax ajax_users_login). Nach Erfolg
- * zurück zur Seite aus `?redirect=`, sonst zur Startseite.
+ * zurück zur Seite aus `?redirect=`, sonst zur Startseite. Aus einem
+ * Einladungslink (`/invite/…`) erklärt ein Hinweis, dass ein vorhandenes
+ * Konto nötig ist.
  */
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppPage from '@/components/layout/AppPage.vue';
 import AppLogo from '@/components/ui/AppLogo.vue';
@@ -13,6 +15,9 @@ import { t } from '@/i18n/index.js';
 
 const route = useRoute();
 const router = useRouter();
+
+/** Kommt man über einen Einladungslink, erklärt ein Hinweis die Anmeldung. */
+const fromInvite = computed(() => typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/invite/'));
 
 const username = ref('');
 const password = ref('');
@@ -53,6 +58,7 @@ async function submit() {
             <form class="login__card" @submit.prevent="submit">
                 <AppLogo class="login__logo" />
                 <h1 class="login__title">{{ t('login.title') }}</h1>
+                <p v-if="fromInvite" class="login__hint">{{ t('login.inviteHint') }}</p>
 
                 <label class="login__field">
                     <span class="login__label">{{ t('login.username') }}</span>
@@ -90,6 +96,13 @@ async function submit() {
 </template>
 
 <style scoped>
+.login__hint {
+    margin-top: calc(var(--space-2) * -1);
+    color: var(--color-text-2);
+    font-size: var(--font-size-note);
+    line-height: var(--line-height-note);
+}
+
 .login {
     display: flex;
     align-items: center;

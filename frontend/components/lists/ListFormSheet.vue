@@ -17,13 +17,17 @@
  * Sheet, die Liste gehört danach dem Haushalt) und „In den Haushalt
  * kopieren“ (das Original bleibt privat).
  *
+ * Teilen (Schritt 11): Besitzer und Mitglieder sehen „Liste teilen …“; das
+ * öffnet `ListShareSheet` in der Listenansicht. Gäste bekommen dieses Sheet
+ * nicht.
+ *
  * v-model:open · `list` null = neu · `sourceListId`: gleich mit diesem
  * früheren Einkauf starten (aus dem Archiv)
  * Emits: submit({ name, shopDate, householdId, items }) (`items` null = leer)
- * · delete · move · copy
+ * · delete · move · copy · share
  */
 import { computed, ref, useId, watch } from 'vue';
-import { CircleAlert, Copy, House, Trash2, User } from '@lucide/vue';
+import { CircleAlert, Copy, House, Share2, Trash2, User } from '@lucide/vue';
 import AppButton from '@/components/ui/AppButton.vue';
 import AppSheet from '@/components/ui/AppSheet.vue';
 import EntryChecklist from './EntryChecklist.vue';
@@ -53,7 +57,7 @@ const props = defineProps({
     }
 });
 
-const emit = defineEmits(['submit', 'delete', 'move', 'copy']);
+const emit = defineEmits(['submit', 'delete', 'move', 'copy', 'share']);
 const open = defineModel('open', { type: Boolean, default: false });
 
 const ids = {
@@ -64,6 +68,7 @@ const ids = {
     start: useId(),
     owner: useId(),
     ownerHeading: useId(),
+    shareHeading: useId(),
     selectError: useId()
 };
 
@@ -98,6 +103,9 @@ const canMoveToHousehold = computed(() => Boolean(household.value)
     && !isHouseholdList.value
     && props.list?.role === 'owner'
     && !props.list?.local);
+
+/** Teilen dürfen Besitzer persönlicher Listen und Mitglieder bei Haushaltslisten. */
+const canShareList = computed(() => !isNew.value && (props.list?.role === 'owner' || props.list?.role === 'member'));
 
 /** Frühere Einkäufe zur Auswahl; ein vorgegebener steht immer dabei. */
 const previous = computed(() => {
@@ -315,6 +323,11 @@ function copy() {
     open.value = false;
 }
 
+function share() {
+    emit('share');
+    open.value = false;
+}
+
 function onSelect(value) {
     selected.value = value;
     selectError.value = '';
@@ -494,6 +507,19 @@ function remove() {
                         {{ t('listForm.copy') }}
                     </AppButton>
                     <p class="list-form__hint">{{ t('listForm.moveCopyHint') }}</p>
+                </div>
+            </section>
+
+            <section v-if="canShareList" class="list-form__owner" :aria-labelledby="ids.shareHeading">
+                <h3 :id="ids.shareHeading" class="form-field__label">{{ t('listForm.shareLabel') }}</h3>
+                <p class="list-form__hint">
+                    {{ list?.local ? t('listForm.shareLocal') : (isHouseholdList ? t('listForm.shareHint') : t('listForm.shareHintPersonal')) }}
+                </p>
+                <div class="list-form__owner-actions">
+                    <AppButton variant="secondary" :disabled="Boolean(list?.local)" @click="share">
+                        <Share2 aria-hidden="true" />
+                        {{ t('listForm.share') }}
+                    </AppButton>
                 </div>
             </section>
 

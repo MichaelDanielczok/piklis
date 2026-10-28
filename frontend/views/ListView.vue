@@ -69,6 +69,7 @@ import {
     createListWith,
     deleteList,
     findEntry,
+    forgetLeftList,
     isEntryUnsynced,
     listView,
     loadList,
@@ -646,6 +647,7 @@ function onShare() {
 function onLeft(name) {
     showToast(t('lists.leftToast', { name }), { icon: 'info' });
     navigateBack(ionRouter, '/');
+    forgetLeftList(listId);
 }
 
 async function onDelete() {

@@ -24,7 +24,6 @@ import AppSheet from '@/components/ui/AppSheet.vue';
 import SectionLabel from '@/components/ui/SectionLabel.vue';
 import UserAvatar from '@/components/ui/UserAvatar.vue';
 import { api, ApiError } from '@/api/index.js';
-import { leaveSharedList } from '@/composables/useLists.js';
 import { useSession } from '@/composables/useSession.js';
 import { showToast } from '@/composables/useToast.js';
 import { formatDate, t } from '@/i18n/index.js';
@@ -257,8 +256,9 @@ async function confirmAction() {
         } else {
             const name = props.list.name;
 
-            await leaveSharedList(props.list.id, user.value?.id ?? '');
+            await api.removeListShare(props.list.id, user.value?.id ?? '');
             open.value = false;
+            // die Ansicht räumt auf (`forgetLeftList`); danach gibt es dieses Sheet nicht mehr
             emit('left', name);
         }
     } catch (error) {
@@ -314,7 +314,7 @@ async function confirmAction() {
                 <template v-else>
                     <p class="share__hint">{{ t('share.rules') }}</p>
                     <AppButton :disabled="pending" @click="createLink">
-                        <Share2 aria-hidden="true" />
+                        <component :is="canShare ? Share2 : Link2" aria-hidden="true" />
                         {{ canShare ? t('share.createAndShare') : t('share.createAndCopy') }}
                     </AppButton>
                 </template>

@@ -908,12 +908,11 @@ export async function acceptListInvite(token) {
 }
 
 /**
- * Als Gast eine geteilte Liste verlassen: Sie verschwindet aus der
- * Übersicht; wieder dabei nur mit einem neuen Link.
+ * Als Gast eine geteilte Liste verlassen hat (`DELETE /lists/{id}/shares/{me}`
+ * ist durch): Sie verschwindet aus der Übersicht; wieder dabei nur mit einem
+ * neuen Link. Die offene Liste zeigt „Liste verlassen“.
  */
-export async function leaveSharedList(listId, userId) {
-    await api.removeListShare(listId, userId);
-
+export function forgetLeftList(listId) {
     dropFromOverview(listId);
 
     if (details.value[listId]) {

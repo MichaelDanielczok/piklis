@@ -201,7 +201,7 @@ function later() {
 
 .invite__from,
 .invite__meta {
-    min-height: var(--line-height-text);
+    min-height: calc(var(--font-size-text) * var(--line-height-text));
     color: var(--color-text-2);
     font-size: var(--font-size-text);
     line-height: var(--line-height-text);

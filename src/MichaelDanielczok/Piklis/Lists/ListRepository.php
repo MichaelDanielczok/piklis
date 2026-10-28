@@ -18,6 +18,7 @@ use QUI;
 
 use function array_keys;
 use function count;
+use function implode;
 use function is_array;
 use function is_numeric;
 use function is_string;
@@ -112,8 +113,8 @@ class ListRepository implements ListStore
     }
 
     /**
-     * Besitzer persönlicher Listen und Mitglieder des Haushalts
-     * (`ListAccess`); eingeladene Teilnehmer folgen in Schritt 11.
+     * Besitzer persönlicher Listen, Mitglieder des Haushalts und eingeladene
+     * Gäste (`pk_list_shares`), die stärkste Rolle zählt (`ListAccess`).
      *
      * @throws DBALException
      */
@@ -125,7 +126,27 @@ class ListRepository implements ListStore
 
         $householdId = $list->householdId === null ? null : $this->householdIdOf($userId);
 
-        return ListAccess::role($list, $userId, $householdId);
+        return ListAccess::role($list, $userId, $householdId, $this->isGuest($list->id, $userId));
+    }
+
+    /**
+     * Hat der Benutzer eine angenommene Einladung zu dieser Liste?
+     *
+     * @throws DBALException
+     */
+    public function isGuest(string $listId, string $userId): bool
+    {
+        $found = $this->Connection->createQueryBuilder()
+            ->select('list_id')
+            ->from(Tables::name(Tables::LIST_SHARES))
+            ->where('list_id = :list')
+            ->andWhere('user_id = :user')
+            ->setParameter('list', $listId)
+            ->setParameter('user', $userId)
+            ->executeQuery()
+            ->fetchOne();
+
+        return $found !== false;
     }
 
     /**
@@ -224,12 +245,13 @@ class ListRepository implements ListStore
     }
 
     /**
-     * Listen, auf die der Benutzer Zugriff hat (eigene persönliche und die
-     * seines Haushalts), ohne gelöschte, mit Rolle, Zählern der sichtbaren
-     * Einträge je Zustand und den Produkten der ersten offenen Einträge
-     * (Vorschau in der Übersicht).
+     * Listen, auf die der Benutzer Zugriff hat (eigene persönliche, die
+     * seines Haushalts und die mit ihm geteilten), ohne gelöschte, mit Rolle,
+     * Zählern der sichtbaren Einträge je Zustand, den Produkten der ersten
+     * offenen Einträge (Vorschau in der Übersicht) und bei Gästen, wer
+     * eingeladen hat (`sharedBy`, Benutzer-ID).
      *
-     * @return list<array{list: ListState, role: ListRole, counts: array<string, int>, preview: list<string>}>
+     * @return list<array{list: ListState, role: ListRole, counts: array<string, int>, preview: list<string>, sharedBy: string|null}>
      * @throws DBALException
      */
     public function listsForUser(string $userId): array
@@ -259,14 +281,18 @@ class ListRepository implements ListStore
 
         $counts = $this->countEntries(array_keys($lists));
         $previews = $this->previewProducts(array_keys($lists));
+        $invitedBy = $this->sharesOfUser($userId);
         $result = [];
 
         foreach ($lists as $listId => $List) {
+            $Role = ListAccess::role($List, $userId, $householdId, isset($invitedBy[$listId])) ?? ListRole::Owner;
+
             $result[] = [
                 'list' => $List,
-                'role' => ListAccess::role($List, $userId, $householdId) ?? ListRole::Owner,
+                'role' => $Role,
                 'counts' => $counts[$listId] ?? self::emptyCounts(),
-                'preview' => $previews[$listId] ?? []
+                'preview' => $previews[$listId] ?? [],
+                'sharedBy' => $Role === ListRole::Guest ? $invitedBy[$listId] : null
             ];
         }
 
@@ -276,7 +302,8 @@ class ListRepository implements ListStore
     /**
      * Nutzung von Produkten für die Vorschläge (`Products\SuggestionRanking`):
      * sichtbare Einträge aller Listen, auf die der Benutzer Zugriff hat
-     * (eigene persönliche und die seines Haushalts, wie `listsForUser`), ohne gelöschte Listen
+     * (eigene persönliche, die seines Haushalts und mit ihm geteilte, wie
+     * `listsForUser`), ohne gelöschte Listen
      * und ohne ausgeblendete Produkte. Zeitpunkt: abgehakt = wann gekauft,
      * sonst wann hinzugefügt; nur ab `$since`.
      *
@@ -332,16 +359,47 @@ class ListRepository implements ListStore
     }
 
     /**
-     * Bedingung „Liste ist zugänglich“: eigene persönliche oder (mit
-     * Haushalt) die des Haushalts. Parameter `:user` und `:household`.
+     * Bedingung „Liste ist zugänglich“: eigene persönliche, (mit Haushalt)
+     * die des Haushalts oder mit dem Benutzer geteilte. Parameter `:user`
+     * und `:household`.
      */
     private function accessibleCondition(?string $householdId, string $alias = ''): string
     {
-        if ($householdId === null) {
-            return $alias . 'owner_user = :user';
+        $conditions = [
+            $alias . 'owner_user = :user',
+            $alias . 'id IN (SELECT s.list_id FROM ' . Tables::name(Tables::LIST_SHARES) . ' s WHERE s.user_id = :user)'
+        ];
+
+        if ($householdId !== null) {
+            $conditions[] = $alias . 'household_id = :household';
         }
 
-        return '(' . $alias . 'owner_user = :user OR ' . $alias . 'household_id = :household)';
+        return '(' . implode(' OR ', $conditions) . ')';
+    }
+
+    /**
+     * Mit dem Benutzer geteilte Listen: Liste => wer eingeladen hat.
+     *
+     * @return array<string, string>
+     * @throws DBALException
+     */
+    private function sharesOfUser(string $userId): array
+    {
+        $rows = $this->Connection->createQueryBuilder()
+            ->select('list_id', 'invited_by')
+            ->from(Tables::name(Tables::LIST_SHARES))
+            ->where('user_id = :user')
+            ->setParameter('user', $userId)
+            ->executeQuery()
+            ->fetchAllAssociative();
+
+        $shares = [];
+
+        foreach ($rows as $row) {
+            $shares[(string)$row['list_id']] = (string)$row['invited_by'];
+        }
+
+        return $shares;
     }
 
     /**

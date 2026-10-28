@@ -6,7 +6,9 @@ use Doctrine\DBAL\Exception as DBALException;
 use MichaelDanielczok\Piklis\Lists\ListException;
 use MichaelDanielczok\Piklis\Lists\ListOwnership;
 use MichaelDanielczok\Piklis\Lists\ListRepository;
+use MichaelDanielczok\Piklis\Lists\ShareRepository;
 use MichaelDanielczok\Piklis\Sync\EntryState;
+use MichaelDanielczok\Piklis\Sync\ListRole;
 use MichaelDanielczok\Piklis\Sync\ListState;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -22,7 +24,9 @@ use function is_string;
 /**
  * Lesen der Listen: Übersicht und eine Liste („alles seit Revision N“).
  * Geschrieben wird über `POST /ops`; nur die Zugehörigkeit (in den Haushalt
- * verschieben, kopieren) läuft über eigene Routen (`Lists\ListOwnership`).
+ * verschieben, kopieren) läuft über eigene Routen (`Lists\ListOwnership`),
+ * das Teilen über `SharesEndpoint`. Gäste bekommen `sharedBy` (wer geteilt
+ * hat) an der Liste.
  * Jede Route prüft die Rolle des Benutzers an der Liste.
  */
 class ListsEndpoint
@@ -52,13 +56,23 @@ class ListsEndpoint
             return Json::error($Response, 'load_failed', 'Lists could not be loaded.', 500);
         }
 
+        $names = [];
         $data = array_map(
-            static fn(array $item): array => [
-                ...$item['list']->toArray(),
-                'role' => $item['role']->value,
-                'counts' => $item['counts'],
-                'preview' => $item['preview']
-            ],
+            static function (array $item) use (&$names): array {
+                $data = [
+                    ...$item['list']->toArray(),
+                    'role' => $item['role']->value,
+                    'counts' => $item['counts'],
+                    'preview' => $item['preview']
+                ];
+
+                if ($item['sharedBy'] !== null) {
+                    $names[$item['sharedBy']] ??= self::sharedBy($item['sharedBy']);
+                    $data['sharedBy'] = $names[$item['sharedBy']];
+                }
+
+                return $data;
+            },
             $lists
         );
 
@@ -110,9 +124,23 @@ class ListsEndpoint
 
         $since = self::since($Request->getQueryParams()['since'] ?? null, $List);
         $entries = $since === null ? $List->visibleEntries() : self::changedSince($List, $since);
+        $data = [...$List->toArray(), 'role' => $Role->value];
+
+        if ($Role === ListRole::Guest) {
+            try {
+                $Share = (new ShareRepository())->findShare($List->id, $userId);
+            } catch (DBALException $Exception) {
+                QUI\System\Log::writeException($Exception);
+                $Share = null;
+            }
+
+            if ($Share !== null) {
+                $data['sharedBy'] = self::sharedBy($Share->invitedBy);
+            }
+        }
 
         return Json::respondWithEtag($Request, $Response, [
-            'list' => [...$List->toArray(), 'role' => $Role->value],
+            'list' => $data,
             'revision' => $List->revision,
             'full' => $since === null,
             'entries' => array_map(static fn(EntryState $Entry): array => $Entry->toArray(), $entries)
@@ -192,6 +220,18 @@ class ListsEndpoint
             ['status' => $result['status'], 'list' => [...$result['list']->toArray(), 'role' => $Role?->value]],
             $result['status'] === 'created' ? 201 : 200
         );
+    }
+
+    /**
+     * Wer eine Liste mit einem Gast geteilt hat: `{ id, name }`.
+     *
+     * @return array{id: string, name: string}
+     */
+    private static function sharedBy(string $userId): array
+    {
+        $profile = SharesEndpoint::profile($userId);
+
+        return ['id' => $userId, 'name' => (string)$profile['name']];
     }
 
     private static function listError(ResponseInterface $Response, ListException $Exception): ResponseInterface

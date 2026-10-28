@@ -33,6 +33,12 @@ class Provider implements ProviderInterface
                 $Group->get('/lists/{id}', [ListsEndpoint::class, 'get']);
                 $Group->post('/lists/{id}/move', [ListsEndpoint::class, 'move']);
                 $Group->post('/lists/{id}/copy', [ListsEndpoint::class, 'copy']);
+                $Group->post('/lists/{id}/invites', [SharesEndpoint::class, 'createInvite']);
+                $Group->delete('/lists/{id}/invites/{inviteId}', [SharesEndpoint::class, 'withdrawInvite']);
+                $Group->get('/lists/{id}/shares', [SharesEndpoint::class, 'participants']);
+                $Group->delete('/lists/{id}/shares/{userId}', [SharesEndpoint::class, 'removeShare']);
+                $Group->get('/invites/{token}', [SharesEndpoint::class, 'inspect']);
+                $Group->post('/invites/{token}/accept', [SharesEndpoint::class, 'accept']);
 
                 $Group->get('/household', [HouseholdEndpoint::class, 'get']);
                 $Group->post('/household', [HouseholdEndpoint::class, 'create']);

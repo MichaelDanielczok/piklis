@@ -152,6 +152,32 @@
 
                 <index>household_id</index>
             </table>
+
+            <!-- Freigaben einzelner Listen (Schritt 11): angenommene Einladung,
+                 Rolle „guest“ an genau dieser Liste -->
+            <table name="pk_list_shares">
+                <field type="string" length="36" primary="true">list_id</field>
+                <field type="string" length="50" primary="true">user_id</field>
+                <!-- wer den Link erzeugt hat -->
+                <field type="string" length="50">invited_by</field>
+                <field type="datetime">accepted_at</field>
+
+                <index>user_id</index>
+            </table>
+
+            <!-- Einladungslinks: einmal verwendbar, 7 Tage gültig; gespeichert
+                 wird nur der SHA-256-Hash des Tokens -->
+            <table name="pk_list_invites">
+                <field type="string" length="64" primary="true">token_hash</field>
+                <field type="string" length="36">list_id</field>
+                <field type="string" length="50">created_by</field>
+                <field type="datetime">created_at</field>
+                <field type="datetime">expires_at</field>
+                <field type="datetime" nullable="true" default="null">used_at</field>
+                <field type="string" length="50" nullable="true" default="null">used_by</field>
+
+                <index>list_id</index>
+            </table>
         </global>
     </database>
 </quiqqer>

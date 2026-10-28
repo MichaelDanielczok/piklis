@@ -15,6 +15,8 @@ final class Tables
     public const LIST_CHANGES = 'pk_list_changes';
     public const HOUSEHOLDS = 'pk_households';
     public const HOUSEHOLD_MEMBERS = 'pk_household_members';
+    public const LIST_SHARES = 'pk_list_shares';
+    public const LIST_INVITES = 'pk_list_invites';
 
     public const DATETIME_FORMAT = 'Y-m-d H:i:s';
 

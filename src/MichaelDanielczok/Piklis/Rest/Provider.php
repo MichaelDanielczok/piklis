@@ -31,6 +31,17 @@ class Provider implements ProviderInterface
                 $Group->post('/ops', [OperationsEndpoint::class, 'post']);
                 $Group->get('/lists', [ListsEndpoint::class, 'index']);
                 $Group->get('/lists/{id}', [ListsEndpoint::class, 'get']);
+                $Group->post('/lists/{id}/move', [ListsEndpoint::class, 'move']);
+                $Group->post('/lists/{id}/copy', [ListsEndpoint::class, 'copy']);
+
+                $Group->get('/household', [HouseholdEndpoint::class, 'get']);
+                $Group->post('/household', [HouseholdEndpoint::class, 'create']);
+                $Group->delete('/household', [HouseholdEndpoint::class, 'dissolve']);
+                $Group->post('/household/join', [HouseholdEndpoint::class, 'join']);
+                $Group->post('/household/invite', [HouseholdEndpoint::class, 'renewInvite']);
+                $Group->post('/household/leave', [HouseholdEndpoint::class, 'leave']);
+                $Group->patch('/household/members/{userId}', [HouseholdEndpoint::class, 'setRole']);
+                $Group->delete('/household/members/{userId}', [HouseholdEndpoint::class, 'removeMember']);
 
                 $Group->get('/products', [ProductsEndpoint::class, 'index']);
                 $Group->post('/products', [ProductsEndpoint::class, 'create']);

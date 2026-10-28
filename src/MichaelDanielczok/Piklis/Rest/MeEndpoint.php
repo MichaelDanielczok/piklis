@@ -2,6 +2,7 @@
 
 namespace MichaelDanielczok\Piklis\Rest;
 
+use Doctrine\DBAL\Exception as DBALException;
 use MichaelDanielczok\Piklis\Users\InvalidSettingException;
 use MichaelDanielczok\Piklis\Users\Profile;
 use Psr\Http\Message\ResponseInterface;
@@ -11,7 +12,9 @@ use QUI;
 use function is_array;
 
 /**
- * `GET /me` und `PATCH /me/settings`.
+ * `GET /me` und `PATCH /me/settings`. Beide liefern auch den Haushalt als
+ * Kurzform (`household: { id, name, role } | null`): Er ist der Standard für
+ * neue Listen.
  */
 class MeEndpoint
 {
@@ -25,7 +28,7 @@ class MeEndpoint
     ): ResponseInterface {
         $Profile = new Profile(QUI::getUserBySession());
 
-        return Json::respond($Response, $Profile->toMeArray());
+        return $this->respond($Response, $Profile);
     }
 
     /**
@@ -57,6 +60,18 @@ class MeEndpoint
             return Json::error($Response, 'save_failed', 'Settings could not be saved.', 500);
         }
 
-        return Json::respond($Response, $Profile->toMeArray());
+        return $this->respond($Response, $Profile);
+    }
+
+    private function respond(ResponseInterface $Response, Profile $Profile): ResponseInterface
+    {
+        try {
+            $household = HouseholdEndpoint::summary(SessionUser::id());
+        } catch (DBALException $Exception) {
+            QUI\System\Log::writeException($Exception);
+            $household = null;
+        }
+
+        return Json::respond($Response, [...$Profile->toMeArray(), 'household' => $household]);
     }
 }

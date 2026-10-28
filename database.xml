@@ -126,6 +126,32 @@
                 <index>list_id,revision</index>
                 <index>created_at</index>
             </table>
+
+            <!-- Haushalte (Schritt 9): dauerhafte Zusammenarbeit, Listen mit
+                 household_id gehören allen Mitgliedern -->
+            <table name="pk_households">
+                <field type="string" length="36" primary="true">id</field>
+                <field type="string" length="100">name</field>
+                <!-- Einladungscode: 7 Tage gültig, mehrfach verwendbar, von
+                     Administratoren neu erzeugbar; null = keiner -->
+                <field type="string" length="20" nullable="true" default="null">invite_code</field>
+                <field type="datetime" nullable="true" default="null">invite_expires_at</field>
+                <field type="string" length="50">created_by</field>
+                <field type="datetime">created_at</field>
+
+                <unique>invite_code</unique>
+            </table>
+
+            <!-- Mitglieder; höchstens ein Haushalt je Person (Primärschlüssel user_id) -->
+            <table name="pk_household_members">
+                <field type="string" length="50" primary="true">user_id</field>
+                <field type="string" length="36">household_id</field>
+                <!-- admin | member -->
+                <field type="string" length="10" default="member">role</field>
+                <field type="datetime">joined_at</field>
+
+                <index>household_id</index>
+            </table>
         </global>
     </database>
 </quiqqer>

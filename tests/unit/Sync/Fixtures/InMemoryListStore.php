@@ -2,6 +2,7 @@
 
 namespace MichaelDanielczok\Piklis\Tests\Unit\Sync\Fixtures;
 
+use MichaelDanielczok\Piklis\Lists\ListAccess;
 use MichaelDanielczok\Piklis\Sync\ChangeRecord;
 use MichaelDanielczok\Piklis\Sync\ListRole;
 use MichaelDanielczok\Piklis\Sync\ListState;
@@ -53,24 +54,28 @@ final class InMemoryListStore implements ListStore
 
     public function roleOf(ListState $list, string $userId): ?ListRole
     {
-        if ($list->ownerUser === $userId) {
-            return ListRole::Owner;
-        }
-
-        if ($list->householdId !== null && $this->isHouseholdMember($userId, $list->householdId)) {
-            return ListRole::Member;
-        }
-
-        if (in_array($userId, $this->guests[$list->id] ?? [], true)) {
-            return ListRole::Guest;
-        }
-
-        return null;
+        return ListAccess::role(
+            $list,
+            $userId,
+            $this->householdIdOf($userId),
+            in_array($userId, $this->guests[$list->id] ?? [], true)
+        );
     }
 
     public function isHouseholdMember(string $userId, string $householdId): bool
     {
         return in_array($userId, $this->householdMembers[$householdId] ?? [], true);
+    }
+
+    public function householdIdOf(string $userId): ?string
+    {
+        foreach ($this->householdMembers as $householdId => $members) {
+            if (in_array($userId, $members, true)) {
+                return (string)$householdId;
+            }
+        }
+
+        return null;
     }
 
     public function listIdOfEntry(string $entryId): ?string

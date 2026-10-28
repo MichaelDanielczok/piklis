@@ -112,8 +112,10 @@ class ListRepository implements ListStore
     }
 
     /**
-     * Besitzer persönlicher Listen. Haushaltsmitglieder (Schritt 9) und
-     * eingeladene Teilnehmer (Schritt 11) kommen mit ihren Tabellen dazu.
+     * Besitzer persönlicher Listen und Mitglieder des Haushalts
+     * (`ListAccess`); eingeladene Teilnehmer folgen in Schritt 11.
+     *
+     * @throws DBALException
      */
     public function roleOf(ListState $list, string $userId): ?ListRole
     {
@@ -121,19 +123,33 @@ class ListRepository implements ListStore
             return ListRole::Owner;
         }
 
-        if ($list->householdId !== null && $this->isHouseholdMember($userId, $list->householdId)) {
-            return ListRole::Member;
-        }
+        $householdId = $list->householdId === null ? null : $this->householdIdOf($userId);
 
-        return null;
+        return ListAccess::role($list, $userId, $householdId);
     }
 
     /**
-     * Haushalte gibt es ab Schritt 9 (`pk_household_members`).
+     * @throws DBALException
      */
     public function isHouseholdMember(string $userId, string $householdId): bool
     {
-        return false;
+        return $this->householdIdOf($userId) === $householdId;
+    }
+
+    /**
+     * @throws DBALException
+     */
+    public function householdIdOf(string $userId): ?string
+    {
+        $householdId = $this->Connection->createQueryBuilder()
+            ->select('household_id')
+            ->from(Tables::name(Tables::HOUSEHOLD_MEMBERS))
+            ->where('user_id = :user')
+            ->setParameter('user', $userId)
+            ->executeQuery()
+            ->fetchOne();
+
+        return is_string($householdId) && $householdId !== '' ? $householdId : null;
     }
 
     /**
@@ -208,24 +224,31 @@ class ListRepository implements ListStore
     }
 
     /**
-     * Listen, auf die der Benutzer Zugriff hat (vorerst: eigene persönliche),
-     * ohne gelöschte, mit Zählern der sichtbaren Einträge je Zustand und den
-     * Produkten der ersten offenen Einträge (Vorschau in der Übersicht).
+     * Listen, auf die der Benutzer Zugriff hat (eigene persönliche und die
+     * seines Haushalts), ohne gelöschte, mit Rolle, Zählern der sichtbaren
+     * Einträge je Zustand und den Produkten der ersten offenen Einträge
+     * (Vorschau in der Übersicht).
      *
      * @return list<array{list: ListState, role: ListRole, counts: array<string, int>, preview: list<string>}>
      * @throws DBALException
      */
     public function listsForUser(string $userId): array
     {
-        $rows = $this->Connection->createQueryBuilder()
+        $householdId = $this->householdIdOf($userId);
+
+        $Query = $this->Connection->createQueryBuilder()
             ->select('*')
             ->from(Tables::name(Tables::LISTS))
-            ->where('owner_user = :user')
+            ->where($this->accessibleCondition($householdId))
             ->andWhere('deleted_at IS NULL')
             ->setParameter('user', $userId)
-            ->orderBy('updated_at', 'DESC')
-            ->executeQuery()
-            ->fetchAllAssociative();
+            ->orderBy('updated_at', 'DESC');
+
+        if ($householdId !== null) {
+            $Query->setParameter('household', $householdId);
+        }
+
+        $rows = $Query->executeQuery()->fetchAllAssociative();
 
         $lists = [];
 
@@ -241,7 +264,7 @@ class ListRepository implements ListStore
         foreach ($lists as $listId => $List) {
             $result[] = [
                 'list' => $List,
-                'role' => ListRole::Owner,
+                'role' => ListAccess::role($List, $userId, $householdId) ?? ListRole::Owner,
                 'counts' => $counts[$listId] ?? self::emptyCounts(),
                 'preview' => $previews[$listId] ?? []
             ];
@@ -253,7 +276,7 @@ class ListRepository implements ListStore
     /**
      * Nutzung von Produkten für die Vorschläge (`Products\SuggestionRanking`):
      * sichtbare Einträge aller Listen, auf die der Benutzer Zugriff hat
-     * (vorerst eigene persönliche, wie `listsForUser`), ohne gelöschte Listen
+     * (eigene persönliche und die seines Haushalts, wie `listsForUser`), ohne gelöschte Listen
      * und ohne ausgeblendete Produkte. Zeitpunkt: abgehakt = wann gekauft,
      * sonst wann hinzugefügt; nur ab `$since`.
      *
@@ -263,22 +286,27 @@ class ListRepository implements ListStore
     public function productUsagesForUser(string $userId, DateTimeImmutable $since): array
     {
         $sinceText = $since->format(Tables::DATETIME_FORMAT);
+        $householdId = $this->householdIdOf($userId);
 
-        $rows = $this->Connection->createQueryBuilder()
+        $Query = $this->Connection->createQueryBuilder()
             ->select('e.product_id', 'e.list_id', 'e.status', 'e.status_changed_at', 'e.created_at')
             ->from(Tables::name(Tables::LIST_ENTRIES), 'e')
             ->innerJoin('e', Tables::name(Tables::LISTS), 'l', 'l.id = e.list_id')
             ->innerJoin('e', Tables::name(Tables::PRODUCTS), 'p', 'p.id = e.product_id')
-            ->where('l.owner_user = :user')
+            ->where($this->accessibleCondition($householdId, 'l.'))
             ->andWhere('l.deleted_at IS NULL')
             ->andWhere('e.removed_at IS NULL')
             ->andWhere('e.merged_into IS NULL')
             ->andWhere('p.hidden = 0')
             ->andWhere('(e.created_at >= :since OR e.status_changed_at >= :since)')
             ->setParameter('user', $userId)
-            ->setParameter('since', $sinceText)
-            ->executeQuery()
-            ->fetchAllAssociative();
+            ->setParameter('since', $sinceText);
+
+        if ($householdId !== null) {
+            $Query->setParameter('household', $householdId);
+        }
+
+        $rows = $Query->executeQuery()->fetchAllAssociative();
 
         $usages = [];
 
@@ -301,6 +329,19 @@ class ListRepository implements ListStore
         }
 
         return $usages;
+    }
+
+    /**
+     * Bedingung „Liste ist zugänglich“: eigene persönliche oder (mit
+     * Haushalt) die des Haushalts. Parameter `:user` und `:household`.
+     */
+    private function accessibleCondition(?string $householdId, string $alias = ''): string
+    {
+        if ($householdId === null) {
+            return $alias . 'owner_user = :user';
+        }
+
+        return '(' . $alias . 'owner_user = :user OR ' . $alias . 'household_id = :household)';
     }
 
     /**

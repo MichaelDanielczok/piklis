@@ -38,6 +38,11 @@ interface ListStore
     public function isHouseholdMember(string $userId, string $householdId): bool;
 
     /**
+     * Haushalt des Benutzers, null ohne Haushalt.
+     */
+    public function householdIdOf(string $userId): ?string;
+
+    /**
      * Liste, zu der eine Eintrags-ID gehört (IDs sind global eindeutig).
      */
     public function listIdOfEntry(string $entryId): ?string;

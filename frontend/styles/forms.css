@@ -95,3 +95,148 @@ select.form-field__input {
     width: var(--icon-size-sm);
     height: var(--icon-size-sm);
 }
+
+/*
+ * Auswahlkarten (Ziel-Liste beim Übernehmen, Start einer neuen Liste):
+ * eine Karte je Möglichkeit, Radio links, Titel und Unterzeile. Die gewählte
+ * Karte hat grüne Kontur und grüne Fläche; der Radiopunkt zeigt es zusätzlich.
+ */
+.choice-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.choice {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: var(--row-min-height);
+    padding: var(--space-2) var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-1);
+    cursor: pointer;
+    transition:
+        background-color var(--duration-fast) var(--ease-out),
+        border-color var(--duration-fast) var(--ease-out);
+}
+
+.choice:has(.choice__radio:checked) {
+    border-color: var(--color-accent);
+    background: var(--color-accent-tint);
+    box-shadow: inset 0 0 0 1px var(--color-accent);
+}
+
+@media (hover: hover) {
+    .choice:hover {
+        background: var(--color-surface-2);
+    }
+
+    .choice:has(.choice__radio:checked):hover {
+        background: var(--color-accent-tint);
+    }
+}
+
+.choice__radio {
+    flex: none;
+    display: grid;
+    place-content: center;
+    width: var(--space-6);
+    height: var(--space-6);
+    margin: 0;
+    border: 2px solid var(--color-ring);
+    border-radius: 50%;
+    background: var(--color-surface-1);
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+}
+
+.choice__radio:checked {
+    border-color: var(--color-accent);
+}
+
+.choice__radio:checked::after {
+    content: "";
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 50%;
+    background: var(--color-accent);
+}
+
+.choice__radio:focus-visible {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: 2px;
+}
+
+.choice__text {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.choice__title {
+    color: var(--color-text-1);
+    font-size: var(--font-size-name);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--line-height-name);
+    overflow-wrap: anywhere;
+}
+
+.choice__hint {
+    color: var(--color-text-2);
+    font-size: var(--font-size-note);
+    line-height: var(--line-height-note);
+}
+
+/* Segmentwahl (z. B. Behalten · Ersetzen · Beide Angaben) */
+.segments {
+    display: grid;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
+    gap: var(--space-1);
+    min-width: 0;
+    margin: 0;
+    padding: var(--space-1);
+    border: 0;
+    border-radius: var(--radius-md);
+    background: var(--color-surface-2);
+}
+
+.segments__option {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--tap-size);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-1);
+    font-size: var(--font-size-text);
+    font-weight: var(--font-weight-medium);
+    line-height: var(--line-height-qty);
+    text-align: center;
+    cursor: pointer;
+}
+
+.segments__option:has(input:checked) {
+    background: var(--color-surface-1);
+    box-shadow: var(--shadow-1);
+    font-weight: var(--font-weight-semibold);
+}
+
+.segments__option:has(input:focus-visible) {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+}
+
+.segments__option input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}

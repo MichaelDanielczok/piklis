@@ -36,6 +36,7 @@ export const OPERATION_TYPES = Object.freeze({
     ENTRY_REMOVE: 'entry.remove',
     ENTRY_RESTORE: 'entry.restore',
     ENTRY_TRANSFER: 'entry.transfer',
+    ENTRY_TAKE_OVER: 'entry.takeOver',
     PRODUCT_CREATE: 'product.create'
 });
 
@@ -133,6 +134,26 @@ export const operations = {
 
     transferEntry(entry, targetListId) {
         return { type: T.ENTRY_TRANSFER, listId: entry.listId, entryId: entry.id, transferredTo: targetListId };
+    },
+
+    /**
+     * Eintrag `entry` einer anderen Liste nach `listId` übernehmen. Steht das
+     * Produkt dort schon offen, führt der Server zusammen (gleiche Einheit
+     * addieren, sonst `onUnitMismatch`: keep · replace · note).
+     */
+    takeOverEntry(entry, { listId, entryId = uuid(), sortKey, onUnitMismatch = 'note', quantityText = '' }) {
+        return {
+            type: T.ENTRY_TAKE_OVER,
+            listId,
+            entryId,
+            productId: entry.productId,
+            quantity: quantityOf(entry.quantity),
+            note: entry.note ?? '',
+            sortKey,
+            onUnitMismatch,
+            quantityText,
+            fromListId: entry.listId
+        };
     },
 
     /**

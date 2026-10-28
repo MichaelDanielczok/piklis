@@ -37,6 +37,7 @@ class ListPermissionsTest extends TestCase
             OperationType::EntryRemove,
             OperationType::EntryRestore,
             OperationType::EntryTransfer,
+            OperationType::EntryTakeOver,
             OperationType::ListComplete,
             OperationType::ListReopen
         ];

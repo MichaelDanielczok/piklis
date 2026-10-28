@@ -1,1 +1,0 @@
-import{D as e}from"./AppPage-Dy4uz_dw.js";var t=e({name:`minus`,size:24,node:[[`path`,{d:`M5 12h14`,key:`1ays0h`}]]});export{t};

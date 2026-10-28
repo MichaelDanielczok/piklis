@@ -73,7 +73,7 @@ final class OperationProcessor
             return OperationResult::rejected($op->id, 'forbidden', 'This role may not do that.');
         }
 
-        if ($op->type === OperationType::EntryAdd) {
+        if ($op->type === OperationType::EntryAdd || $op->type === OperationType::EntryTakeOver) {
             $otherListId = $this->Store->listIdOfEntry((string)$op->entryId);
 
             if ($otherListId !== null && $otherListId !== $List->id) {

@@ -48,11 +48,11 @@ committed because the server does not build (no Node there).
 | `app.js`, `App.vue`, `router.js` | entry, shell, routes |
 | `api/index.js` | the only module that talks to the server (REST and core Ajax) |
 | `api/operations.js` | operations: builders, queue, sending, pull since revision (see [Sync](#sync)) |
-| `composables/` | shared state: session, toast, page transition, product catalog (`useProducts.js`), server settings (`useConfig.js`), media query, shopping lists (`useLists.js`), sorting by the drag handle (`useDragSort.js`) |
+| `composables/` | shared state: session, toast, page transition, product catalog (`useProducts.js`), server settings (`useConfig.js`), media query, shopping lists (`useLists.js`), sorting by the drag handle (`useDragSort.js`), swiping a row (`useRowSwipe.js`) |
 | `components/layout/` | page frame and header, sidebar, mobile navigation, nav items, user menu |
 | `components/ui/` | button, sheet, section label, theme switch, avatar, logo, empty state, search field |
 | `components/list/` | list row, row group, skeleton row, quantity, add tile |
-| `components/lists/` | overview card and its skeleton, sheet “Neue Liste / Liste bearbeiten”, sheet for quantity and note of an entry |
+| `components/lists/` | overview card and its skeleton, sheet “Neue Liste / Liste bearbeiten” (with start from an earlier purchase), sheet for quantity and note of an entry, card “In der Liste …” (`EntryContextCard.vue`), transfer and completion sheet (`TransferSheet.vue`), product checklist (`EntryChecklist.vue`) |
 | `components/products/` | product image (photo or fallback icon), fallback icon, catalog row and its skeleton, detail, form, icon picker, photo field, crop dialog, large view |
 | `products/` | fixed categories (`categories.js`), fallback icons with their category (`catalog.js`) |
 | `icons/` | fallback icon sprite (`ersatzicons.svg`, embedded once at start) |
@@ -60,6 +60,7 @@ committed because the server does not build (no Node there).
 | `utils/sortKey.js` | sort keys between two neighbours (same logic as `Lists\SortKey`) |
 | `utils/productSearch.js` | catalog search: normalising and ranking (same logic as `Products\ProductSearch`) |
 | `utils/listState.js` | local state of a list: server state plus own operations, counts, append key, move plan (tested with `node --test`) |
+| `utils/takeOver.js` | taking over into another list (same merge as `Sync\TakeOverMerge`), plan with unit questions, entries for a new list from an earlier purchase |
 | `utils/shopDate.js` | optional shopping date relative to today (“heute”, “Mo”, “Sa., 24. Okt.”) |
 | `utils/imageCrop.js`, `utils/imageUpload.js` | crop and zoom maths, file checks against the limits, pasted images (tested with `node --test`) |
 | `utils/imageEncode.js` | load an image, draw crop and reduced original into a canvas, encode as JPEG |
@@ -71,7 +72,8 @@ committed because the server does not build (no Node there).
 | `dev/samples/` | sample photos for the pattern page, dev server only |
 
 - Routes (hash): `/login` (`meta.public`); navigation `/` (Listen),
-  `/products` (Produkte), `/templates` (Vorlagen); shopping list
+  `/products` (Produkte), `/templates` (Vorlagen); archive `/archive`;
+  shopping list
   `/lists/:id`, its product picker `/lists/:id/add` and an entry
   in the list context `/lists/:id/entries/:entryId` (all highlight
   “Listen”); product pages
@@ -337,7 +339,7 @@ users.
 | `status` | string(10) | `open` · `done` · `notGot` |
 | `checked_amount`, `checked_unit` | decimal, string, null | quantity seen when checking (rule “old check”) |
 | `status_changed_at`, `status_changed_by` | | who checked, when |
-| `transferred_to` | string(36), null | “not got” taken over into this list (step 7) |
+| `transferred_to` | string(36), null | “not got” taken over into this list (`entry.transfer`) |
 | `removed_at`, `removed_by` | datetime, string, null | removed; the row stays for “wiederherstellen?” |
 | `merged_into` | string(36), null | added twice at the same time: alias of the existing entry |
 | `changed_after_completion` | boolean | changed after the list was completed |
@@ -345,9 +347,9 @@ users.
 | `created_by`, `created_at`, `updated_by`, `updated_at` | | |
 
 - An entry is **visible** when `removed_at` and `merged_into` are null.
-- A product appears at most once as an open or not-got entry per list; a
-  done entry does not block adding the same product again (“noch mal
-  Milch”).
+- A product appears at most once as an open entry per list; a done or
+  not-got entry does not block adding the same product again (“noch mal
+  Milch”): both record what happened in this purchase.
 - The same product on two lists are two independent entries (checking milk at
   Lidl does not touch REWE).
 
@@ -427,7 +429,7 @@ the order is the arrival at the server.
 | --- | --- | --- |
 | `list.create` | `name`, `shopDate` (null), `householdId` (null = personal) | new list, revision 1 |
 | `list.update` | `fields`: `name` and/or `shopDate` | rename, set or clear the date |
-| `list.complete` | – | archive; offer to take over open and not-got entries happens in the app before (step 7) |
+| `list.complete` | – | archive; the offer to take over open and not-got entries happens in the app before |
 | `list.reopen` | – | back to active |
 | `list.delete` | – | tombstone |
 | `entry.add` | `entryId`, `productId`, `quantity` `{amount, unit}`, `note`, `sortKey` | new entry, status open |
@@ -436,7 +438,8 @@ the order is the arrival at the server.
 | `entry.setStatus` | `status` `open`/`done`/`notGot`; with `done` also `seen` `{amount, unit}` | check, uncheck, not got |
 | `entry.remove` | – | remove (row stays) |
 | `entry.restore` | – | undo a removal, same position |
-| `entry.transfer` | `transferredTo` (list id or null) | mark a not-got entry as taken over (step 7) |
+| `entry.transfer` | `transferredTo` (list id or null) | mark a not-got entry as taken over into that list |
+| `entry.takeOver` | `entryId`, `productId`, `quantity`, `note`, `sortKey`, `onUnitMismatch` (`keep` · `replace` · `note`, default `note`), `quantityText` (≤ 100), `fromListId` (information) | take over an entry of another list, see [Taking over](#taking-over) |
 
 | `product.create` | `productId`, `product` `{name, category, icon, description, packageSize}`; no `listId` | new catalog product (`Sync\ProductOperation`) |
 
@@ -563,10 +566,37 @@ idempotency and rights in `OperationProcessorTest.php`.
 
 - **Completion** (`list.complete`) is explicit, also when everything is
   checked, because someone may still add products. Before completing, the app
-  offers to take over open and not-got entries (step 7: `entry.add` or
-  `entry.set` in the target list plus `entry.transfer` in the origin, which
-  stays not got there). Completed lists are read-only in the app until
-  reopened; operations that were on their way are still applied and marked.
+  offers to take over open and not-got entries (`entry.takeOver` in the
+  target list, then `entry.setStatus` notGot for open ones and
+  `entry.transfer` in the origin, which keeps them as not got). Completed
+  lists are read-only in the app until reopened; operations that were on
+  their way are still applied and marked.
+
+### Taking over
+
+`entry.takeOver` in the target list (`Sync\ListOperationApplier::takeOver`,
+merge rules in `Sync\TakeOverMerge`, cases shared with
+`utils/takeOver.js` in `tests/fixtures/take-over.json`):
+
+- The product is not open in the target (missing, done or not got there): a
+  new open entry with quantity, note and the sent sort key; answer
+  `takeOver: added`.
+- The product is open in the target: no second entry, the new ID becomes an
+  alias (`mergedInto`) of the open entry, which gets
+  - same unit (also both without): the sum, at most 9999 (`summed`);
+  - another unit: by `onUnitMismatch`: `keep` (`kept`), `replace`
+    (`replaced`) or `note`: quantity stays, the note gets “+ 400 g”
+    (`quantityText` from the app, texts with units only live in the
+    frontend; without it number and unit key) (`noted`);
+  - notes: an empty note is filled, another one appended with “ · ”, one
+    already contained is not repeated; at most 500 characters.
+- The app asks about another unit before sending (it loads the target
+  list first); if the target changed meanwhile and the server meets an
+  unexpected unit, the default `note` loses nothing.
+- Idempotent through the operation ID, and through the entry ID: a rebuilt
+  operation with the same `entryId` answers `unchanged`.
+- Guests may take over (entry operation). A completed target list is marked
+  “nach Abschluss geändert” like any other change.
 - **Moving into the household** (step 9, REST, owner only, member of a
   household): sets `household_id`, clears `owner_user`, adds a revision.
   The ID stays, so pending operations keep working; the owner continues as
@@ -659,7 +689,7 @@ idempotency and rights in `OperationProcessorTest.php`.
 ## Shopping lists
 
 Concept in Obsidian “Piklis Konzept” › “Einkaufslisten”; design package
-screens 01, 03–06 and 10.
+screens 01–07 and 10.
 
 - **Overview** (`ListsView.vue`, `ListCard.vue`): active lists, newest
   first by creation (the order does not change while shopping). Card: name,
@@ -678,10 +708,64 @@ screens 01, 03–06 and 10.
 - **List** (`ListView.vue`): title with origin and date, plus button
   (add) and “…” (edit: name, date, delete with confirmation in the same
   sheet). Progress “8 von 30 erledigt · 22 offen”, open entries in sort-key
-  order, a dashed “Produkte hinzufügen” row, “Nicht bekommen” (shown when
-  present; actions follow in step 7) and “Erledigt · N”, collapsible
-  (remembered per device in `localStorage`, `pk.listDoneOpen`). Without
-  the user menu in the header (room for the actions).
+  order, a dashed “Produkte hinzufügen” row, “Nicht bekommen · N” with
+  “Alle übernehmen …” (shown when present) and “Erledigt · N”, collapsible
+  (remembered per device in `localStorage`, `pk.listDoneOpen`); at the
+  bottom “Einkauf abschließen”. Without the user menu in the header (room
+  for the actions).
+- **Not got** (design screens 04, 06, 07): swiping an open row to the left
+  (`useRowSwipe.js`, Pointer Events, `touch-action: pan-y`) reveals the
+  orange action “Nicht bekommen” (88 px); tapping it or swiping past 60 %
+  of the row runs it. Only one row is open at a time; tapping another row
+  only closes it. The row closes like checking and moves into “Nicht
+  bekommen” (cross and text, sort key unchanged), toast with “Rückgängig”.
+  There, swiping gives “Wieder offen”; the round arrow button opens the
+  transfer sheet. The swipe action is a shortcut for the finger
+  (`aria-hidden`, not focusable): the same actions are buttons in the
+  product in the list context (`EntryContextCard.vue`: “Nicht bekommen”,
+  “In andere Liste übernehmen”, “Wieder offen”), for keyboard and screen
+  readers.
+- **Taking over** (`TransferSheet.vue`, design screen 07): products to
+  take over (all preselected, deselectable), target list (other active
+  lists with date and number of products, or “Neue Liste …” with a name,
+  prefilled with the origin's name). The target list is loaded when
+  chosen; products with another unit in the target lead to a second step
+  per product: Behalten · Ersetzen · Beides. Then `takeOverEntries()` in
+  `useLists.js`: a new list first (`list.create`), the `entry.takeOver`
+  operations behind all entries of the target in the origin's order, then
+  in the origin `entry.setStatus` notGot for open ones and
+  `entry.transfer`. The origin row reads “nicht bekommen · nach REWE”
+  (name from the overview, which the list view loads for that). Toast
+  “„Gouda“ nach REWE übernommen · Menge addiert: 3 Becher”.
+- **Completion**: “Einkauf abschließen” opens the same sheet with open and
+  not-got entries and the extra target “Nicht übernehmen” (preselected: the
+  offer is voluntary); without such entries only the text and
+  “Abschließen”. After `list.complete` the app returns to the overview,
+  toast “„Lidl“ abgeschlossen · 2 Produkte nach REWE” with “Wieder öffnen”.
+- **Archive** (`ArchiveView.vue`, route `/archive`, “Listen” stays active
+  in the navigation): reached from the overview by the row “Archiv · N
+  abgeschlossene Einkäufe” below the cards (the overview remembers per
+  device whether there is an archive, `pk.hasArchive.<user>`, so the row
+  stands there while loading and “Neue Liste” does not move). Completed
+  lists, last completed first, each with name and date, day of completion,
+  “6 von 8 erledigt” and one status line (“2 nicht bekommen”, “1 nicht
+  abgehakt” or “alles erledigt”, plus “nach Abschluss geändert”); rows have
+  a fixed height, the skeleton the same. A completed list opens read-only
+  (`ListRow` `readonly`: status as symbol, no handle, no checking; the
+  product in the list context without actions) with a card “Abgeschlossen
+  gestern” and the buttons “Wieder öffnen” (`list.reopen`) and “Neue Liste
+  daraus”.
+- **New list from an earlier purchase** (design screen 02): the sheet
+  “Neue Liste” offers “Wie möchtest du starten?”: “Leere Liste” or one of
+  the last five completed purchases (“Lidl · gestern”, number of
+  products); with a purchase “Weiter” leads to the products (from
+  “Neue Liste daraus” directly): all products in the old order with their
+  quantities, preselected, “Alle” and “Nur nicht gekaufte”, “N von M
+  ausgewählt”. `copyPlan()` takes each product once at its first place
+  (equal units of a product listed twice are added up), without notes;
+  `createListFrom()` sends `list.create` and `entry.add` with fresh keys in
+  that order (`keysBetween`), all open. An empty name takes the
+  purchase's name.
 - **Adding:** a new entry gets quantity 1 and a key behind all entries
   (`appendKey`, also behind done and removed ones), so a fresh list follows
   the order of adding. A product that is already open on the list is not
@@ -732,12 +816,13 @@ decisions “Produktauswahl und Übernahme”; design package screens 08 and 09.
   changes size while tapping: the tile keeps its height, the subtitle
   “35 ausgewählt · Lidl” stays on one line.
 - **No duplicates:** `setProductQuantity(listId, productId, amount)` in
-  `useLists.js` sets the quantity of the open (or not got) entry, adds one
+  `useLists.js` sets the quantity of the open entry, adds one
   (`entry.add`) or removes it; it acts on the display state at once, also
   for several taps in the same tick. Done entries do not count as “on the
   list” (decision from step 2): their tile is unselected and shows
   “erledigt”, plus adds a second entry (“noch mal Milch”), which the tile
-  then shows with its quantity.
+  then shows with its quantity. Not-got entries behave the same (tile
+  “nicht bekommen”, plus adds a new open entry; decision of step 7).
 - **Order** (`utils/pickerOrder.js`): products created here (section
   “Neu angelegt”), then the suggestions (“Häufig gekauft”), then the rest
   of the catalog alphabetically (“Weitere Produkte”, without suggestions

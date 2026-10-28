@@ -56,6 +56,15 @@ under `design/piklis-designpaket/`.
   becomes “− n +” with the plus at the same place, no duplicate entries,
   filter “Nur nicht ausgewählte”, search with “„Begriff“ neu anlegen”
   (product and entry as operations), image or name open the product
+- Not got, completion and archive: swipe a row to the left for “Nicht
+  bekommen” (own section, symbol and text, undo in the toast); take not-got
+  entries over into another active or a new list, one by one or “Alle
+  übernehmen …” (`entry.takeOver`: same unit adds up, another unit asks
+  keep · replace · both), the origin keeps them as “nicht bekommen · nach
+  REWE”; “Einkauf abschließen” offers to take over open and not-got
+  entries, the list goes into the archive (reachable from the overview),
+  stays readable and can be reopened; a new list starts empty or from an
+  earlier purchase with quantities and order, products can be deselected
 - REST API `/api/piklis/v1` (`GET /me`, `PATCH /me/settings`, `GET /config`,
   `POST /ops`, `GET /lists`, `GET /lists/{id}`, `GET|POST /products`,
   `GET /products/search`, `GET /products/suggestions`, `GET|PATCH /products/{id}`,

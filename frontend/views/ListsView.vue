@@ -5,8 +5,10 @@
  * Liste“ unten im Daumenbereich. Eine neue Liste erscheint sofort und öffnet
  * sich direkt.
  *
- * Herkunft vorerst immer „nur ich“; Haushaltslisten (Schritt 9), geteilte
- * Listen (Schritt 11) und das Archiv (Schritt 7) folgen.
+ * Herkunft vorerst immer „nur ich“; Haushaltslisten (Schritt 9) und
+ * geteilte Listen (Schritt 11) folgen. Unter den Karten führt „Archiv“ zu
+ * den abgeschlossenen Einkäufen; „Neue Liste“ startet leer oder aus einem
+ * früheren Einkauf.
  *
  * Ladezustand in Endhöhe: Das Gerät merkt sich die zuletzt geladene Anzahl
  * aktiver Listen (je Benutzer, `localStorage`) und zeigt so viele
@@ -15,7 +17,7 @@
  */
 import { computed, ref, watch } from 'vue';
 import { onIonViewWillEnter, useIonRouter } from '@ionic/vue';
-import { ListChecks, Plus, TriangleAlert } from '@lucide/vue';
+import { Archive, ChevronRight, ListChecks, Plus, TriangleAlert } from '@lucide/vue';
 import AppPage from '@/components/layout/AppPage.vue';
 import AppButton from '@/components/ui/AppButton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
@@ -23,7 +25,7 @@ import SectionLabel from '@/components/ui/SectionLabel.vue';
 import ListCard from '@/components/lists/ListCard.vue';
 import ListCardSkeleton from '@/components/lists/ListCardSkeleton.vue';
 import ListFormSheet from '@/components/lists/ListFormSheet.vue';
-import { createList, loadLists, useLists } from '@/composables/useLists.js';
+import { createListWith, loadLists, useLists } from '@/composables/useLists.js';
 import { loadProducts } from '@/composables/useProducts.js';
 import { useSession } from '@/composables/useSession.js';
 import { formatDayHeading, t } from '@/i18n/index.js';
@@ -31,9 +33,10 @@ import { formatDayHeading, t } from '@/i18n/index.js';
 const SKELETON_WIDTHS = [0.35, 0.25, 0.4, 0.3, 0.45];
 const MAX_SKELETONS = 8;
 const COUNT_KEY = 'pk.activeListCount.';
+const ARCHIVE_KEY = 'pk.hasArchive.';
 
 const ionRouter = useIonRouter();
-const { overview, activeLists } = useLists();
+const { overview, activeLists, archivedLists } = useLists();
 const { user } = useSession();
 
 function readCount() {
@@ -47,6 +50,33 @@ function readCount() {
 }
 
 const skeletonCount = ref(readCount());
+
+// „Archiv“ steht beim Laden schon da, wenn es zuletzt da war (nichts springt)
+function readHasArchive() {
+    try {
+        return localStorage.getItem(ARCHIVE_KEY + (user.value?.id ?? '')) === '1';
+    } catch {
+        return false;
+    }
+}
+
+const hadArchive = ref(readHasArchive());
+
+watch(
+    () => (overview.status === 'ready' ? archivedLists.value.length > 0 : null),
+    (hasArchive) => {
+        if (hasArchive === null) {
+            return;
+        }
+
+        try {
+            localStorage.setItem(ARCHIVE_KEY + (user.value?.id ?? ''), hasArchive ? '1' : '0');
+        } catch {
+            // nur Bequemlichkeit für den Ladezustand
+        }
+    },
+    { immediate: true }
+);
 
 watch(
     () => (overview.status === 'ready' ? activeLists.value.length : null),
@@ -82,7 +112,7 @@ function openList(list) {
 }
 
 async function onCreate(fields) {
-    const listId = await createList(fields);
+    const listId = await createListWith(fields);
 
     ionRouter.push('/lists/' + encodeURIComponent(listId));
 }
@@ -134,6 +164,30 @@ async function onCreate(fields) {
                 </ul>
             </template>
 
+            <div v-if="loading && hadArchive" class="lists__archive lists__archive--skeleton" aria-hidden="true">
+                <span class="lists__archive-icon"></span>
+                <span class="lists__archive-text">
+                    <span class="lists__archive-title">{{ t('lists.archive') }}</span>
+                    <span class="lists__archive-hint">&nbsp;</span>
+                </span>
+            </div>
+
+            <button
+                v-else-if="archivedLists.length > 0"
+                type="button"
+                class="lists__archive"
+                @click="ionRouter.push('/archive')"
+            >
+                <span class="lists__archive-icon">
+                    <Archive aria-hidden="true" />
+                </span>
+                <span class="lists__archive-text">
+                    <span class="lists__archive-title">{{ t('lists.archive') }}</span>
+                    <span class="lists__archive-hint">{{ t('lists.archiveHint', { count: archivedLists.length }) }}</span>
+                </span>
+                <ChevronRight class="lists__archive-chevron" aria-hidden="true" />
+            </button>
+
             <AppButton class="lists__new" block @click="formOpen = true">
                 <Plus aria-hidden="true" />
                 {{ t('lists.new') }}
@@ -169,5 +223,78 @@ async function onCreate(fields) {
 
 .lists__placeholder {
     visibility: hidden;
+}
+
+.lists__archive {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    min-height: var(--row-min-height);
+    padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-1);
+    text-align: left;
+    transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+@media (hover: hover) {
+    .lists__archive:hover {
+        background: var(--color-surface-2);
+    }
+}
+
+.lists__archive--skeleton .lists__archive-title {
+    align-self: flex-start;
+    color: transparent;
+    border-radius: var(--radius-xs);
+    background: var(--color-skeleton);
+}
+
+.lists__archive--skeleton .lists__archive-icon {
+    background: var(--color-skeleton);
+}
+
+.lists__archive-icon {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: var(--thumb-size);
+    height: var(--thumb-size);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-2);
+    color: var(--color-text-2);
+}
+
+.lists__archive-icon :deep(svg),
+.lists__archive-chevron {
+    flex: none;
+    width: var(--icon-size-md);
+    height: var(--icon-size-md);
+}
+
+.lists__archive-chevron {
+    color: var(--color-text-3);
+}
+
+.lists__archive-text {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.lists__archive-title {
+    font-size: var(--font-size-name);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--line-height-name);
+}
+
+.lists__archive-hint {
+    color: var(--color-text-2);
+    font-size: var(--font-size-note);
+    line-height: var(--line-height-note);
 }
 </style>

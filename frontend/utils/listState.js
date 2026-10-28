@@ -14,6 +14,7 @@
  */
 import { OPERATION_TYPES as T } from '@/api/operations.js';
 import { compareBySortKey, keyBetween, keyForIndex } from './sortKey.js';
+import { mergeTakeOver, openEntryOf } from './takeOver.js';
 
 export const EMPTY_COUNTS = Object.freeze({ open: 0, done: 0, notGot: 0, total: 0 });
 
@@ -128,10 +129,12 @@ export function applyOperation(state, op) {
         }
 
         case T.LIST_COMPLETE:
-            return changeList(state, { status: 'completed' });
+            return state.list?.status === 'completed'
+                ? state
+                : changeList(state, { status: 'completed', completedAt: op.createdAt ?? null });
 
         case T.LIST_REOPEN:
-            return changeList(state, { status: 'active' });
+            return changeList(state, { status: 'active', completedAt: null, changedAfterCompletion: false });
 
         case T.LIST_DELETE:
             return changeList(state, { deleted: true });
@@ -178,6 +181,25 @@ export function applyOperation(state, op) {
 
         case T.ENTRY_TRANSFER:
             return changeEntry(state, op.entryId, { transferredTo: op.transferredTo });
+
+        case T.ENTRY_TAKE_OVER: {
+            if (!state.entries || state.entries.has(op.entryId)) {
+                return state;
+            }
+
+            const existing = openEntryOf(state.entries, op.productId);
+
+            if (!existing) {
+                const entries = new Map(state.entries);
+                entries.set(op.entryId, newEntry(op));
+
+                return { ...state, entries };
+            }
+
+            const merged = mergeTakeOver(existing, op, op.onUnitMismatch, op.quantityText);
+
+            return changeEntry(state, existing.id, { quantity: merged.quantity, note: merged.note });
+        }
 
         default:
             return state;
@@ -238,15 +260,12 @@ export function appendKey(entries) {
     return keyBetween(last, null);
 }
 
-/** Offener (oder nicht bekommener) Eintrag eines Produkts: kein zweiter Eintrag. */
+/**
+ * Offener Eintrag eines Produkts: kein zweiter Eintrag. Erledigte und nicht
+ * bekommene zählen nicht (wie beim Server, `EntryState::isOpenFor`).
+ */
 export function activeEntryOf(entries, productId) {
-    for (const entry of entries?.values() ?? []) {
-        if (isVisible(entry) && entry.productId === productId && entry.status !== 'done') {
-            return entry;
-        }
-    }
-
-    return null;
+    return openEntryOf(entries, productId);
 }
 
 /**

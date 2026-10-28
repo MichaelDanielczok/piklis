@@ -23,6 +23,11 @@ const routes = [
         component: ListsView
     },
     {
+        path: '/archive',
+        name: 'archive',
+        component: () => import('./views/ArchiveView.vue')
+    },
+    {
         path: '/lists/:id',
         name: 'list',
         component: () => import('./views/ListView.vue')

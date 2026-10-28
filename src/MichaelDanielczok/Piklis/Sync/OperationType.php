@@ -22,6 +22,7 @@ enum OperationType: string
     case EntryRemove = 'entry.remove';
     case EntryRestore = 'entry.restore';
     case EntryTransfer = 'entry.transfer';
+    case EntryTakeOver = 'entry.takeOver';
 
     public function isEntryOperation(): bool
     {

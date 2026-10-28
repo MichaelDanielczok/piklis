@@ -13,12 +13,20 @@
  *   der Sortierschlüssel bleibt.
  * - Tippen auf Bild oder Name öffnet das Produkt im Listenkontext.
  * - „…“ öffnet „Liste bearbeiten“ (Name, Datum, Löschen).
+ * - Nach links wischen: „Nicht bekommen“ (eigener Abschnitt, mit
+ *   „Rückgängig“ im Toast); dort wischen: „Wieder offen“. Der Pfeil in der
+ *   Zeile oder „Alle übernehmen …“ übernimmt in eine andere Liste
+ *   (`TransferSheet`), im Ursprung steht dann „übernommen nach …“.
+ * - „Einkauf abschließen“ unten: Angebot, Offenes und Nicht bekommenes zu
+ *   übernehmen; danach liegt die Liste im Archiv.
+ * - Abgeschlossene Liste (Archiv): nur lesen, oben „Wieder öffnen“ und
+ *   „Neue Liste daraus“ (früheren Einkauf übernehmen).
  *
  * Alle Änderungen laufen als Operationen über `useLists`.
  */
 import { computed, nextTick, ref, useTemplateRef } from 'vue';
 import { onIonViewWillEnter, useIonRouter } from '@ionic/vue';
-import { ChevronDown, CloudOff, Ellipsis, ListPlus, Plus, SearchX, TriangleAlert } from '@lucide/vue';
+import { Archive, ChevronDown, CloudOff, Ellipsis, History, ListPlus, Plus, RotateCcw, SearchX, TriangleAlert } from '@lucide/vue';
 import { useRoute } from 'vue-router';
 import AppPage from '@/components/layout/AppPage.vue';
 import AppButton from '@/components/ui/AppButton.vue';
@@ -27,14 +35,21 @@ import SectionLabel from '@/components/ui/SectionLabel.vue';
 import ListRow from '@/components/list/ListRow.vue';
 import SkeletonRow from '@/components/list/SkeletonRow.vue';
 import ListFormSheet from '@/components/lists/ListFormSheet.vue';
+import TransferSheet from '@/components/lists/TransferSheet.vue';
 import {
     checkEntry,
+    completeList,
+    createListWith,
     deleteList,
     findEntry,
     isEntryUnsynced,
     listView,
     loadList,
+    loadLists,
+    markNotGot,
+    markOpen,
     moveOpenEntry,
+    reopenList,
     uncheckEntry,
     updateList,
     useLists
@@ -44,7 +59,9 @@ import { loadProducts, useProducts } from '@/composables/useProducts.js';
 import { showToast } from '@/composables/useToast.js';
 import { navigateBack } from '@/composables/usePageTransition.js';
 import { iconOf } from '@/products/catalog.js';
-import { formatShopDate } from '@/utils/shopDate.js';
+import { formatDay, formatShopDate } from '@/utils/shopDate.js';
+import { formatQuantity } from '@/utils/quantity.js';
+import { mergeTakeOver } from '@/utils/takeOver.js';
 import { t } from '@/i18n/index.js';
 
 const SKELETON_WIDTHS = [0.55, 0.35, 0.3, 0.6, 0.45, 0.3, 0.4, 0.65, 0.5, 0.45];
@@ -59,19 +76,25 @@ const ionRouter = useIonRouter();
 // Ionic hält Seiten im Verlauf; die ID gehört zu dieser Seite
 const listId = String(route.params.id ?? '');
 const view = listView(listId);
-const { pendingOps, syncTrouble } = useLists();
+const { pendingOps, syncTrouble, activeLists, archivedLists, overview } = useLists();
 const { findProduct, status: productStatus } = useProducts();
 
 const openListRef = useTemplateRef('openList');
 const doneListRef = useTemplateRef('doneList');
 
 const formOpen = ref(false);
+const newFromOpen = ref(false);
+const transferOpen = ref(false);
+const transferMode = ref('transfer');
+const transferEntries = ref([]);
 const announcement = ref('');
 const doneOpen = ref(readDoneOpen());
 const busy = new Set();
 
 const list = computed(() => view.value.list);
 const counts = computed(() => view.value.counts);
+const isCompleted = computed(() => list.value?.status === 'completed');
+const completedDay = computed(() => formatDay(list.value?.completedAt));
 
 const loading = computed(() => {
     if (view.value.status === 'missing' || view.value.status === 'error') {
@@ -103,6 +126,17 @@ const offlineCount = computed(() => (syncTrouble.value ? pendingOps.value.filter
 
 const percent = computed(() => (counts.value.total > 0 ? Math.round((counts.value.done / counts.value.total) * 100) : 0));
 
+/** Name einer Zielliste für „übernommen nach …“; '' wenn unbekannt, null ohne Übernahme. */
+function transferName(entry) {
+    if (!entry.transferredTo) {
+        return null;
+    }
+
+    const lists = [...activeLists.value, ...archivedLists.value, ...overview.lists];
+
+    return lists.find((item) => item.id === entry.transferredTo)?.name ?? '';
+}
+
 function rowOf(entry) {
     const product = findProduct(entry.productId);
 
@@ -110,9 +144,13 @@ function rowOf(entry) {
         entry,
         name: product?.name ?? t('entry.unknownProduct'),
         imageUrl: product?.imageUrl ?? null,
-        icon: product ? iconOf(product) : undefined
+        icon: product ? iconOf(product) : undefined,
+        transferredTo: entry.status === 'notGot' ? transferName(entry) : null
     };
 }
+
+const swipeNotGot = { label: t('list.swipeNotGot'), variant: 'notgot' };
+const swipeReopen = { label: t('list.swipeReopen'), variant: 'accent' };
 
 const openRows = computed(() => view.value.open.map(rowOf));
 const notGotRows = computed(() => view.value.notGot.map(rowOf));
@@ -139,6 +177,8 @@ function toggleDone() {
 function reload() {
     loadList(listId).catch((error) => console.error(error));
     loadProducts().catch((error) => console.error(error));
+    // Namen der Ziellisten für „nicht bekommen · nach …“ (ETag, meist 304)
+    loadLists().catch((error) => console.error(error));
 }
 
 onIonViewWillEnter(reload);
@@ -327,8 +367,105 @@ function addProducts() {
     ionRouter.push('/lists/' + encodeURIComponent(listId) + '/add');
 }
 
-function notYet() {
-    showToast(t('common.soon'), { icon: 'info' });
+/** Wischen „Nicht bekommen“: Zeile schließt sich wie beim Abhaken, Toast mit „Rückgängig“. */
+async function notGot(entry) {
+    if (busy.has(entry.id)) {
+        return;
+    }
+
+    busy.add(entry.id);
+
+    const row = rowElement(openListRef.value, entry.id);
+    const { name } = rowOf(entry);
+
+    try {
+        const animation = await collapse(row);
+
+        await markNotGot(entry);
+        await release(row, animation);
+    } finally {
+        busy.delete(entry.id);
+    }
+
+    showToast(t('list.notGotToast', { name }), {
+        icon: 'notgot',
+        action: {
+            text: t('common.undo'),
+            handler: () => {
+                const current = findEntry(listId, entry.id);
+
+                if (current?.status === 'notGot') {
+                    markOpen(current).then(() => expand(entry.id));
+                }
+            }
+        }
+    });
+}
+
+async function backToOpen(entry) {
+    await markOpen(entry);
+    expand(entry.id);
+}
+
+function openTransfer(entries, mode = 'transfer') {
+    transferEntries.value = entries;
+    transferMode.value = mode;
+    transferOpen.value = true;
+}
+
+function startCompletion() {
+    openTransfer([...view.value.open, ...view.value.notGot], 'complete');
+}
+
+function transferText(result, targetName) {
+    if (!result || result.count === 0) {
+        return '';
+    }
+
+    const first = rowOf(result.plan[0].entry).name;
+    const parts = [result.count === 1
+        ? t('transfer.transferredOne', { name: first, list: targetName })
+        : t('transfer.transferredMany', { count: result.count, list: targetName })];
+
+    if (result.summed.length === 1 && result.count === 1) {
+        const { quantity } = mergeTakeOver(result.plan[0].existing, result.plan[0].entry);
+
+        parts.push(t('transfer.summedOne', { quantity: formatQuantity(quantity.amount, quantity.unit) }));
+    } else if (result.summed.length > 0) {
+        parts.push(t('transfer.summedMany', { count: result.summed.length }));
+    }
+
+    return parts.join(' · ');
+}
+
+async function onTransferFinished({ result, targetName }) {
+    const text = transferText(result, targetName);
+
+    if (transferMode.value !== 'complete') {
+        showToast(text, { icon: 'info' });
+        return;
+    }
+
+    const name = list.value?.name ?? '';
+    const moved = result?.count ? t('complete.movedToast', { count: result.count, list: targetName }) : '';
+
+    await completeList(listId);
+    showToast([t('lists.completedToast', { name }), moved].filter(Boolean).join(' · '), {
+        icon: 'done',
+        action: { text: t('list.reopen'), handler: () => reopenList(listId) }
+    });
+    navigateBack(ionRouter, '/');
+}
+
+async function reopenPurchase() {
+    await reopenList(listId);
+    showToast(t('lists.reopenedToast', { name: list.value?.name ?? '' }), { icon: 'info' });
+}
+
+async function onCreateFrom(fields) {
+    const newId = await createListWith(fields);
+
+    ionRouter.push('/lists/' + encodeURIComponent(newId));
 }
 
 function onSave(fields) {
@@ -358,7 +495,7 @@ async function onDelete() {
 
 <template>
     <AppPage :title="list?.name ?? NBSP" :subtitle="subtitle || NBSP" back back-to="/" width="list" :user-menu="false">
-        <template v-if="list && view.status !== 'missing'" #actions>
+        <template v-if="list && view.status !== 'missing' && !isCompleted" #actions>
             <button type="button" class="list__add" :aria-label="t('list.add')" @click="addProducts">
                 <Plus aria-hidden="true" />
             </button>
@@ -374,6 +511,25 @@ async function onDelete() {
         </template>
 
         <div class="list">
+            <section v-if="isCompleted && view.status !== 'missing' && view.status !== 'error'" class="list__archived" :aria-label="t('archive.title')">
+                <p class="list__archived-title">
+                    <Archive class="list__archived-icon" aria-hidden="true" />
+                    {{ t('list.completedTitle', { date: completedDay }) }}
+                </p>
+                <p class="list__archived-text">{{ t('list.completedText') }}</p>
+                <p v-if="list.changedAfterCompletion" class="list__archived-changed">{{ t('list.changedAfter') }}</p>
+                <div class="list__archived-actions">
+                    <AppButton variant="secondary" @click="reopenPurchase">
+                        <RotateCcw aria-hidden="true" />
+                        {{ t('list.reopen') }}
+                    </AppButton>
+                    <AppButton @click="newFromOpen = true">
+                        <History aria-hidden="true" />
+                        {{ t('list.startFrom') }}
+                    </AppButton>
+                </div>
+            </section>
+
             <EmptyState
                 v-if="view.status === 'missing'"
                 :icon="SearchX"
@@ -401,6 +557,8 @@ async function onDelete() {
             </template>
 
             <template v-else>
+
+
                 <p v-if="offlineCount > 0" class="list__offline" role="status">
                     <CloudOff class="list__offline-icon" aria-hidden="true" />
                     <span><strong>{{ t('list.offlineTitle') }}</strong> {{ t('list.offline', { count: offlineCount }) }}</span>
@@ -420,13 +578,73 @@ async function onDelete() {
                     v-if="counts.total === 0"
                     :icon="ListPlus"
                     :title="t('list.emptyTitle')"
-                    :text="t('list.emptyText')"
+                    :text="isCompleted ? '' : t('list.emptyText')"
                 >
-                    <AppButton @click="addProducts">
+                    <AppButton v-if="!isCompleted" @click="addProducts">
                         <Plus aria-hidden="true" />
                         {{ t('list.add') }}
                     </AppButton>
                 </EmptyState>
+
+                <template v-else-if="isCompleted">
+                    <section v-if="openRows.length > 0" class="list__section">
+                        <SectionLabel :label="t('list.leftOpen')" :count="openRows.length" />
+                        <ul class="list__rows">
+                            <ListRow
+                                v-for="row in openRows"
+                                :key="row.entry.id"
+                                :name="row.name"
+                                :note="row.entry.note"
+                                :amount="row.entry.quantity.amount"
+                                :unit="row.entry.quantity.unit"
+                                :image-url="row.imageUrl"
+                                :icon="row.icon"
+                                status="open"
+                                readonly
+                                @details="openEntry(row.entry)"
+                            />
+                        </ul>
+                    </section>
+
+                    <section v-if="notGotRows.length > 0" class="list__section">
+                        <SectionLabel :label="t('list.notGot')" :count="notGotRows.length" />
+                        <ul class="list__rows">
+                            <ListRow
+                                v-for="row in notGotRows"
+                                :key="row.entry.id"
+                                :name="row.name"
+                                :note="row.entry.note"
+                                :amount="row.entry.quantity.amount"
+                                :unit="row.entry.quantity.unit"
+                                :image-url="row.imageUrl"
+                                :icon="row.icon"
+                                status="notGot"
+                                :transferred-to="row.transferredTo"
+                                readonly
+                                @details="openEntry(row.entry)"
+                            />
+                        </ul>
+                    </section>
+
+                    <section v-if="doneRows.length > 0" class="list__section">
+                        <SectionLabel :label="t('list.done')" :count="doneRows.length" />
+                        <ul class="list__rows">
+                            <ListRow
+                                v-for="row in doneRows"
+                                :key="row.entry.id"
+                                :name="row.name"
+                                :note="row.entry.note"
+                                :amount="row.entry.quantity.amount"
+                                :unit="row.entry.quantity.unit"
+                                :image-url="row.imageUrl"
+                                :icon="row.icon"
+                                status="done"
+                                readonly
+                                @details="openEntry(row.entry)"
+                            />
+                        </ul>
+                    </section>
+                </template>
 
                 <template v-else>
                     <h2 class="visually-hidden">{{ t('list.sectionOpen') }}</h2>
@@ -444,7 +662,9 @@ async function onDelete() {
                                 :icon="row.icon"
                                 status="open"
                                 :unsynced="isEntryUnsynced(row.entry.id)"
+                                :swipe="swipeNotGot"
                                 @details="openEntry(row.entry)"
+                                @swipe-action="notGot(row.entry)"
                                 @toggle="check(row.entry)"
                                 @handle-pointerdown="startDrag($event, row.entry.id)"
                                 @move="moveByKey(row.entry, index, $event)"
@@ -464,7 +684,18 @@ async function onDelete() {
                     </button>
 
                     <section v-if="notGotRows.length > 0" class="list__section">
-                        <SectionLabel :label="t('list.notGot')" :count="notGotRows.length" />
+                        <div class="list__section-bar">
+                            <SectionLabel class="list__section-bar-label" :label="t('list.notGot')" :count="notGotRows.length" />
+                            <button
+                                type="button"
+                                class="list__section-action list__section-button"
+                                :aria-label="t('list.transferAllLabel')"
+                                aria-haspopup="dialog"
+                                @click="openTransfer(view.notGot)"
+                            >
+                                {{ t('list.transferAll') }}
+                            </button>
+                        </div>
                         <ul class="list__rows">
                             <ListRow
                                 v-for="row in notGotRows"
@@ -477,8 +708,12 @@ async function onDelete() {
                                 :image-url="row.imageUrl"
                                 :icon="row.icon"
                                 status="notGot"
+                                :transferred-to="row.transferredTo"
+                                :unsynced="isEntryUnsynced(row.entry.id)"
+                                :swipe="swipeReopen"
                                 @details="openEntry(row.entry)"
-                                @transfer="notYet"
+                                @swipe-action="backToOpen(row.entry)"
+                                @transfer="openTransfer([row.entry])"
                             />
                         </ul>
                     </section>
@@ -517,6 +752,14 @@ async function onDelete() {
                             />
                         </ul>
                     </section>
+
+                    <div class="list__complete">
+                        <AppButton variant="secondary" block class="list__complete-button" aria-haspopup="dialog" @click="startCompletion">
+                            <Archive aria-hidden="true" />
+                            {{ t('list.complete') }}
+                        </AppButton>
+                        <p class="list__complete-hint">{{ t('list.completeHint') }}</p>
+                    </div>
                 </template>
             </template>
 
@@ -530,6 +773,17 @@ async function onDelete() {
             :entry-count="counts.total"
             @submit="onSave"
             @delete="onDelete"
+        />
+
+        <ListFormSheet v-if="list" v-model:open="newFromOpen" :source-list-id="listId" @submit="onCreateFrom" />
+
+        <TransferSheet
+            v-if="list"
+            v-model:open="transferOpen"
+            :list="list"
+            :entries="transferEntries"
+            :mode="transferMode"
+            @finished="onTransferFinished"
         />
     </AppPage>
 </template>
@@ -790,6 +1044,100 @@ async function onDelete() {
 
 .list__section-toggle[aria-expanded="true"] .list__section-chevron {
     transform: rotate(180deg);
+}
+
+.list__section-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+}
+
+.list__section-bar-label {
+    min-width: 0;
+}
+
+.list__section-button {
+    min-height: var(--tap-size);
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-sm);
+}
+
+@media (hover: hover) {
+    .list__section-button:hover {
+        background: var(--color-surface-2);
+    }
+}
+
+.list__complete {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding-top: var(--space-3);
+}
+
+.list__complete-button {
+    border: 1px solid var(--color-accent);
+    background: transparent;
+    color: var(--color-accent-text);
+}
+
+.list__complete-hint {
+    padding: 0 var(--space-2);
+    color: var(--color-text-2);
+    font-size: var(--font-size-note);
+    line-height: var(--line-height-note);
+    text-align: center;
+}
+
+.list__archived {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-1);
+}
+
+.list__archived-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--font-size-name);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--line-height-name);
+}
+
+.list__archived-icon {
+    flex: none;
+    width: var(--icon-size-md);
+    height: var(--icon-size-md);
+    color: var(--color-done);
+}
+
+.list__archived-text,
+.list__archived-changed {
+    color: var(--color-text-2);
+    font-size: var(--font-size-text);
+    line-height: var(--line-height-qty);
+}
+
+.list__archived-changed {
+    color: var(--color-unsynced);
+    font-weight: var(--font-weight-semibold);
+}
+
+.list__archived-actions {
+    display: grid;
+    gap: var(--space-2);
+    padding-top: var(--space-2);
+}
+
+@media (min-width: 30em) {
+    .list__archived-actions {
+        grid-template-columns: 1fr 1fr;
+    }
 }
 
 @media (min-width: 64em) {

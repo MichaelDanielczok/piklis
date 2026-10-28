@@ -76,3 +76,17 @@ export function formatShopDate(value, now = new Date()) {
 
     return new Intl.DateTimeFormat(locale.value, options).format(date);
 }
+
+/**
+ * Zeitpunkt (ISO, z. B. `completedAt`) als Tag wie ein Einkaufsdatum
+ * („heute“, „gestern“, „Sa., 24. Okt.“); leer ohne gültigen Wert.
+ */
+export function formatDay(value, now = new Date()) {
+    const date = value ? new Date(value) : null;
+
+    if (!date || Number.isNaN(date.getTime())) {
+        return '';
+    }
+
+    return formatShopDate(toShopDate(date), now);
+}

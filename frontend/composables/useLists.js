@@ -34,7 +34,9 @@ import {
     sortedEntries,
     upsertEntry
 } from '@/utils/listState.js';
-import { MAX_AMOUNT } from '@/utils/quantity.js';
+import { formatQuantity, MAX_AMOUNT } from '@/utils/quantity.js';
+import { keyBetween, keysBetween } from '@/utils/sortKey.js';
+import { planTakeOver } from '@/utils/takeOver.js';
 import { t } from '@/i18n/index.js';
 
 const PREVIEW_SIZE = 4;
@@ -281,11 +283,8 @@ function previewOf(entries) {
     return sortedEntries(entries, 'open').slice(0, PREVIEW_SIZE).map((entry) => entry.productId);
 }
 
-/**
- * Aktive Listen für die Übersicht, neueste zuerst (nach Anlegedatum, damit
- * sich die Reihenfolge beim Abhaken nicht ändert).
- */
-const activeLists = computed(() => {
+/** Alle bekannten, nicht gelöschten Listen im lokalen Stand, mit Zählern und Vorschau. */
+const knownLists = computed(() => {
     const ids = new Set(overview.lists.map((item) => item.id));
 
     for (const op of pendingOps.value) {
@@ -305,7 +304,7 @@ const activeLists = computed(() => {
     for (const listId of ids) {
         const { state, server } = viewOf(listId);
 
-        if (!state.list || state.list.deleted || state.list.status !== 'active') {
+        if (!state.list || state.list.deleted) {
             continue;
         }
 
@@ -315,8 +314,21 @@ const activeLists = computed(() => {
         result.push({ ...state.list, counts, preview });
     }
 
-    return result.sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')) || (a.id < b.id ? -1 : 1));
+    return result;
 });
+
+/**
+ * Aktive Listen für die Übersicht, neueste zuerst (nach Anlegedatum, damit
+ * sich die Reihenfolge beim Abhaken nicht ändert).
+ */
+const activeLists = computed(() => knownLists.value
+    .filter((list) => list.status === 'active')
+    .sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')) || (a.id < b.id ? -1 : 1)));
+
+/** Archiv: abgeschlossene Einkäufe, zuletzt abgeschlossen zuerst. */
+const archivedLists = computed(() => knownLists.value
+    .filter((list) => list.status === 'completed')
+    .sort((a, b) => String(b.completedAt ?? '').localeCompare(String(a.completedAt ?? '')) || (a.id < b.id ? -1 : 1)));
 
 const pendingEntryIds = computed(() => new Set(pendingOps.value.map((op) => op.entryId).filter(Boolean)));
 
@@ -382,9 +394,9 @@ export function deleteList(listId) {
  * Menge eines Produkts auf der Liste setzen („Produkte hinzufügen“):
  * 0 → noch nicht drauf: nichts, sonst entfernen; > 0 → noch nicht drauf:
  * neuer Eintrag am Ende, sonst Menge des offenen Eintrags (Einheit bleibt).
- * Erledigte Einträge zählen nicht als „drauf“ (zweiter Eintrag, „noch mal
- * Milch“). Wirkt sofort auf den angezeigten Stand, auch bei mehreren Tipps
- * im selben Takt: kein Produkt doppelt.
+ * Erledigte und nicht bekommene Einträge zählen nicht als „drauf“ (neuer
+ * Eintrag, „noch mal Milch“). Wirkt sofort auf den angezeigten Stand, auch
+ * bei mehreren Tipps im selben Takt: kein Produkt doppelt.
  *
  * @returns {string|null} ID des Eintrags, null wenn keiner (mehr) da ist
  */
@@ -455,6 +467,16 @@ export function uncheckEntry(entry) {
     return enqueue(operations.setEntryStatus(entry, 'open'));
 }
 
+/** „Nicht bekommen“ (eigener Zustand, Abschnitt unter den offenen). */
+export function markNotGot(entry) {
+    return enqueue(operations.setEntryStatus(entry, 'notGot'));
+}
+
+/** „Nicht bekommen“ zurücknehmen: wieder offen an der alten Stelle. */
+export function markOpen(entry) {
+    return enqueue(operations.setEntryStatus(entry, 'open'));
+}
+
 export function removeEntry(entry) {
     return enqueue(operations.removeEntry(entry));
 }
@@ -480,12 +502,135 @@ export function findEntry(listId, entryId) {
     return currentEntries(listId)?.get(entryId) ?? null;
 }
 
+/** Einträge einer Liste im angezeigten Stand (null, solange nicht geladen). */
+export function listEntries(listId) {
+    return currentEntries(listId);
+}
+
+/** Liste laden, falls ihre Einträge noch fehlen (z. B. Zielliste beim Übernehmen). */
+export async function ensureListLoaded(listId) {
+    if (details.value[listId]?.status === 'ready') {
+        return;
+    }
+
+    await loadList(listId);
+}
+
+/** Neue Liste ohne Server-Antwort sofort mit leeren Einträgen zeigen. */
+function startLocalList(fields) {
+    const op = operations.createList({ listId: crypto.randomUUID(), ...fields });
+
+    setDetail(op.listId, { status: 'ready', list: null, revision: 0, entries: new Map() });
+
+    return op;
+}
+
+/**
+ * Einträge in eine andere Liste übernehmen (`entry.takeOver` je Eintrag),
+ * in der Zielliste hinter allen Einträgen in der bisherigen Reihenfolge.
+ * Im Ursprung bleiben sie „nicht bekommen“ mit Verweis auf die Zielliste
+ * (`entry.transfer`); offene werden dabei „nicht bekommen“.
+ *
+ * Die Zielliste muss geladen sein (`ensureListLoaded`), damit die App bei
+ * anderer Einheit vorher fragen kann; `answers` enthält je Eintrags-ID
+ * `keep` · `replace` · `note` (Standard `note`: nichts geht verloren).
+ *
+ * @param {object[]} entries Einträge der Ursprungsliste (angezeigter Stand)
+ * @param {{ targetListId?: string, newList?: { name: string, shopDate?: string|null }, answers?: object }} target
+ * @returns {Promise<{ listId: string, count: number, summed: object[], plan: object[] }>}
+ */
+export async function takeOverEntries(entries, { targetListId = null, newList = null, answers = {} }) {
+    let listId = targetListId;
+
+    if (newList) {
+        const create = startLocalList({ name: newList.name, shopDate: newList.shopDate ?? null });
+
+        listId = create.listId;
+        await enqueue(create);
+    }
+
+    const plan = planTakeOver(currentEntries(listId), entries);
+    let sortKey = appendKey(currentEntries(listId));
+
+    for (const entry of entries) {
+        await enqueue(operations.takeOverEntry(entry, {
+            listId,
+            sortKey,
+            onUnitMismatch: answers[entry.id] ?? 'note',
+            quantityText: formatQuantity(entry.quantity.amount, entry.quantity.unit)
+        }));
+        sortKey = keyBetween(sortKey, null);
+    }
+
+    for (const entry of entries) {
+        if (entry.status === 'open') {
+            await enqueue(operations.setEntryStatus(entry, 'notGot'));
+        }
+
+        await enqueue(operations.transferEntry(entry, listId));
+    }
+
+    return {
+        listId,
+        count: entries.length,
+        summed: plan.filter((item) => item.kind === 'sum').map((item) => item.entry),
+        plan
+    };
+}
+
+/** Einkauf abschließen: ins Archiv, bleibt einsehbar und lässt sich wieder öffnen. */
+export function completeList(listId) {
+    return enqueue(operations.completeList(listId));
+}
+
+export function reopenList(listId) {
+    return enqueue(operations.reopenList(listId));
+}
+
+/**
+ * Neue Liste aus einem früheren Einkauf: die gewählten Produkte mit ihren
+ * Mengen in derselben Reihenfolge, alle offen, ohne Notizen.
+ *
+ * @param {{ name: string, shopDate?: string|null }} fields
+ * @param {{ productId: string, quantity: { amount: number, unit: string|null } }[]} items in Listenreihenfolge
+ * @returns {Promise<string>} ID der neuen Liste
+ */
+export async function createListFrom(fields, items) {
+    const create = startLocalList({ name: fields.name, shopDate: fields.shopDate ?? null });
+    const keys = keysBetween(null, null, items.length);
+
+    await enqueue(create);
+
+    for (const [index, item] of items.entries()) {
+        await enqueue(operations.addEntry({
+            listId: create.listId,
+            productId: item.productId,
+            quantity: item.quantity,
+            sortKey: keys[index]
+        }));
+    }
+
+    return create.listId;
+}
+
+/**
+ * Neue Liste aus dem Sheet „Neue Liste“: leer oder mit den gewählten
+ * Produkten eines früheren Einkaufs (`items`).
+ *
+ * @param {{ name: string, shopDate?: string|null, items?: object[]|null }} fields
+ * @returns {Promise<string>} ID der neuen Liste
+ */
+export function createListWith({ name, shopDate = null, items = null }) {
+    return items ? createListFrom({ name, shopDate }, items) : createList({ name, shopDate });
+}
+
 export { isVisible, activeEntryOf as activeEntryOfProduct };
 
 export function useLists() {
     return {
         overview,
         activeLists,
+        archivedLists,
         pendingOps,
         syncTrouble
     };

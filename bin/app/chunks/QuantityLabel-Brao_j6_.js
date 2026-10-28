@@ -1,1 +1,0 @@
-import{at as e,lt as t,xt as n,y as r,zt as i}from"./AppPage-Dy4uz_dw.js";import{b as a}from"../app.js";var o={class:`quantity`},s=r({__name:`QuantityLabel`,props:{amount:{type:Number,required:!0},unit:{type:String,default:null}},setup(r){let s=r,c=e(()=>a(s.amount,s.unit));return(e,r)=>(n(),t(`span`,o,i(c.value),1))}},[[`__scopeId`,`data-v-297d9d07`]]);export{s as t};

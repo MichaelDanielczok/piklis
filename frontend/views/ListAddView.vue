@@ -10,8 +10,9 @@
  *   beim Scrollen je 24 mehr.
  * - Erster Tipp auf Plus: Menge 1; danach „− Menge +“, das Plus an derselben
  *   Stelle; Minus bei 1 nimmt das Produkt wieder von der Liste. Kein Produkt
- *   doppelt: Plus erhöht den offenen Eintrag. Erledigte Einträge zählen nicht
- *   („noch mal Milch“ legt einen zweiten an), die Kachel zeigt „erledigt“.
+ *   doppelt: Plus erhöht den offenen Eintrag. Erledigte und nicht bekommene
+ *   Einträge zählen nicht („noch mal Milch“ legt einen zweiten, offenen an),
+ *   die Kachel zeigt „erledigt“ bzw. „nicht bekommen“.
  * - „Nur nicht ausgewählte“ blendet aus, was beim Einschalten ausgewählt
  *   war; was danach dazukommt, bleibt stehen (Kacheln springen nicht).
  * - Suche erst beim Antippen; Treffer als Kacheln, am Ende immer
@@ -76,10 +77,11 @@ const failed = computed(() => !frozen.value && (view.value.status === 'error' ||
 const searchText = computed(() => query.value.trim());
 const searching = computed(() => searchText.value !== '');
 
-/** Offener (oder nicht bekommener) Eintrag je Produkt, und Produkte mit erledigtem Eintrag. */
+/** Offener Eintrag je Produkt, und Produkte mit erledigtem bzw. nicht bekommenem Eintrag. */
 const onList = computed(() => {
     const active = new Map();
     const done = new Set();
+    const notGot = new Set();
 
     for (const entry of view.value.entries?.values() ?? []) {
         if (!isVisible(entry)) {
@@ -88,12 +90,14 @@ const onList = computed(() => {
 
         if (entry.status === 'done') {
             done.add(entry.productId);
+        } else if (entry.status === 'notGot') {
+            notGot.add(entry.productId);
         } else if (!active.has(entry.productId)) {
             active.set(entry.productId, entry);
         }
     }
 
-    return { active, done };
+    return { active, done, notGot };
 });
 
 const selectedCount = computed(() => onList.value.active.size);
@@ -213,6 +217,14 @@ function productName(productId) {
 }
 
 function metaOf(product) {
+    if (onList.value.active.has(product.id)) {
+        return product.packageSize ?? '';
+    }
+
+    if (onList.value.notGot.has(product.id)) {
+        return t('addProducts.notGot');
+    }
+
     if (onList.value.done.has(product.id)) {
         return t('addProducts.done');
     }

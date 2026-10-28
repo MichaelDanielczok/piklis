@@ -89,14 +89,16 @@ final class EntryState
 
     /**
      * Zählt als vorhandener Eintrag des Produkts (keine doppelten Einträge):
-     * nicht entfernt, kein Verweis, noch nicht erledigt.
+     * nicht entfernt, kein Verweis, offen. Erledigte und nicht bekommene
+     * Einträge halten fest, was bei diesem Einkauf geschah; das Produkt
+     * erneut hinzuzufügen legt einen neuen offenen Eintrag an.
      */
     public function isOpenFor(string $productId): bool
     {
         return $this->productId === $productId
             && $this->removedAt === null
             && $this->mergedInto === null
-            && $this->status !== EntryStatus::Done;
+            && $this->status === EntryStatus::Open;
     }
 
     /**

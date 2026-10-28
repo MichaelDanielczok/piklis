@@ -1,0 +1,96 @@
+{
+    "_comment": "Gemeinsame Testfälle für Sync\\TakeOverMerge (PHP) und frontend/utils/takeOver.js: Produkt aus einer anderen Liste übernehmen, das in der Zielliste schon offen steht. existing = Eintrag der Zielliste, incoming = übernommene Menge und Notiz, mode = onUnitMismatch, text = quantityText der App.",
+    "merge": [
+        {
+            "name": "gleiche Einheit ohne Einheit: addieren",
+            "existing": { "quantity": { "amount": 2, "unit": null }, "note": "" },
+            "incoming": { "quantity": { "amount": 1, "unit": null }, "note": "" },
+            "mode": "note", "text": "1 ×",
+            "expected": { "quantity": { "amount": 3, "unit": null }, "note": "", "result": "summed" }
+        },
+        {
+            "name": "gleiche Einheit Packung: addieren, Modus egal",
+            "existing": { "quantity": { "amount": 2, "unit": "pack" }, "note": "" },
+            "incoming": { "quantity": { "amount": 3, "unit": "pack" }, "note": "" },
+            "mode": "replace", "text": "3 Packungen",
+            "expected": { "quantity": { "amount": 5, "unit": "pack" }, "note": "", "result": "summed" }
+        },
+        {
+            "name": "kg mit Nachkommastellen",
+            "existing": { "quantity": { "amount": 1.5, "unit": "kg" }, "note": "" },
+            "incoming": { "quantity": { "amount": 0.25, "unit": "kg" }, "note": "" },
+            "mode": "note", "text": "0,25 kg",
+            "expected": { "quantity": { "amount": 1.75, "unit": "kg" }, "note": "", "result": "summed" }
+        },
+        {
+            "name": "Summe höchstens 9999",
+            "existing": { "quantity": { "amount": 9998, "unit": "g" }, "note": "" },
+            "incoming": { "quantity": { "amount": 500, "unit": "g" }, "note": "" },
+            "mode": "note", "text": "500 g",
+            "expected": { "quantity": { "amount": 9999, "unit": "g" }, "note": "", "result": "summed" }
+        },
+        {
+            "name": "andere Einheit, behalten",
+            "existing": { "quantity": { "amount": 1, "unit": "pack" }, "note": "" },
+            "incoming": { "quantity": { "amount": 400, "unit": "g" }, "note": "" },
+            "mode": "keep", "text": "400 g",
+            "expected": { "quantity": { "amount": 1, "unit": "pack" }, "note": "", "result": "kept" }
+        },
+        {
+            "name": "andere Einheit, ersetzen",
+            "existing": { "quantity": { "amount": 1, "unit": "pack" }, "note": "" },
+            "incoming": { "quantity": { "amount": 400, "unit": "g" }, "note": "" },
+            "mode": "replace", "text": "400 g",
+            "expected": { "quantity": { "amount": 400, "unit": "g" }, "note": "", "result": "replaced" }
+        },
+        {
+            "name": "andere Einheit, beide Angaben: übernommene Menge in die Notiz",
+            "existing": { "quantity": { "amount": 1, "unit": "pack" }, "note": "" },
+            "incoming": { "quantity": { "amount": 400, "unit": "g" }, "note": "" },
+            "mode": "note", "text": "400 g",
+            "expected": { "quantity": { "amount": 1, "unit": "pack" }, "note": "+ 400 g", "result": "noted" }
+        },
+        {
+            "name": "ohne Einheit und Stück sind verschiedene Einheiten",
+            "existing": { "quantity": { "amount": 2, "unit": null }, "note": "" },
+            "incoming": { "quantity": { "amount": 3, "unit": "piece" }, "note": "" },
+            "mode": "note", "text": "3 Stück",
+            "expected": { "quantity": { "amount": 2, "unit": null }, "note": "+ 3 Stück", "result": "noted" }
+        },
+        {
+            "name": "beide Angaben mit vorhandenen Notizen",
+            "existing": { "quantity": { "amount": 1, "unit": "pack" }, "note": "die blaue" },
+            "incoming": { "quantity": { "amount": 400, "unit": "g" }, "note": "für den Kuchen" },
+            "mode": "note", "text": "400 g",
+            "expected": { "quantity": { "amount": 1, "unit": "pack" }, "note": "die blaue · + 400 g · für den Kuchen", "result": "noted" }
+        },
+        {
+            "name": "beide Angaben ohne Text der App: Zahl und Einheitenschlüssel",
+            "existing": { "quantity": { "amount": 1, "unit": "pack" }, "note": "" },
+            "incoming": { "quantity": { "amount": 1.5, "unit": "kg" }, "note": "" },
+            "mode": "note", "text": "",
+            "expected": { "quantity": { "amount": 1, "unit": "pack" }, "note": "+ 1,5 kg", "result": "noted" }
+        },
+        {
+            "name": "leere Notiz wird gefüllt",
+            "existing": { "quantity": { "amount": 1, "unit": "cup" }, "note": "" },
+            "incoming": { "quantity": { "amount": 2, "unit": "cup" }, "note": "für den Kuchen" },
+            "mode": "note", "text": "2 Becher",
+            "expected": { "quantity": { "amount": 3, "unit": "cup" }, "note": "für den Kuchen", "result": "summed" }
+        },
+        {
+            "name": "andere Notiz wird angehängt",
+            "existing": { "quantity": { "amount": 1, "unit": null }, "note": "die blaue" },
+            "incoming": { "quantity": { "amount": 1, "unit": null }, "note": "laktosefrei" },
+            "mode": "note", "text": "1 ×",
+            "expected": { "quantity": { "amount": 2, "unit": null }, "note": "die blaue · laktosefrei", "result": "summed" }
+        },
+        {
+            "name": "gleiche Notiz nicht doppelt",
+            "existing": { "quantity": { "amount": 1, "unit": null }, "note": "die blaue" },
+            "incoming": { "quantity": { "amount": 1, "unit": null }, "note": "die blaue" },
+            "mode": "keep", "text": "1 ×",
+            "expected": { "quantity": { "amount": 2, "unit": null }, "note": "die blaue", "result": "summed" }
+        }
+    ]
+}

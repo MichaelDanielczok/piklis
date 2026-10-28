@@ -182,6 +182,38 @@ test('activeEntryOf findet offene, nicht erledigte Einträge eines Produkts', ()
     assert.equal(activeEntryOf(new Map([['a', entries.get('a')]]), 'milk'), null);
 });
 
+test('activeEntryOf: nicht bekommen zählt nicht als drauf (Plus legt einen neuen offenen an)', () => {
+    const entries = new Map([['a', entry('a', 'i', { productId: 'gouda', status: 'notGot' })]]);
+
+    assert.equal(activeEntryOf(entries, 'gouda'), null);
+});
+
+test('entry.takeOver: neu am Ende oder in den offenen Eintrag zusammengeführt', () => {
+    const state = stateOf(
+        entry('cream', 'i', { productId: 'cream', quantity: { amount: 1, unit: 'cup' } }),
+        entry('gouda-old', 'j', { productId: 'gouda', status: 'notGot' })
+    );
+    const from = { listId: OTHER, productId: 'cream', quantity: { amount: 2, unit: 'cup' }, note: 'für den Kuchen' };
+    const summed = applyOperation(state, operations.takeOverEntry(from, { listId: LIST, sortKey: 'k' }));
+
+    assert.equal(summed.entries.size, 2);
+    assert.deepEqual(summed.entries.get('cream').quantity, { amount: 3, unit: 'cup' });
+    assert.equal(summed.entries.get('cream').note, 'für den Kuchen');
+
+    const gouda = { listId: OTHER, productId: 'gouda', quantity: { amount: 400, unit: 'g' }, note: '' };
+    const op = operations.takeOverEntry(gouda, { listId: LIST, sortKey: 'k' });
+    const added = applyOperation(state, op);
+
+    assert.equal(added.entries.size, 3);
+    assert.equal(added.entries.get(op.entryId).status, 'open');
+    assert.equal(op.fromListId, OTHER);
+
+    const other = { listId: OTHER, productId: 'cream', quantity: { amount: 200, unit: 'ml' }, note: '' };
+    const kept = applyOperation(state, operations.takeOverEntry(other, { listId: LIST, sortKey: 'k', onUnitMismatch: 'keep' }));
+
+    assert.deepEqual(kept.entries.get('cream').quantity, { amount: 1, unit: 'cup' });
+});
+
 test('planMove: nach unten, nach oben, an Anfang und Ende', () => {
     const sorted = [entry('a', 'i'), entry('b', 'j'), entry('c', 'k'), entry('d', 'l')];
 

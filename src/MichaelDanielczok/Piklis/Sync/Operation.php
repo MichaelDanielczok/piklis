@@ -30,6 +30,8 @@ final class Operation
 
     public const NOTE_MAX_LENGTH = 500;
 
+    public const QUANTITY_TEXT_MAX_LENGTH = 100;
+
     private const UUID_PATTERN = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/';
 
     private ?string $name = null;
@@ -59,6 +61,12 @@ final class Operation
     private ?Quantity $seen = null;
 
     private ?string $transferredTo = null;
+
+    private UnitMismatch $onUnitMismatch = UnitMismatch::Note;
+
+    private string $quantityText = '';
+
+    private ?string $fromListId = null;
 
     /**
      * @param array<string, mixed> $payload die Operation wie gesendet (für das Änderungsprotokoll)
@@ -194,6 +202,32 @@ final class Operation
     }
 
     /**
+     * `entry.takeOver`: was bei anderer Einheit in der Zielliste geschieht
+     * (Standard `note`: nichts geht verloren).
+     */
+    public function onUnitMismatch(): UnitMismatch
+    {
+        return $this->onUnitMismatch;
+    }
+
+    /**
+     * `entry.takeOver`: übernommene Menge als Text der App („400 g“), für
+     * die Notiz bei `note`. Texte mit Einheit kennt nur das Frontend.
+     */
+    public function quantityText(): string
+    {
+        return $this->quantityText;
+    }
+
+    /**
+     * `entry.takeOver`: Liste, aus der übernommen wird (nur zur Information).
+     */
+    public function fromListId(): ?string
+    {
+        return $this->fromListId;
+    }
+
+    /**
      * Zeitpunkt in der App (nur zur Information; die Reihenfolge bestimmt der
      * Eingang beim Server).
      */
@@ -252,6 +286,10 @@ final class Operation
                 $this->sortKey = self::sortKeyOf($input['sortKey'] ?? null);
                 break;
 
+            case OperationType::EntryTakeOver:
+                $this->readTakeOver($input);
+                break;
+
             case OperationType::EntrySet:
                 $this->readEntrySet($input);
                 break;
@@ -285,6 +323,43 @@ final class Operation
             case OperationType::EntryRestore:
                 break;
         }
+    }
+
+    /**
+     * `entry.takeOver`: wie `entry.add`, dazu `onUnitMismatch`
+     * (`keep` · `replace` · `note`, Standard `note`), `quantityText` (höchstens
+     * 100 Zeichen) und optional `fromListId`.
+     *
+     * @param array<string, mixed> $input
+     * @throws InvalidOperationException
+     */
+    private function readTakeOver(array $input): void
+    {
+        $this->productId = self::uuid($input, 'productId');
+        $this->quantity = self::quantityOf($input['quantity'] ?? null);
+        $this->note = self::noteOf($input['note'] ?? '');
+        $this->sortKey = self::sortKeyOf($input['sortKey'] ?? null);
+
+        $mode = $input['onUnitMismatch'] ?? null;
+
+        if ($mode !== null) {
+            $UnitMismatch = is_string($mode) ? UnitMismatch::tryFrom($mode) : null;
+
+            if ($UnitMismatch === null) {
+                throw new InvalidOperationException('Unknown onUnitMismatch.');
+            }
+
+            $this->onUnitMismatch = $UnitMismatch;
+        }
+
+        $text = $input['quantityText'] ?? '';
+
+        if (!is_string($text) || mb_strlen($text) > self::QUANTITY_TEXT_MAX_LENGTH) {
+            throw new InvalidOperationException('quantityText must be a string up to 100 characters.');
+        }
+
+        $this->quantityText = trim($text);
+        $this->fromListId = isset($input['fromListId']) ? self::uuid($input, 'fromListId') : null;
     }
 
     /**

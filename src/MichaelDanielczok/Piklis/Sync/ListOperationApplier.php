@@ -24,6 +24,9 @@ use DateTimeImmutable;
  * - Produkt schon offen auf der Liste: kein zweiter Eintrag; der neue wird
  *   Verweis auf den vorhandenen (`mergedInto`), abweichende Menge oder Notiz
  *   sind Konflikte wie bei gleichzeitiger Änderung.
+ * - Übernehmen aus einer anderen Liste (`entry.takeOver`): steht das Produkt
+ *   schon offen auf der Liste, werden die Mengen zusammengeführt
+ *   (`TakeOverMerge`), sonst entsteht ein neuer Eintrag.
  * - Abgeschlossene Liste: Änderungen werden übernommen und als „nach
  *   Abschluss geändert“ markiert.
  */
@@ -68,6 +71,7 @@ final class ListOperationApplier
             OperationType::ListReopen => $this->reopenList($List, $op, $Change),
             OperationType::ListDelete => $this->deleteList($List, $op, $Change),
             OperationType::EntryAdd => $this->addEntry($List, $op, $Change),
+            OperationType::EntryTakeOver => $this->takeOver($List, $op, $Change),
             default => $this->changeEntry($List, $op, $Change)
         };
     }
@@ -209,7 +213,79 @@ final class ListOperationApplier
     }
 
     /**
-     * Alle Eintrags-Operationen außer `entry.add`.
+     * `entry.takeOver`: Produkt aus einer anderen Liste übernehmen. Steht es
+     * hier schon offen, werden Menge und Notiz zusammengeführt
+     * (`TakeOverMerge`) und die neue ID wird Verweis darauf (`mergedInto`),
+     * damit eine Wiederholung oder spätere Operation dasselbe Ziel trifft.
+     * Sonst ein neuer offener Eintrag wie bei `entry.add`. `takeOver` in der
+     * Antwort: `added` · `summed` · `kept` · `replaced` · `noted`.
+     */
+    private function takeOver(ListState $List, Operation $op, PendingChange $Change): OperationResult
+    {
+        $entryId = (string)$op->entryId;
+        $quantity = $op->quantity();
+
+        if ($quantity === null) {
+            return OperationResult::rejected($op->id, 'invalid_operation', 'entry.takeOver needs a quantity.');
+        }
+
+        if ($List->entry($entryId) !== null) {
+            $Existing = $List->resolveEntry($entryId);
+
+            return $Change->result($op, [], ['entry' => $Existing?->toArray()]);
+        }
+
+        $note = (string)$op->note();
+        $Target = $List->openEntryForProduct($op->productId());
+
+        $Entry = EntryState::create(
+            $entryId,
+            $List->id,
+            $op->productId(),
+            $quantity,
+            $note,
+            $op->sortKey(),
+            $Change->userId,
+            $Change->now
+        );
+
+        $List->addEntry($Entry);
+
+        if ($Target === null) {
+            $Change->touchEntry($Entry);
+
+            return $Change->result($op, [], ['entry' => $Entry->toArray(), 'takeOver' => 'added']);
+        }
+
+        $Entry->mergedInto = $Target->id;
+        $Entry->removedAt = $Change->now;
+        $Entry->removedBy = $Change->userId;
+        $Change->touchEntry($Entry);
+
+        $merged = TakeOverMerge::merge(
+            $Target->quantity,
+            $Target->note,
+            $quantity,
+            $note,
+            $op->onUnitMismatch(),
+            $op->quantityText()
+        );
+
+        if (!$Target->quantity->equals($merged['quantity']) || $Target->note !== $merged['note']) {
+            $Target->quantity = $merged['quantity'];
+            $Target->note = $merged['note'];
+            $Change->touchEntry($Target);
+        }
+
+        return $Change->result($op, [], [
+            'entry' => $Target->toArray(),
+            'mergedInto' => $Target->id,
+            'takeOver' => $merged['result']
+        ]);
+    }
+
+    /**
+     * Alle Eintrags-Operationen außer `entry.add` und `entry.takeOver`.
      */
     private function changeEntry(ListState $List, Operation $op, PendingChange $Change): OperationResult
     {

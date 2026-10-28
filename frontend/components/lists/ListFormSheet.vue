@@ -5,17 +5,30 @@
  * Morgen · anderes Datum). Beim Bearbeiten darunter „Liste löschen“ mit
  * Rückfrage im selben Sheet.
  *
- * v-model:open · `list` null = neu
- * Emits: submit({ name, shopDate }) · delete
+ * Neue Liste (Designpaket 02): „Wie möchtest du starten?“ – leer oder aus
+ * einem früheren Einkauf (die letzten abgeschlossenen). Mit einem früheren
+ * Einkauf folgt ein zweiter Schritt: Produkte mit Mengen in der alten
+ * Reihenfolge, alle vorgewählt, abwählbar („Alle“, „Nur nicht gekaufte“).
+ * In der neuen Liste ist alles offen; Notizen bleiben im alten Einkauf.
+ *
+ * v-model:open · `list` null = neu · `sourceListId`: gleich mit diesem
+ * früheren Einkauf starten (aus dem Archiv)
+ * Emits: submit({ name, shopDate, items }) (`items` null = leer) · delete
  */
 import { computed, ref, useId, watch } from 'vue';
 import { CircleAlert, Trash2 } from '@lucide/vue';
 import AppButton from '@/components/ui/AppButton.vue';
 import AppSheet from '@/components/ui/AppSheet.vue';
-import { shopDateFromToday } from '@/utils/shopDate.js';
+import EntryChecklist from './EntryChecklist.vue';
+import { ensureListLoaded, listEntries, useLists } from '@/composables/useLists.js';
+import { useProducts } from '@/composables/useProducts.js';
+import { iconOf } from '@/products/catalog.js';
+import { formatDay, shopDateFromToday } from '@/utils/shopDate.js';
+import { copyPlan } from '@/utils/takeOver.js';
 import { t } from '@/i18n/index.js';
 
 const NAME_MAX = 100;
+const PREVIOUS_MAX = 5;
 
 const props = defineProps({
     list: {
@@ -25,6 +38,10 @@ const props = defineProps({
     entryCount: {
         type: Number,
         default: 0
+    },
+    sourceListId: {
+        type: String,
+        default: null
     }
 });
 
@@ -35,16 +52,91 @@ const ids = {
     name: useId(),
     nameError: useId(),
     date: useId(),
-    dateLabel: useId()
+    dateLabel: useId(),
+    start: useId(),
+    selectError: useId()
 };
+
+const { archivedLists } = useLists();
+const { findProduct } = useProducts();
 
 const nameInput = ref(null);
 const name = ref('');
 const shopDate = ref(null);
 const submitted = ref(false);
 const confirmDelete = ref(false);
+const step = ref('form');
+const start = ref('empty');
+const selected = ref([]);
+const selectError = ref('');
+const sourceError = ref(false);
+
+// Einkauf, dessen Produkte schon vorgewählt wurden
+let selectedFor = null;
 
 const isNew = computed(() => props.list === null);
+
+/** Frühere Einkäufe zur Auswahl; ein vorgegebener steht immer dabei. */
+const previous = computed(() => {
+    const recent = archivedLists.value.slice(0, PREVIOUS_MAX);
+    const given = archivedLists.value.find((item) => item.id === props.sourceListId);
+
+    return given && !recent.includes(given) ? [given, ...recent] : recent;
+});
+
+const source = computed(() => (start.value === 'empty' ? null : start.value));
+const sourceList = computed(() => archivedLists.value.find((item) => item.id === source.value) ?? null);
+
+const sourceItems = computed(() => {
+    const entries = source.value ? listEntries(source.value) : null;
+
+    if (!entries) {
+        return null;
+    }
+
+    return copyPlan(entries).map((item) => {
+        const product = findProduct(item.productId);
+
+        return {
+            ...item,
+            id: item.productId,
+            name: product?.name ?? t('entry.unknownProduct'),
+            imageUrl: product?.imageUrl ?? null,
+            icon: product ? iconOf(product) : undefined,
+            meta: item.status === 'done' ? '' : t(item.status === 'notGot' ? 'entry.statusNotGot' : 'entry.statusOpen')
+        };
+    });
+});
+
+function previousTitle(item) {
+    const day = formatDay(item.completedAt) || item.shopDate;
+
+    return day ? item.name + ' · ' + day : item.name;
+}
+
+const sheetTitle = computed(() => {
+    if (confirmDelete.value) {
+        return t('listForm.deleteTitle');
+    }
+
+    if (step.value === 'products') {
+        return t('listForm.chooseProducts');
+    }
+
+    return isNew.value ? t('listForm.newTitle') : t('listForm.editTitle');
+});
+
+const sheetSubtitle = computed(() => (step.value === 'products' && sourceList.value
+    ? t('listForm.chooseProductsSubtitle', { name: previousTitle(sourceList.value) })
+    : ''));
+
+const submitLabel = computed(() => {
+    if (!isNew.value) {
+        return t('common.save');
+    }
+
+    return source.value && step.value === 'form' ? t('common.next') : t('listForm.create');
+});
 const today = computed(() => shopDateFromToday(0));
 const tomorrow = computed(() => shopDateFromToday(1));
 
@@ -76,12 +168,64 @@ const nameError = computed(() => {
 
 watch(open, (isOpen) => {
     if (isOpen) {
-        name.value = props.list?.name ?? '';
+        const given = props.sourceListId ? archivedLists.value.find((item) => item.id === props.sourceListId) : null;
+
+        name.value = props.list?.name ?? given?.name ?? '';
         shopDate.value = props.list?.shopDate ?? null;
         submitted.value = false;
         confirmDelete.value = false;
+        start.value = given ? given.id : 'empty';
+        step.value = given ? 'products' : 'form';
+        selectError.value = '';
+        selectedFor = null;
+
+        if (given) {
+            ensureListLoaded(given.id).catch((error) => {
+                console.error(error);
+                sourceError.value = true;
+            });
+        }
     }
 });
+
+// früheren Einkauf gewählt: laden, alles vorwählen, leeren Namen vorschlagen
+watch(source, (listId) => {
+    sourceError.value = false;
+
+    if (!listId) {
+        return;
+    }
+
+    if (name.value.trim() === '') {
+        name.value = sourceList.value?.name ?? '';
+    }
+
+    ensureListLoaded(listId).catch((error) => {
+        console.error(error);
+        sourceError.value = true;
+    });
+});
+
+// sobald die Produkte eines (neu) gewählten Einkaufs da sind: alle vorwählen
+watch([source, sourceItems], ([listId, items]) => {
+    if (!listId) {
+        selectedFor = null;
+        return;
+    }
+
+    if (items && selectedFor !== listId) {
+        selectedFor = listId;
+        selected.value = items.map((item) => item.id);
+    }
+}, { immediate: true });
+
+function selectAll() {
+    selected.value = (sourceItems.value ?? []).map((item) => item.id);
+}
+
+function selectNotBought() {
+    selected.value = (sourceItems.value ?? []).filter((item) => item.status !== 'done').map((item) => item.id);
+}
 
 function focusName() {
     if (isNew.value) {
@@ -105,8 +249,33 @@ function submit() {
         return;
     }
 
-    emit('submit', { name: name.value.trim(), shopDate: shopDate.value });
+    if (source.value && step.value === 'form') {
+        step.value = 'products';
+        return;
+    }
+
+    let items = null;
+
+    if (source.value) {
+        const chosen = new Set(selected.value);
+
+        items = (sourceItems.value ?? [])
+            .filter((item) => chosen.has(item.id))
+            .map((item) => ({ productId: item.productId, quantity: item.quantity }));
+
+        if (items.length === 0) {
+            selectError.value = t('listForm.nothingSelected');
+            return;
+        }
+    }
+
+    emit('submit', { name: name.value.trim(), shopDate: shopDate.value, items });
     open.value = false;
+}
+
+function onSelect(value) {
+    selected.value = value;
+    selectError.value = '';
 }
 
 function remove() {
@@ -118,12 +287,54 @@ function remove() {
 <template>
     <AppSheet
         v-model:open="open"
-        :title="confirmDelete ? t('listForm.deleteTitle') : (isNew ? t('listForm.newTitle') : t('listForm.editTitle'))"
+        :title="sheetTitle"
+        :subtitle="sheetSubtitle"
         @presented="focusName"
     >
         <p v-if="confirmDelete" class="list-form__confirm">
             {{ t('listForm.deleteText', { name: list?.name ?? '', count: entryCount }) }}
         </p>
+
+        <form
+            v-else-if="step === 'products'"
+            :id="ids.name + '-form'"
+            class="list-form"
+            novalidate
+            @submit.prevent="submit"
+        >
+            <p v-if="sourceError" class="form-field__error" role="alert">
+                <CircleAlert aria-hidden="true" />
+                {{ t('listForm.sourceLoadError') }}
+            </p>
+            <template v-else>
+                <div class="list-form__select-bar">
+                    <span class="list-form__select-count" aria-live="polite">
+                        {{ t('listForm.selectedCount', { count: selected.length, total: sourceItems?.length ?? 0 }) }}
+                    </span>
+                    <span class="list-form__chips">
+                        <button type="button" class="list-form__chip list-form__chip--small" @click="selectAll">
+                            {{ t('listForm.selectAll') }}
+                        </button>
+                        <button type="button" class="list-form__chip list-form__chip--small" @click="selectNotBought">
+                            {{ t('listForm.selectNotBought') }}
+                        </button>
+                    </span>
+                </div>
+                <EntryChecklist
+                    :selected="selected"
+                    :items="sourceItems ?? []"
+                    :loading="sourceItems === null"
+                    :skeleton-rows="Math.min(sourceList?.counts?.total ?? 3, 8) || 3"
+                    :label="t('listForm.chooseProducts')"
+                    @update:selected="onSelect"
+                />
+                <p v-if="selectError" :id="ids.selectError" class="form-field__error" role="alert">
+                    <CircleAlert aria-hidden="true" />
+                    {{ selectError }}
+                </p>
+                <p class="list-form__hint">{{ t('listForm.fromHint') }}</p>
+            </template>
+        </form>
 
         <form v-else :id="ids.name + '-form'" class="list-form" novalidate @submit.prevent="submit">
             <label class="form-field" :for="ids.name">
@@ -191,6 +402,27 @@ function remove() {
                 </label>
             </fieldset>
 
+            <fieldset v-if="isNew && previous.length > 0" class="choice-list">
+                <legend class="form-field__label list-form__legend">{{ t('listForm.start') }}</legend>
+                <label class="choice">
+                    <input v-model="start" class="choice__radio" type="radio" :name="ids.start" value="empty">
+                    <span class="choice__text">
+                        <span class="choice__title">{{ t('listForm.startEmpty') }}</span>
+                        <span class="choice__hint">{{ t('listForm.startEmptyHint') }}</span>
+                    </span>
+                </label>
+                <p class="list-form__group-hint">
+                    <strong>{{ t('listForm.startPrevious') }}</strong> · {{ t('listForm.startPreviousHint') }}
+                </p>
+                <label v-for="item in previous" :key="item.id" class="choice">
+                    <input v-model="start" class="choice__radio" type="radio" :name="ids.start" :value="item.id">
+                    <span class="choice__text">
+                        <span class="choice__title">{{ previousTitle(item) }}</span>
+                        <span class="choice__hint">{{ t('listForm.previousCount', { count: item.counts?.total ?? 0 }) }}</span>
+                    </span>
+                </label>
+            </fieldset>
+
             <AppButton
                 v-if="!isNew"
                 variant="danger"
@@ -208,10 +440,9 @@ function remove() {
                 <AppButton variant="danger-solid" @click="remove">{{ t('listForm.deleteConfirm') }}</AppButton>
             </template>
             <template v-else>
-                <AppButton variant="secondary" @click="open = false">{{ t('common.cancel') }}</AppButton>
-                <AppButton type="submit" :form="ids.name + '-form'">
-                    {{ isNew ? t('listForm.create') : t('common.save') }}
-                </AppButton>
+                <AppButton v-if="step === 'products'" variant="secondary" @click="step = 'form'">{{ t('common.back') }}</AppButton>
+                <AppButton v-else variant="secondary" @click="open = false">{{ t('common.cancel') }}</AppButton>
+                <AppButton type="submit" :form="ids.name + '-form'">{{ submitLabel }}</AppButton>
             </template>
         </template>
     </AppSheet>
@@ -286,5 +517,47 @@ function remove() {
 
 .list-form__delete {
     align-self: flex-start;
+}
+
+.list-form__legend {
+    margin-bottom: var(--space-2);
+    padding: 0;
+}
+
+.list-form__group-hint {
+    padding: var(--space-2) var(--space-1) 0;
+    color: var(--color-text-2);
+    font-size: var(--font-size-note);
+    line-height: var(--line-height-note);
+}
+
+.list-form__group-hint strong {
+    color: var(--color-text-1);
+    font-weight: var(--font-weight-semibold);
+}
+
+.list-form__select-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+}
+
+.list-form__select-count {
+    color: var(--color-text-2);
+    font-size: var(--font-size-text);
+    font-variant-numeric: tabular-nums;
+    line-height: var(--line-height-qty);
+}
+
+.list-form__chip--small {
+    padding: 0 var(--space-3);
+}
+
+.list-form__hint {
+    color: var(--color-text-2);
+    font-size: var(--font-size-note);
+    line-height: var(--line-height-note);
 }
 </style>

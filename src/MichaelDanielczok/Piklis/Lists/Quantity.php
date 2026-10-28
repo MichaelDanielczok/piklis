@@ -255,6 +255,27 @@ final class Quantity
         return $this->thousandths === $other->thousandths && $this->unit === $other->unit;
     }
 
+    public function sameUnit(self $other): bool
+    {
+        return $this->unit === $other->unit;
+    }
+
+    /**
+     * Summe zweier Mengen mit gleicher Einheit, höchstens `MAX_AMOUNT`
+     * (Übernehmen in eine andere Liste). Bei anderer Einheit null.
+     */
+    public function plus(self $other): ?self
+    {
+        if (!$this->sameUnit($other)) {
+            return null;
+        }
+
+        $sum = $this->thousandths + $other->thousandths;
+        $max = self::MAX_AMOUNT * self::SCALE;
+
+        return new self($sum > $max ? $max : $sum, $this->unit);
+    }
+
     /**
      * Braucht diese Menge mehr als `$seen`? Bei anderer Einheit lässt sich das
      * nicht vergleichen und gilt als mehr (Regel „alter Haken“).

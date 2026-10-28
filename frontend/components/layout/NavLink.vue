@@ -30,7 +30,7 @@ const ionRouter = useIonRouter();
 const href = computed(() => router.resolve(props.to).href);
 
 const isActive = computed(() => {
-    if (props.prefixes.some((prefix) => route.path.startsWith(prefix + '/'))) {
+    if (props.prefixes.some((prefix) => route.path === prefix || route.path.startsWith(prefix + '/'))) {
         return true;
     }
 

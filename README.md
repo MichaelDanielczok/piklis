@@ -14,7 +14,7 @@ under `design/piklis-designpaket/`.
 
 - Login with QUIQQER users (core login, own form), session check, 401 handling
 - Navigation Listen · Produkte · Vorlagen: floating glass bar on phones,
-  sidebar on desktop; placeholder views
+  sidebar on desktop
 - User menu at the avatar: Profil, Haushalt, Einstellungen, Darstellung
   (theme automatic/light/dark), sign out
 - Design “Leinen”: tokens light/dark, system font, app icon, favicons,
@@ -102,12 +102,22 @@ under `design/piklis-designpaket/`.
   or its dissolution reaches the overview at the next poll. Real conflicts
   (different quantities or notes, an old check, a change to a removed
   entry) ask in a sheet; nothing is silently overwritten
+- Templates: save a list explicitly as a named template (check and
+  deselect products, also done ones; shopping notes only on request),
+  personal or household; overview, detail and an explicit edit mode
+  (name, sort at the handle, quantity and note, remove with undo, add
+  through the product picker); saved online as a whole with the revision
+  (`If-Match`), a concurrent save asks which version wins; “Neue Liste ›
+  Aus Vorlage” creates an independent list with open entries; move or copy
+  into the household, copies when leaving, deleted with the household
 - REST API `/api/piklis/v1` (`GET /me`, `PATCH /me/settings`, `GET /config`,
   `POST /ops`, `GET /lists`, `GET /lists/{id}`, household routes, list
   move/copy, `POST /lists/{id}/invites`, `GET /lists/{id}/shares`,
   `GET /invites/{token}`, `POST /invites/{token}/accept`, `GET|POST /products`,
   `GET /products/search`, `GET /products/suggestions`, `GET|PATCH /products/{id}`,
-  `POST /products/{id}/hide|unhide`, `POST|DELETE /products/{id}/image`)
+  `POST /products/{id}/hide|unhide`, `POST|DELETE /products/{id}/image`,
+  `GET|POST /templates`, `GET|PUT|DELETE /templates/{id}`,
+  `POST /templates/{id}/move|copy`)
 - PHPStan level 8, PHPCS, PHPUnit; JS tests with `node --test`
 
 ## Quick start

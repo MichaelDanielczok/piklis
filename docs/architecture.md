@@ -39,7 +39,9 @@ PHP under `src/MichaelDanielczok/Piklis/`, grouped by area: `Rest/`
 `Lists/` (sort keys, quantities, `ListRepository`, roles `ListAccess`,
 moving and copying `ListOwnership`, sharing single lists `ListSharing` with
 `ShareRepository`), `Households/` (household rules
-`HouseholdService`, invite code, `HouseholdRepository`), `Products/` (catalog:
+`HouseholdService`, invite code, `HouseholdRepository`), `Templates/`
+(templates: rules `TemplateService`, input `TemplateInput`,
+`TemplateRepository`), `Products/` (catalog:
 input, rights, search, suggestion, images, `ProductRepository`), `Setup/`
 (base catalog on package setup), `Images/` (limits,
 upload checks, media storage, cache addresses), `Database/` (table names),
@@ -55,11 +57,12 @@ committed because the server does not build (no Node there).
 | `app.js`, `App.vue`, `router.js` | entry, shell, routes |
 | `api/index.js` | the only module that talks to the server (REST and core Ajax) |
 | `api/operations.js` | operations: builders, queue, sending, pull since revision (see [Sync](#sync)) |
-| `composables/` | shared state: session (with the household summary), household (`useHousehold.js`), toast, page transition, product catalog (`useProducts.js`), server settings (`useConfig.js`), media query, shopping lists (`useLists.js`), sorting by the drag handle (`useDragSort.js`), swiping a row (`useRowSwipe.js`) |
+| `composables/` | shared state: session (with the household summary), household (`useHousehold.js`), templates with their drafts (`useTemplates.js`), toast, page transition, product catalog (`useProducts.js`), server settings (`useConfig.js`), media query, shopping lists (`useLists.js`), sorting by the drag handle (`useDragSort.js`), swiping a row (`useRowSwipe.js`) |
 | `components/layout/` | page frame and header, sidebar, mobile navigation, nav items, user menu |
 | `components/ui/` | button, sheet, section label, theme switch, avatar, logo, empty state, search field |
 | `components/list/` | list row, row group, skeleton row, quantity, add tile |
 | `components/lists/` | overview card and its skeleton, sheet “Neue Liste / Liste bearbeiten” (with start from an earlier purchase), sheet for quantity and note of an entry, card “In der Liste …” (`EntryContextCard.vue`), transfer and completion sheet (`TransferSheet.vue`), product checklist (`EntryChecklist.vue`), sheet “Liste teilen” / “Geteilte Liste” (`ListShareSheet.vue`) |
+| `components/templates/` | sheet “Neue Vorlage / Vorlage verwalten” (`TemplateFormSheet.vue`), sheet “Als Vorlage speichern” with the product check (`TemplateSaveSheet.vue`) |
 | `components/household/` | member options (`MemberSheet.vue`), leaving, switching and dissolving with the offer of personal copies (`HouseholdLeaveSheet.vue`) |
 | `components/products/` | product image (photo or fallback icon), fallback icon, catalog row and its skeleton, detail, form, icon picker, photo field, crop dialog, large view |
 | `products/` | fixed categories and their colour families (`categories.js`), fallback icons with their category (`catalog.js`), suggestion from the name (`suggest.js`) |
@@ -69,6 +72,7 @@ committed because the server does not build (no Node there).
 | `utils/productSearch.js` | catalog search: normalising and ranking (same logic as `Products\ProductSearch`) |
 | `utils/listState.js` | local state of a list: server state plus own operations, counts, append key, move plan (tested with `node --test`) |
 | `utils/takeOver.js` | taking over into another list (same merge as `Sync\TakeOverMerge`), plan with unit questions, entries for a new list from an earlier purchase |
+| `utils/templates.js` | products of a list for a template (`templatePlan`), the draft while editing (quantity, move, changed?) (tested with `node --test`) |
 | `utils/shopDate.js` | optional shopping date relative to today (“heute”, “Mo”, “Sa., 24. Okt.”) |
 | `utils/imageCrop.js`, `utils/imageUpload.js` | crop and zoom maths, file checks against the limits, pasted images (tested with `node --test`) |
 | `utils/imageEncode.js` | load an image, draw crop and reduced original into a canvas, encode as JPEG |
@@ -85,7 +89,9 @@ committed because the server does not build (no Node there).
   `/lists/:id`, its product picker `/lists/:id/add` and an entry
   in the list context `/lists/:id/entries/:entryId` (all highlight
   “Listen”); product pages
-  `/products/new?name=…`, `/products/:id`, `/products/:id/edit`; from the user menu
+  `/products/new?name=…`, `/products/:id`, `/products/:id/edit`; a template
+  `/templates/:id` and its product picker `/templates/:id/add` (highlight
+  “Vorlagen”); from the user menu
   `/profile`, `/household`, `/settings`; the invitation to a list
   `/invite/:token` (link from “Liste teilen”); `/components` (pattern page) only in
   the dev server (`import.meta.env.DEV`, missing in the build). Everything
@@ -384,13 +390,13 @@ that would be executed again, which the conflict rules still catch.
 | `pk_household_members` (9, built) | `user_id` string(50) (primary: at most one household per person), `household_id` (index), `role` `admin`/`member`, `joined_at` | the last admin must hand over or dissolve |
 | `pk_list_shares` (11, built) | `list_id`, `user_id` (primary together, index `user_id`), `invited_by`, `accepted_at` | accepted invitation: role `guest` on this one list; revoking or leaving deletes the row |
 | `pk_list_invites` (11, built) | `token_hash` string(64) primary, `list_id` (index), `created_by`, `created_at`, `expires_at`, `used_at`, `used_by` | one-time link, valid 7 days; only the SHA-256 hash of the token is stored; see [Sharing single lists](#sharing-single-lists) |
-| `pk_templates` (12) | `id` string(36), `name`, `owner_user` / `household_id`, `revision`, `created_*`, `updated_*`, `deleted_at` | personal or household, like lists; no external shares |
-| `pk_template_entries` (12) | `id`, `template_id` (index), `product_id`, `amount`, `unit`, `sort_key` | products, quantities and order; notes are not stored by default |
+| `pk_templates` (12, built) | `id` string(36) (UUID from the browser), `name` string(100), `owner_user` / `household_id` (index), `revision` (starts at 1), `created_*`, `updated_*`, `deleted_at`, `deleted_by` | personal or household, like lists; no external shares; tombstone when deleted |
+| `pk_template_entries` (12, built) | `id`, `template_id` (index), `product_id` (index), `amount`, `unit`, `note` string(500), `sort_key` | each product at most once; notes only when the user chose to keep them |
 
 Templates are edited explicitly and online (“Vorlage bearbeiten”), saved as a
 whole with the template revision (`If-Match`); a concurrent save answers
 `409 template_changed`. A list from a template or an earlier purchase is an
-independent copy: new IDs, all entries open, sort keys copied.
+independent copy: new IDs, all entries open. See [Templates](#templates).
 
 ### Ownership and roles
 
@@ -404,7 +410,9 @@ The strongest role counts. Without a role the list does not exist for the
 user (`no_access`). Guests may not rename the list, change its date, delete it,
 share it further or change where it belongs. Products, other lists, templates
 and histories stay protected by their own rules; only the catalog is visible
-to everybody.
+to everybody. Templates know only `owner` and `member`
+(`Templates\TemplateService::roleOf`): a guest of a list never sees a
+template.
 
 | Operation | owner | member | guest |
 | --- | --- | --- | --- |
@@ -956,8 +964,10 @@ view `views/HouseholdView.vue` (user menu › Haushalt).
   before leaving). The last member leaving (also by switching) deletes the
   household: the server wants `confirmDissolve: true`, else
   `confirm_dissolve`. Dissolving (admins) deletes household and memberships
-  and gives its lists a tombstone (`list_deleted` for late operations;
-  templates follow in step 12).
+  and gives its lists and templates a tombstone (`list_deleted` for late
+  operations). The leave sheet also offers the household's templates as
+  personal copies (`POST /templates/{id}/copy` `to: personal`, before
+  leaving) and says how many templates a dissolution deletes.
 - **After a change of membership** the app drops the loaded lists and loads
   the overview again (`reloadAfterHouseholdChange()`); the session gets the
   new summary (`setSessionHousehold`).
@@ -1030,6 +1040,69 @@ in-memory stores in `tests/unit/Lists/ListSharingTest.php`), storage
 - **Revoked or deleted while open:** the list's poll answers `403 no_access`
   or `410 list_deleted`; the view shows “Kein Zugriff mehr” or “Liste
   gelöscht” and the list leaves the overview at once.
+
+## Templates
+
+Concept in Obsidian “Piklis Konzept” › “Vorlagen”. Not designed in the design
+package; the views follow the list views. Rules in `Templates\TemplateService`
+(no HTTP, no database; tests with an in-memory store in
+`tests/unit/Templates/`), storage `Templates\TemplateRepository`, REST
+`Rest\TemplatesEndpoint`, state `composables/useTemplates.js`.
+
+- **Online, saved as a whole** (decision of step 2): name and all products
+  (quantity, note, order) go in one `PUT /templates/{id}` with
+  `If-Match: "<revision>"` of the version the draft started from. Another
+  save in between: `409 template_changed` with the current template; the app
+  asks “Inzwischen geändert” (Andere Fassung · Meine Fassung, the latter
+  saves again on top of the current revision). Without `If-Match`: `428
+  precondition_required`. The server gives fresh sort keys in the order sent
+  (`SortKey::manyBetween`); a product keeps its entry ID across saves.
+  Moving and deleting count the revision up too. No live updates: overview
+  and template load when opened.
+- **Rights:** owner of a personal template, every member of the household of
+  a household template (see, use, edit, delete). No shares, guests see
+  nothing (`403 no_access`). New templates belong to the household by
+  default when there is one (“Für wen?”), like lists.
+- **Save a list as template** (`TemplateSaveSheet.vue`, from “Liste
+  bearbeiten” and from an archived list, not for guests): name (the list's
+  name preselected), “Für wen?”, and only if the list has notes
+  “Einkaufsnotizen mitspeichern” (off). Second step “Produkte prüfen”: all
+  visible entries in list order, done and not-got ones included, each
+  product once (`templatePlan`, equal units added up like `copyPlan`), all
+  preselected, “Alle” · “Keine”. `POST /templates` with the browser's UUID;
+  toast with “Ansehen”.
+- **Overview** (`TemplatesView.vue`, `/templates`): one section, sorted by
+  name; cards like the list overview (`ListCard` `variant="template"`:
+  name, origin chip, “7 Produkte”, first four products and “+ N”).
+  Skeleton cards as many as last time on this device
+  (`pk.templateCount.<user>`). “Neue Vorlage” creates an empty template
+  (name, “Für wen?”) and opens it in edit mode.
+- **Template** (`TemplateView.vue`, `/templates/:id`): card with “Zuletzt
+  gespeichert von Ewa · heute”, “Neue Liste daraus” and “Vorlage
+  bearbeiten”; rows read-only (`ListRow` `readonly`, `trailing="none"`),
+  name or image open the product. “…” opens “Vorlage verwalten”
+  (`TemplateFormSheet.vue`): rename, move a personal template into the
+  household (confirmation in the sheet) or copy it there, delete.
+- **Edit mode** (explicit, concept: lasting changes only through “Vorlage
+  bearbeiten”): a draft in `useTemplates` (survives the trip to the picker
+  and back), name field, sorting at the handle (`useDragSort`, arrow keys),
+  quantity and note in `EntrySheet`, remove with “Rückgängig” (`ListRow`
+  `trailing="remove"`), dashed “Produkte hinzufügen” to the picker
+  (`ListAddView.vue` on `/templates/:id/add`: plus and minus change only
+  the draft; no “erledigt”/“nicht bekommen”; “neu anlegen” queues
+  `product.create` and puts the product into the draft). “Speichern” in the
+  header and at the bottom; “Verwerfen” asks when something changed. The
+  sortable rows share the global drag styles (`sort-rows` in
+  `styles/base.css`).
+- **New list from a template:** “Neue Liste” › “Wie möchtest du starten?”
+  lists the templates (group “Aus Vorlage”, before the earlier purchases);
+  “Neue Liste daraus” starts directly in the second step. All products
+  preselected and deselectable, notes of the template are taken along.
+  `createListFrom()` sends `list.create` and `entry.add` with fresh keys in
+  the template's order: the list is independent, changing or removing
+  entries never touches the template.
+- **Household:** dissolving tombstones the household's templates
+  (`HouseholdRepository::delete`); leaving offers personal copies.
 
 ## Product catalog
 
@@ -1221,6 +1294,13 @@ picture of SmartPicker.
 | `POST` | `/household/leave` | `{ confirmDissolve? }`: leave; the last member must confirm (the household is deleted) |
 | `DELETE` | `/household` | dissolve (admins): household, memberships and its lists are deleted |
 | `PATCH` / `DELETE` | `/household/members/{userId}` | `{ role: admin \| member }` / remove a member (admins) |
+| `GET` | `/templates` | accessible templates without entries, with `role`, `count`, `preview` (first four product IDs), sorted by name (ETag) |
+| `POST` | `/templates` | `{ id, name, householdId, entries: [{ productId, quantity, note }] }`: create (201, again 200 `unchanged`) |
+| `GET` | `/templates/{id}` | `{ template }` with `entries`, `role`, `updatedByName` (ETag); `403 no_access`, `410 template_deleted` |
+| `PUT` | `/templates/{id}` | `If-Match: "<revision>"`, `{ name, entries }`: save as a whole; `409 template_changed` with `template`, `428 precondition_required`, `400 invalid_template` / `unknown_product` with `field` |
+| `DELETE` | `/templates/{id}` | tombstone (owner, members): `{ status: 'deleted' }` |
+| `POST` | `/templates/{id}/move` | `{ to: 'household' }`: personal template into the household (owner) |
+| `POST` | `/templates/{id}/copy` | `{ id, to: 'household' \| 'personal' }`: copy (201, again 200 `unchanged`) |
 | `POST` | `/lists/{id}/move` | `{ to: 'household' }`: move a personal list into the household (owner) |
 | `POST` | `/lists/{id}/copy` | `{ id, to: 'household' \| 'personal' }`: copy (201, again 200 `unchanged`) |
 | `POST` | `/lists/{id}/invites` | new one-time link (owner, members): `{ token, invite: { id, createdBy, createdAt, expiresAt } }` (201) |

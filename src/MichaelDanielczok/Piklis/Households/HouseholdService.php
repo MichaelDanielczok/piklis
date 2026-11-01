@@ -27,8 +27,9 @@ use function trim;
  *   (`last_admin`). Geht das letzte Mitglied, wird der Haushalt mit seinen
  *   Listen gelöscht; das verlangt die Bestätigung `confirmDissolve`.
  *
- * Das Angebot, Listen vorher als persönliche Kopie mitzunehmen, macht die
- * App (`Lists\ListOwnership::copy`), bevor sie geht.
+ * Das Angebot, Listen und Vorlagen vorher als persönliche Kopie mitzunehmen,
+ * macht die App (`Lists\ListOwnership::copy`, `Templates\TemplateService::copy`),
+ * bevor sie geht. Gelöscht werden mit dem Haushalt auch seine Vorlagen.
  */
 final class HouseholdService
 {

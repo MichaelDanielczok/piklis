@@ -182,6 +182,18 @@ class HouseholdRepository implements HouseholdStore
             ->setParameter('household', $householdId)
             ->executeStatement();
 
+        $this->Connection->createQueryBuilder()
+            ->update(Tables::name(Tables::TEMPLATES))
+            ->set('deleted_at', ':now')
+            ->set('deleted_by', ':user')
+            ->set('revision', 'revision + 1')
+            ->where('household_id = :household')
+            ->andWhere('deleted_at IS NULL')
+            ->setParameter('now', $now->format(Tables::DATETIME_FORMAT))
+            ->setParameter('user', $userId)
+            ->setParameter('household', $householdId)
+            ->executeStatement();
+
         $this->Connection->delete(Tables::name(Tables::HOUSEHOLD_MEMBERS), ['household_id' => $householdId]);
         $this->Connection->delete(Tables::name(Tables::HOUSEHOLDS), ['id' => $householdId]);
     }

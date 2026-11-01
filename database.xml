@@ -178,6 +178,43 @@
 
                 <index>list_id</index>
             </table>
+
+            <!-- Vorlagen (Schritt 12): persönlich (owner_user) oder Haushalt
+                 (household_id) wie Listen; nur online, ganz gespeichert mit der
+                 Revision (If-Match), keine Freigaben an Außenstehende -->
+            <table name="pk_templates">
+                <field type="string" length="36" primary="true">id</field>
+                <field type="string" length="100">name</field>
+                <field type="string" length="50" nullable="true" default="null">owner_user</field>
+                <field type="string" length="36" nullable="true" default="null">household_id</field>
+                <!-- +1 je Speichern, Verschieben; gleichzeitiges Speichern: 409 -->
+                <field type="bigint" default="1">revision</field>
+                <field type="string" length="50">created_by</field>
+                <field type="datetime">created_at</field>
+                <field type="string" length="50">updated_by</field>
+                <field type="datetime">updated_at</field>
+                <!-- Gelöscht: Grabstein wie bei Listen -->
+                <field type="datetime" nullable="true" default="null">deleted_at</field>
+                <field type="string" length="50" nullable="true" default="null">deleted_by</field>
+
+                <index>owner_user</index>
+                <index>household_id</index>
+            </table>
+
+            <!-- Produkte einer Vorlage mit Menge, Position und (nur auf Wunsch)
+                 Notiz; jedes Produkt höchstens einmal -->
+            <table name="pk_template_entries">
+                <field type="string" length="36" primary="true">id</field>
+                <field type="string" length="36">template_id</field>
+                <field type="string" length="36">product_id</field>
+                <field type="decimal" precision="10" scale="3" default="1">amount</field>
+                <field type="string" length="16" nullable="true" default="null">unit</field>
+                <field type="string" length="500" default="">note</field>
+                <field type="string" length="255">sort_key</field>
+
+                <index>template_id</index>
+                <index>product_id</index>
+            </table>
         </global>
     </database>
 </quiqqer>

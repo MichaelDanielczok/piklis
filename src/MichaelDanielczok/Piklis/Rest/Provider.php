@@ -40,6 +40,14 @@ class Provider implements ProviderInterface
                 $Group->get('/invites/{token}', [SharesEndpoint::class, 'inspect']);
                 $Group->post('/invites/{token}/accept', [SharesEndpoint::class, 'accept']);
 
+                $Group->get('/templates', [TemplatesEndpoint::class, 'index']);
+                $Group->post('/templates', [TemplatesEndpoint::class, 'create']);
+                $Group->get('/templates/{id}', [TemplatesEndpoint::class, 'get']);
+                $Group->put('/templates/{id}', [TemplatesEndpoint::class, 'update']);
+                $Group->delete('/templates/{id}', [TemplatesEndpoint::class, 'delete']);
+                $Group->post('/templates/{id}/move', [TemplatesEndpoint::class, 'move']);
+                $Group->post('/templates/{id}/copy', [TemplatesEndpoint::class, 'copy']);
+
                 $Group->get('/household', [HouseholdEndpoint::class, 'get']);
                 $Group->post('/household', [HouseholdEndpoint::class, 'create']);
                 $Group->delete('/household', [HouseholdEndpoint::class, 'dissolve']);

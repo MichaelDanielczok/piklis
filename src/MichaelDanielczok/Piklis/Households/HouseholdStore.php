@@ -50,8 +50,8 @@ interface HouseholdStore
     public function removeMember(string $userId): void;
 
     /**
-     * Löscht Haushalt und Mitgliedschaften; seine Listen (und später
-     * Vorlagen) bekommen einen Grabstein (`deleted_at`).
+     * Löscht Haushalt und Mitgliedschaften; seine Listen und Vorlagen
+     * bekommen einen Grabstein (`deleted_at`).
      */
     public function delete(string $householdId, string $userId, DateTimeImmutable $now): void;
 }

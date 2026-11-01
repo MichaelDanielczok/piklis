@@ -25,6 +25,9 @@
  *   übernehmen; danach liegt die Liste im Archiv.
  * - Abgeschlossene Liste (Archiv): nur lesen, oben „Wieder öffnen“ und
  *   „Neue Liste daraus“ (früheren Einkauf übernehmen).
+ * - „Als Vorlage speichern …“ (in „Liste bearbeiten“ und im Archiv, nicht
+ *   für Gäste): Produkte prüfen und als benannte Vorlage speichern
+ *   (`TemplateSaveSheet`).
  *
  * Alle Änderungen laufen als Operationen über `useLists`.
  *
@@ -42,6 +45,7 @@ import {
     ChevronDown,
     CloudOff,
     Ellipsis,
+    Files,
     History,
     ListPlus,
     LogOut,
@@ -62,6 +66,7 @@ import SkeletonRow from '@/components/list/SkeletonRow.vue';
 import ListFormSheet from '@/components/lists/ListFormSheet.vue';
 import ListShareSheet from '@/components/lists/ListShareSheet.vue';
 import TransferSheet from '@/components/lists/TransferSheet.vue';
+import TemplateSaveSheet from '@/components/templates/TemplateSaveSheet.vue';
 import {
     checkEntry,
     completeList,
@@ -121,6 +126,7 @@ const doneListRef = useTemplateRef('doneList');
 const formOpen = ref(false);
 const shareOpen = ref(false);
 const newFromOpen = ref(false);
+const templateSaveOpen = ref(false);
 const transferOpen = ref(false);
 const transferMode = ref('transfer');
 const transferEntries = ref([]);
@@ -644,6 +650,16 @@ function onShare() {
     shareOpen.value = true;
 }
 
+function onTemplateSaved(template) {
+    showToast(t('templateSave.savedToast', { name: template.name }), {
+        icon: 'done',
+        action: {
+            text: t('templateSave.show'),
+            handler: () => ionRouter.push('/templates/' + encodeURIComponent(template.id))
+        }
+    });
+}
+
 function onLeft(name) {
     showToast(t('lists.leftToast', { name }), { icon: 'info' });
     navigateBack(ionRouter, '/');
@@ -692,6 +708,10 @@ async function onDelete() {
                     <AppButton @click="newFromOpen = true">
                         <History aria-hidden="true" />
                         {{ t('list.startFrom') }}
+                    </AppButton>
+                    <AppButton v-if="!isGuest" variant="secondary" class="list__archived-wide" @click="templateSaveOpen = true">
+                        <Files aria-hidden="true" />
+                        {{ t('listForm.saveTemplate') }}
                     </AppButton>
                 </div>
             </section>
@@ -822,7 +842,7 @@ async function onDelete() {
                             v-if="openRows.length > 0"
                             ref="openList"
                             tag="ul"
-                            class="list__rows"
+                            class="list__rows sort-rows"
                             :css="false"
                             :move-class="moveClass"
                             @enter="onRowEnter"
@@ -877,7 +897,7 @@ async function onDelete() {
                         </div>
                         <TransitionGroup
                             tag="ul"
-                            class="list__rows"
+                            class="list__rows sort-rows"
                             :css="false"
                             :move-class="moveClass"
                             @enter="onRowEnter"
@@ -926,7 +946,7 @@ async function onDelete() {
                             v-if="doneOpen"
                             ref="doneList"
                             tag="ul"
-                            class="list__rows"
+                            class="list__rows sort-rows"
                             :css="false"
                             :move-class="moveClass"
                             @enter="onRowEnter"
@@ -973,7 +993,10 @@ async function onDelete() {
             @move="onMove"
             @copy="onCopy"
             @share="onShare"
+            @save-template="templateSaveOpen = true"
         />
+
+        <TemplateSaveSheet v-if="list && !isGuest" v-model:open="templateSaveOpen" :list="list" @saved="onTemplateSaved" />
 
         <ListShareSheet v-if="list" v-model:open="shareOpen" :list="list" @left="onLeft" />
 
@@ -1340,56 +1363,15 @@ async function onDelete() {
     .list__archived-actions {
         grid-template-columns: 1fr 1fr;
     }
+
+    .list__archived-wide {
+        grid-column: 1 / -1;
+    }
 }
 
 @media (min-width: 64em) {
     .list {
         padding: 0 var(--page-gutter);
-    }
-}
-</style>
-
-<style>
-/* Änderungen anderer: verschobene Zeilen gleiten an ihren Platz (TransitionGroup) */
-.list__rows > .list-row.list-row--moving {
-    transition: transform var(--duration-medium) var(--ease-out);
-}
-
-/* Sortieren (useDragSort setzt die Klassen direkt am DOM) */
-.list__rows.is-sorting > .list-row {
-    transition: transform var(--duration-medium) var(--ease-out);
-}
-
-.list__rows.is-sorting > .list-row.is-lifted {
-    position: relative;
-    z-index: 2;
-    transition: none;
-    box-shadow: var(--shadow-drag);
-}
-
-.list__rows > .list-row.is-lifted {
-    position: relative;
-    z-index: 2;
-    border-radius: var(--radius-md);
-    outline: 2px solid var(--color-accent);
-    outline-offset: -2px;
-}
-
-.drag-placeholder {
-    position: absolute;
-    left: 0;
-    right: 0;
-    z-index: 1;
-    border: 2px dashed var(--color-accent);
-    border-radius: var(--radius-md);
-    background: var(--color-accent-tint);
-    pointer-events: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .list__rows.is-sorting > .list-row,
-    .list__rows > .list-row.list-row--moving {
-        transition: none;
     }
 }
 </style>

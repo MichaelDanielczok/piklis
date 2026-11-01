@@ -176,3 +176,49 @@ ion-toast.app-toast--top::part(wrapper) {
         margin-bottom: 0;
     }
 }
+
+/* Zeilen, die sich sortieren lassen (Liste, Vorlage bearbeiten): Klasse
+   `sort-rows` am <ul>; useDragSort setzt `is-sorting`, `is-lifted` und den
+   Platzhalter direkt am DOM */
+/* Änderungen anderer: verschobene Zeilen gleiten an ihren Platz (TransitionGroup) */
+.sort-rows > .list-row.list-row--moving {
+    transition: transform var(--duration-medium) var(--ease-out);
+}
+
+/* Sortieren (useDragSort setzt die Klassen direkt am DOM) */
+.sort-rows.is-sorting > .list-row {
+    transition: transform var(--duration-medium) var(--ease-out);
+}
+
+.sort-rows.is-sorting > .list-row.is-lifted {
+    position: relative;
+    z-index: 2;
+    transition: none;
+    box-shadow: var(--shadow-drag);
+}
+
+.sort-rows > .list-row.is-lifted {
+    position: relative;
+    z-index: 2;
+    border-radius: var(--radius-md);
+    outline: 2px solid var(--color-accent);
+    outline-offset: -2px;
+}
+
+.drag-placeholder {
+    position: absolute;
+    left: 0;
+    right: 0;
+    z-index: 1;
+    border: 2px dashed var(--color-accent);
+    border-radius: var(--radius-md);
+    background: var(--color-accent-tint);
+    pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sort-rows.is-sorting > .list-row,
+    .sort-rows > .list-row.list-row--moving {
+        transition: none;
+    }
+}

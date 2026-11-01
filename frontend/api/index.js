@@ -39,14 +39,19 @@ export function onUnauthorized(handler) {
  * @param {string} method
  * @param {string} path
  * @param {object|FormData} [body] JSON, oder FormData für Dateien (multipart)
- * @param {{ signal?: AbortSignal }} [options] signal bricht die Anfrage ab (AbortError)
+ * @param {{ signal?: AbortSignal, ifMatch?: number }} [options] signal bricht die
+ *   Anfrage ab (AbortError); ifMatch sendet die bearbeitete Revision (Vorlagen)
  */
-async function request(method, path, body = undefined, { signal } = {}) {
+async function request(method, path, body = undefined, { signal, ifMatch } = {}) {
     const headers = {
         Accept: 'application/json',
         'Accept-Language': locale.value
     };
     const isForm = body instanceof FormData;
+
+    if (ifMatch !== undefined) {
+        headers['If-Match'] = '"' + ifMatch + '"';
+    }
 
     if (body !== undefined && !isForm) {
         headers['Content-Type'] = 'application/json';
@@ -76,6 +81,7 @@ async function request(method, path, body = undefined, { signal } = {}) {
         const error = new ApiError(response.status, data?.error ?? 'http_' + response.status, data?.message);
 
         error.reason = data?.reason ?? null;
+        error.data = data;
 
         if (response.status === 401 && unauthorizedHandler) {
             unauthorizedHandler(error);
@@ -237,6 +243,52 @@ export const api = {
     /** Einladung annehmen: { status: 'accepted' | 'already', list }. */
     acceptInvite(token) {
         return request('POST', '/invites/' + encodeURIComponent(token) + '/accept');
+    },
+
+    /**
+     * Zugängliche Vorlagen ohne Einträge: { templates: [{ id, name, ownerUser,
+     * householdId, revision, role, count, preview }] } (ETag).
+     */
+    getTemplates({ signal } = {}) {
+        return request('GET', '/templates', undefined, { signal });
+    },
+
+    /** Eine Vorlage mit Einträgen: { template: { …, entries, role, updatedByName } }. */
+    getTemplate(templateId, { signal } = {}) {
+        return request('GET', '/templates/' + encodeURIComponent(templateId), undefined, { signal });
+    },
+
+    /**
+     * Neue Vorlage, ID aus dem Browser: { status: 'created'|'unchanged', template }.
+     *
+     * @param {{ id: string, name: string, householdId: string|null,
+     *   entries: { productId: string, quantity: object, note?: string }[] }} template
+     */
+    createTemplate(template) {
+        return request('POST', '/templates', template);
+    },
+
+    /**
+     * Vorlage ganz speichern (Name und alle Produkte in Reihenfolge) mit der
+     * bearbeiteten Revision: { template }. Inzwischen geändert: 409
+     * `template_changed`, `error.data.template` ist der aktuelle Stand.
+     */
+    saveTemplate(templateId, revision, { name, entries }) {
+        return request('PUT', '/templates/' + encodeURIComponent(templateId), { name, entries }, { ifMatch: revision });
+    },
+
+    deleteTemplate(templateId) {
+        return request('DELETE', '/templates/' + encodeURIComponent(templateId));
+    },
+
+    /** Persönliche Vorlage in den Haushalt verschieben (ID bleibt): { template }. */
+    moveTemplateToHousehold(templateId) {
+        return request('POST', '/templates/' + encodeURIComponent(templateId) + '/move', { to: 'household' });
+    },
+
+    /** Vorlage kopieren ('household' oder 'personal'): { status, template }. */
+    copyTemplate(templateId, newTemplateId, to) {
+        return request('POST', '/templates/' + encodeURIComponent(templateId) + '/copy', { id: newTemplateId, to });
     },
 
     /**

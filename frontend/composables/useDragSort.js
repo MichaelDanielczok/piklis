@@ -14,7 +14,7 @@
  * ohne dass etwas springt.
  *
  * Zeilen: direkte Kinder der Liste mit `data-entry-id`.
- * CSS-Klassen (global, siehe ListView): `is-sorting` an der Liste,
+ * CSS-Klassen (global in styles/base.css, Liste mit Klasse `sort-rows`): `is-sorting` an der Liste,
  * `is-lifted` an der Zeile, `drag-placeholder` für den Platzhalter.
  */
 import { onBeforeUnmount, ref } from 'vue';

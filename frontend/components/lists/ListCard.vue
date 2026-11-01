@@ -8,6 +8,9 @@
  *
  * Der Name ist der Knopf (Überschrift), seine Fläche reicht über die ganze
  * Karte. Feste Höhe, damit der Ladezustand (ListCardSkeleton) passt.
+ *
+ * `variant="template"` (Vorlagen): statt Datum und Fortschritt die Zahl der
+ * Produkte, die Bilder zeigen die ersten Produkte (`preview`, `count`).
  * Emits: open
  */
 import { computed } from 'vue';
@@ -26,6 +29,11 @@ const props = defineProps({
     headingLevel: {
         type: Number,
         default: 3
+    },
+    variant: {
+        type: String,
+        default: 'list',
+        validator: (value) => ['list', 'template'].includes(value)
     }
 });
 
@@ -33,8 +41,9 @@ defineEmits(['open']);
 
 const { findProduct } = useProducts();
 
-const counts = computed(() => props.list.counts);
-const date = computed(() => formatShopDate(props.list.shopDate));
+const isTemplate = computed(() => props.variant === 'template');
+const counts = computed(() => props.list.counts ?? { open: props.list.count ?? 0, done: 0, total: props.list.count ?? 0 });
+const date = computed(() => (isTemplate.value ? '' : formatShopDate(props.list.shopDate)));
 const percent = computed(() => (counts.value.total > 0 ? Math.round((counts.value.done / counts.value.total) * 100) : 0));
 
 const thumbs = computed(() => (props.list.preview ?? []).map((productId) => {
@@ -61,9 +70,11 @@ const origin = computed(() => {
         };
     }
 
+    const labels = isTemplate.value ? 'templates' : 'lists';
+
     return isHousehold.value
-        ? { kind: 'household', icon: House, text: t('lists.originHousehold'), label: t('lists.originHouseholdLabel') }
-        : { kind: 'personal', icon: User, text: t('lists.originPersonal'), label: t('lists.originPersonalLabel') };
+        ? { kind: 'household', icon: House, text: t('lists.originHousehold'), label: t(labels + '.originHouseholdLabel') }
+        : { kind: 'personal', icon: User, text: t('lists.originPersonal'), label: t(labels + '.originPersonalLabel') };
 });
 
 const more = computed(() => Math.max(0, counts.value.open - thumbs.value.length));
@@ -85,7 +96,11 @@ const more = computed(() => Math.max(0, counts.value.open - thumbs.value.length)
             </span>
         </div>
 
-        <div class="list-card__progress">
+        <p v-if="isTemplate" class="list-card__progress list-card__summary">
+            {{ t('templates.count', { count: counts.total }) }}
+        </p>
+
+        <div v-else class="list-card__progress">
             <span class="list-card__bar" aria-hidden="true">
                 <span class="list-card__fill" :style="{ width: percent + '%' }"></span>
             </span>
@@ -110,7 +125,8 @@ const more = computed(() => Math.max(0, counts.value.open - thumbs.value.length)
                 </span>
             </template>
             <span v-else class="list-card__empty">
-                {{ counts.total > 0 ? t('lists.allDonePreview') : t('lists.emptyPreview') }}
+                <template v-if="isTemplate">{{ t('templates.emptyPreview') }}</template>
+                <template v-else>{{ counts.total > 0 ? t('lists.allDonePreview') : t('lists.emptyPreview') }}</template>
             </span>
         </div>
     </article>
@@ -231,6 +247,13 @@ const more = computed(() => Math.max(0, counts.value.open - thumbs.value.length)
     align-items: center;
     gap: var(--space-4);
     min-height: var(--line-height-qty);
+}
+
+.list-card__summary {
+    color: var(--color-text-2);
+    font-size: var(--font-size-text);
+    font-variant-numeric: tabular-nums;
+    line-height: var(--line-height-qty);
 }
 
 .list-card__bar {

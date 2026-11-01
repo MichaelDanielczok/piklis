@@ -3,18 +3,23 @@
  * Platzhalter einer Listenzeile beim Laden: exakt in Endhöhe (64 px, Bild
  * 44 px, Ring 28 px) und mit denselben Zonen wie ListRow, damit beim
  * Erscheinen der Daten nichts springt. Flache Flächen ohne Schimmer.
- * `width` variiert die Namenslänge (Anteil 0–1).
+ * `width` variiert die Namenslänge (Anteil 0–1). `trailing="none"` ohne
+ * Abhaken-Zone (Vorlage ansehen, wie ListRow).
  */
 defineProps({
     width: {
         type: Number,
         default: 0.6
+    },
+    trailing: {
+        type: String,
+        default: 'check'
     }
 });
 </script>
 
 <template>
-    <li class="skeleton-row" aria-hidden="true">
+    <li class="skeleton-row" :class="{ 'skeleton-row--no-trailing': trailing === 'none' }" aria-hidden="true">
         <span class="skeleton-row__handle"></span>
         <span class="skeleton-row__details">
             <span class="skeleton-row__thumb"></span>
@@ -23,7 +28,7 @@ defineProps({
             </span>
             <span class="skeleton-row__bar skeleton-row__bar--quantity"></span>
         </span>
-        <span class="skeleton-row__check">
+        <span v-if="trailing !== 'none'" class="skeleton-row__check">
             <span class="skeleton-row__ring"></span>
         </span>
     </li>
@@ -35,6 +40,10 @@ defineProps({
     align-items: stretch;
     height: var(--row-min-height);
     background: var(--color-surface-1);
+}
+
+.skeleton-row--no-trailing .skeleton-row__details {
+    padding-right: var(--space-4);
 }
 
 .skeleton-row + .skeleton-row {

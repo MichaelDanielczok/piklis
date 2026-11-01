@@ -26,9 +26,13 @@
  * `transferredTo`: Name der Liste, in die ein nicht bekommenes Produkt
  * übernommen wurde. `readonly` (abgeschlossene Liste): Zustand nur als
  * Symbol, ohne Griff und ohne Abhaken.
+ *
+ * Vorlagen (`trailing`): `remove` zeigt rechts statt des Abhakens einen
+ * Knopf zum Herausnehmen (`remove`), `none` lässt die Fläche weg (Vorlage
+ * ansehen).
  */
 import { computed, useId, useTemplateRef } from 'vue';
-import { ArrowRight, Check, CloudUpload, GripVertical, RotateCcw, X } from '@lucide/vue';
+import { ArrowRight, Check, CloudUpload, GripVertical, RotateCcw, Trash2, X } from '@lucide/vue';
 import ProductImage from '@/components/products/ProductImage.vue';
 import QuantityLabel from './QuantityLabel.vue';
 import { useRowSwipe } from '@/composables/useRowSwipe.js';
@@ -83,10 +87,15 @@ const props = defineProps({
     swipe: {
         type: Object,
         default: null
+    },
+    trailing: {
+        type: String,
+        default: 'check',
+        validator: (value) => ['check', 'remove', 'none'].includes(value)
     }
 });
 
-const emit = defineEmits(['details', 'toggle', 'transfer', 'handle-pointerdown', 'move', 'swipe-action']);
+const emit = defineEmits(['details', 'toggle', 'transfer', 'handle-pointerdown', 'move', 'swipe-action', 'remove']);
 
 const handleHintId = useId();
 const isDone = computed(() => props.status === 'done');
@@ -119,6 +128,7 @@ const { offset, dragging, runAction, listeners, onClickCapture } = useRowSwipe({
             'list-row--done': isDone,
             'list-row--not-got': isNotGot,
             'list-row--readonly': readonly,
+            'list-row--no-trailing': trailing === 'none',
             'list-row--swiped': offset !== 0
         }"
         v-on="listeners"
@@ -195,7 +205,18 @@ const { offset, dragging, runAction, listeners, onClickCapture } = useRowSwipe({
                 <QuantityLabel class="list-row__quantity" :amount="amount" :unit="unit" />
             </button>
 
-            <div class="list-row__check-zone">
+            <div v-if="trailing === 'remove'" class="list-row__check-zone">
+                <button
+                    type="button"
+                    class="list-row__check list-row__check--remove"
+                    data-name="remove"
+                    :aria-label="t('row.remove', { name })"
+                    @click="emit('remove')"
+                >
+                    <Trash2 class="list-row__remove-icon" aria-hidden="true" />
+                </button>
+            </div>
+            <div v-else-if="trailing === 'check'" class="list-row__check-zone">
                 <span v-if="readonly" class="list-row__check list-row__check--static" aria-hidden="true">
                     <span v-if="isNotGot" class="list-row__transfer">
                         <X class="list-row__transfer-icon" />
@@ -428,6 +449,11 @@ const { offset, dragging, runAction, listeners, onClickCapture } = useRowSwipe({
     color: var(--color-text-2);
 }
 
+/* ohne Fläche rechts (Vorlage ansehen): Menge mit Abstand zum Rand */
+.list-row--no-trailing .list-row__details {
+    padding-right: var(--space-4);
+}
+
 /* 3 · Abhaken */
 .list-row__check-zone {
     position: relative;
@@ -503,6 +529,20 @@ const { offset, dragging, runAction, listeners, onClickCapture } = useRowSwipe({
     stroke-width: 2.5;
 }
 
+.list-row__check--remove {
+    color: var(--color-text-2);
+}
+
+.list-row__remove-icon {
+    width: var(--icon-size-md);
+    height: var(--icon-size-md);
+    transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.list-row__check--remove:active .list-row__remove-icon {
+    transform: scale(0.9);
+}
+
 .list-row__handle:focus-visible,
 .list-row__details:focus-visible,
 .list-row__check:focus-visible {
@@ -522,6 +562,10 @@ const { offset, dragging, runAction, listeners, onClickCapture } = useRowSwipe({
 
     .list-row__check:hover .list-row__ring {
         border-color: var(--color-done);
+    }
+
+    .list-row__check--remove:hover {
+        color: var(--color-danger);
     }
 }
 </style>

@@ -633,7 +633,21 @@ export function setProductQuantity(listId, productId, amount) {
  * @returns {string} ID des neuen Produkts
  */
 export function createProductOnList(listId, name) {
-    // Kategorie und Icon aus dem Namen vorschlagen, wie beim Anlegen im Formular
+    const productId = createQuickProduct(name);
+
+    setProductQuantity(listId, productId, 1);
+
+    return productId;
+}
+
+/**
+ * Unbekannten Namen als Produkt anlegen (`product.create`), Kategorie und
+ * Icon aus dem Namen vorgeschlagen wie im Formular; steht sofort im Katalog.
+ * Auch für „Produkte hinzufügen“ einer Vorlage.
+ *
+ * @returns {string} ID des neuen Produkts
+ */
+export function createQuickProduct(name) {
     const suggestion = suggestForName(name);
     const op = operations.createProduct({
         name: name.trim(),
@@ -643,7 +657,6 @@ export function createProductOnList(listId, name) {
 
     addLocalProduct({ id: op.productId, ...op.product });
     enqueue(op).catch((error) => console.error(error));
-    setProductQuantity(listId, op.productId, 1);
 
     return op.productId;
 }
@@ -804,11 +817,13 @@ export function reopenList(listId) {
 }
 
 /**
- * Neue Liste aus einem früheren Einkauf: die gewählten Produkte mit ihren
- * Mengen in derselben Reihenfolge, alle offen, ohne Notizen.
+ * Neue Liste aus einem früheren Einkauf oder einer Vorlage: die gewählten
+ * Produkte mit ihren Mengen in derselben Reihenfolge, alle offen. Notizen
+ * nur, wo `note` gesetzt ist (Vorlage mit gespeicherten Notizen); die Liste
+ * ist danach unabhängig von ihrer Herkunft.
  *
  * @param {{ name: string, shopDate?: string|null, householdId?: string|null }} fields
- * @param {{ productId: string, quantity: { amount: number, unit: string|null } }[]} items in Listenreihenfolge
+ * @param {{ productId: string, quantity: { amount: number, unit: string|null }, note?: string }[]} items in Listenreihenfolge
  * @returns {Promise<string>} ID der neuen Liste
  */
 export async function createListFrom(fields, items) {
@@ -826,6 +841,7 @@ export async function createListFrom(fields, items) {
             listId: create.listId,
             productId: item.productId,
             quantity: item.quantity,
+            note: item.note ?? '',
             sortKey: keys[index]
         }));
     }
@@ -835,7 +851,8 @@ export async function createListFrom(fields, items) {
 
 /**
  * Neue Liste aus dem Sheet „Neue Liste“: leer oder mit den gewählten
- * Produkten eines früheren Einkaufs (`items`), persönlich oder im Haushalt.
+ * Produkten eines früheren Einkaufs oder einer Vorlage (`items`), persönlich
+ * oder im Haushalt.
  *
  * @param {{ name: string, shopDate?: string|null, householdId?: string|null, items?: object[]|null }} fields
  * @returns {Promise<string>} ID der neuen Liste

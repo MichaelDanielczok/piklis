@@ -11,6 +11,11 @@
  * Reihenfolge, alle vorgewählt, abwählbar („Alle“, „Nur nicht gekaufte“).
  * In der neuen Liste ist alles offen; Notizen bleiben im alten Einkauf.
  *
+ * Aus Vorlage (Schritt 12): Die Vorlagen stehen als eigene Gruppe unter
+ * „Wie möchtest du starten?“; danach derselbe zweite Schritt mit allen
+ * Produkten der Vorlage (vorgewählt, abwählbar), mit gespeicherten Notizen.
+ * Die neue Liste ist unabhängig: Änderungen an ihr ändern die Vorlage nicht.
+ *
  * Zugehörigkeit (Schritt 9): Mit Haushalt ist eine neue Liste standardmäßig
  * für den Haushalt, „Nur für mich“ ist wählbar. Beim Bearbeiten einer
  * persönlichen Liste „In den Haushalt verschieben“ (Rückfrage im selben
@@ -22,18 +27,20 @@
  * nicht.
  *
  * v-model:open · `list` null = neu · `sourceListId`: gleich mit diesem
- * früheren Einkauf starten (aus dem Archiv)
+ * früheren Einkauf starten (aus dem Archiv) · `sourceTemplate` ({ id, name,
+ * householdId, entries }): gleich mit dieser Vorlage starten
  * Emits: submit({ name, shopDate, householdId, items }) (`items` null = leer)
- * · delete · move · copy · share
+ * · delete · move · copy · share · saveTemplate („Als Vorlage speichern …“)
  */
 import { computed, ref, useId, watch } from 'vue';
-import { CircleAlert, Copy, House, Share2, Trash2, User } from '@lucide/vue';
+import { CircleAlert, Copy, Files, House, Share2, Trash2, User } from '@lucide/vue';
 import AppButton from '@/components/ui/AppButton.vue';
 import AppSheet from '@/components/ui/AppSheet.vue';
 import EntryChecklist from './EntryChecklist.vue';
 import { ensureListLoaded, listEntries, useLists } from '@/composables/useLists.js';
 import { useProducts } from '@/composables/useProducts.js';
 import { useSession } from '@/composables/useSession.js';
+import { ensureTemplateLoaded, loadTemplates, templateDetail, useTemplates } from '@/composables/useTemplates.js';
 import { categoryOf, iconOf } from '@/products/catalog.js';
 import { formatDay, shopDateFromToday } from '@/utils/shopDate.js';
 import { copyPlan } from '@/utils/takeOver.js';
@@ -54,10 +61,16 @@ const props = defineProps({
     sourceListId: {
         type: String,
         default: null
+    },
+    sourceTemplate: {
+        type: Object,
+        default: null
     }
 });
 
-const emit = defineEmits(['submit', 'delete', 'move', 'copy', 'share']);
+const TEMPLATE_PREFIX = 'template:';
+
+const emit = defineEmits(['submit', 'delete', 'move', 'copy', 'share', 'saveTemplate']);
 const open = defineModel('open', { type: Boolean, default: false });
 
 const ids = {
@@ -69,10 +82,12 @@ const ids = {
     owner: useId(),
     ownerHeading: useId(),
     shareHeading: useId(),
+    templateHeading: useId(),
     selectError: useId()
 };
 
 const { archivedLists } = useLists();
+const { overview: templateOverview } = useTemplates();
 const { findProduct } = useProducts();
 const { household } = useSession();
 
@@ -115,27 +130,67 @@ const previous = computed(() => {
     return given && !recent.includes(given) ? [given, ...recent] : recent;
 });
 
-const source = computed(() => (start.value === 'empty' ? null : start.value));
-const sourceList = computed(() => archivedLists.value.find((item) => item.id === source.value) ?? null);
+/** Vorlagen zur Auswahl (nach Name), eine vorgegebene immer dabei. */
+const templates = computed(() => {
+    const known = templateOverview.templates;
 
-const sourceItems = computed(() => {
+    if (props.sourceTemplate && !known.some((item) => item.id === props.sourceTemplate.id)) {
+        return [{ ...props.sourceTemplate, count: props.sourceTemplate.entries.length }, ...known];
+    }
+
+    return known;
+});
+
+const source = computed(() => (start.value === 'empty' ? null : start.value));
+const sourceTemplateId = computed(() => (source.value?.startsWith(TEMPLATE_PREFIX)
+    ? source.value.slice(TEMPLATE_PREFIX.length)
+    : null));
+const sourceList = computed(() => (sourceTemplateId.value
+    ? null
+    : archivedLists.value.find((item) => item.id === source.value) ?? null));
+const chosenTemplate = computed(() => (sourceTemplateId.value
+    ? templates.value.find((item) => item.id === sourceTemplateId.value) ?? null
+    : null));
+
+/** Produkte der gewählten Vorlage bzw. des früheren Einkaufs (null, solange sie laden). */
+const sourcePlan = computed(() => {
+    if (sourceTemplateId.value) {
+        if (props.sourceTemplate?.id === sourceTemplateId.value) {
+            return props.sourceTemplate.entries;
+        }
+
+        return templateDetail(sourceTemplateId.value).template?.entries ?? null;
+    }
+
     const entries = source.value ? listEntries(source.value) : null;
 
-    if (!entries) {
+    return entries ? copyPlan(entries) : null;
+});
+
+const sourceItems = computed(() => {
+    if (!sourcePlan.value) {
         return null;
     }
 
-    return copyPlan(entries).map((item) => {
+    return sourcePlan.value.map((item) => {
         const product = findProduct(item.productId);
+        let meta = '';
+
+        if (item.status && item.status !== 'done') {
+            meta = t(item.status === 'notGot' ? 'entry.statusNotGot' : 'entry.statusOpen');
+        }
 
         return {
-            ...item,
+            productId: item.productId,
+            quantity: item.quantity,
+            note: item.note ?? '',
+            status: item.status ?? 'open',
             id: item.productId,
             name: product?.name ?? t('entry.unknownProduct'),
             imageUrl: product?.imageUrl ?? null,
             icon: product ? iconOf(product) : undefined,
             category: categoryOf(product),
-            meta: item.status === 'done' ? '' : t(item.status === 'notGot' ? 'entry.statusNotGot' : 'entry.statusOpen')
+            meta
         };
     });
 });
@@ -162,9 +217,17 @@ const sheetTitle = computed(() => {
     return isNew.value ? t('listForm.newTitle') : t('listForm.editTitle');
 });
 
-const sheetSubtitle = computed(() => (step.value === 'products' && sourceList.value
-    ? t('listForm.chooseProductsSubtitle', { name: previousTitle(sourceList.value) })
-    : ''));
+const sheetSubtitle = computed(() => {
+    if (step.value !== 'products') {
+        return '';
+    }
+
+    if (chosenTemplate.value) {
+        return t('listForm.chooseProductsSubtitle', { name: chosenTemplate.value.name });
+    }
+
+    return sourceList.value ? t('listForm.chooseProductsSubtitle', { name: previousTitle(sourceList.value) }) : '';
+});
 
 const submitLabel = computed(() => {
     if (!isNew.value) {
@@ -205,17 +268,22 @@ const nameError = computed(() => {
 watch(open, (isOpen) => {
     if (isOpen) {
         const given = props.sourceListId ? archivedLists.value.find((item) => item.id === props.sourceListId) : null;
+        const givenTemplate = props.sourceTemplate;
 
-        name.value = props.list?.name ?? given?.name ?? '';
+        name.value = props.list?.name ?? given?.name ?? givenTemplate?.name ?? '';
         shopDate.value = props.list?.shopDate ?? null;
         submitted.value = false;
         confirmDelete.value = false;
         confirmMove.value = false;
         owner.value = household.value ? 'household' : 'personal';
-        start.value = given ? given.id : 'empty';
-        step.value = given ? 'products' : 'form';
+        start.value = givenTemplate ? TEMPLATE_PREFIX + givenTemplate.id : (given ? given.id : 'empty');
+        step.value = given || givenTemplate ? 'products' : 'form';
         selectError.value = '';
         selectedFor = null;
+
+        if (isNew.value) {
+            loadTemplates().catch((error) => console.error(error));
+        }
 
         if (given) {
             ensureListLoaded(given.id).catch((error) => {
@@ -226,19 +294,27 @@ watch(open, (isOpen) => {
     }
 });
 
-// früheren Einkauf gewählt: laden, alles vorwählen, leeren Namen vorschlagen
-watch(source, (listId) => {
+// früheren Einkauf oder Vorlage gewählt: laden, alles vorwählen, leeren Namen vorschlagen
+watch(source, (value) => {
     sourceError.value = false;
 
-    if (!listId) {
+    if (!value) {
         return;
     }
 
     if (name.value.trim() === '') {
-        name.value = sourceList.value?.name ?? '';
+        name.value = chosenTemplate.value?.name ?? sourceList.value?.name ?? '';
     }
 
-    ensureListLoaded(listId).catch((error) => {
+    const loading = sourceTemplateId.value
+        ? (props.sourceTemplate?.id === sourceTemplateId.value ? Promise.resolve() : ensureTemplateLoaded(sourceTemplateId.value))
+        : ensureListLoaded(value);
+
+    loading.then((loaded) => {
+        if (sourceTemplateId.value && loaded === null) {
+            sourceError.value = true;
+        }
+    }).catch((error) => {
         console.error(error);
         sourceError.value = true;
     });
@@ -297,9 +373,14 @@ function submit() {
     if (source.value) {
         const chosen = new Set(selected.value);
 
+        // Notizen nur aus einer Vorlage (dort bewusst gespeichert), nie aus einem früheren Einkauf
         items = (sourceItems.value ?? [])
             .filter((item) => chosen.has(item.id))
-            .map((item) => ({ productId: item.productId, quantity: item.quantity }));
+            .map((item) => ({
+                productId: item.productId,
+                quantity: item.quantity,
+                note: sourceTemplateId.value ? item.note : ''
+            }));
 
         if (items.length === 0) {
             selectError.value = t('listForm.nothingSelected');
@@ -325,6 +406,11 @@ function copy() {
 
 function share() {
     emit('share');
+    open.value = false;
+}
+
+function saveTemplate() {
+    emit('saveTemplate');
     open.value = false;
 }
 
@@ -369,7 +455,7 @@ function remove() {
         >
             <p v-if="sourceError" class="form-field__error" role="alert">
                 <CircleAlert aria-hidden="true" />
-                {{ t('listForm.sourceLoadError') }}
+                {{ sourceTemplateId ? t('listForm.templateLoadError') : t('listForm.sourceLoadError') }}
             </p>
             <template v-else>
                 <div class="list-form__select-bar">
@@ -380,7 +466,12 @@ function remove() {
                         <button type="button" class="list-form__chip list-form__chip--small" @click="selectAll">
                             {{ t('listForm.selectAll') }}
                         </button>
-                        <button type="button" class="list-form__chip list-form__chip--small" @click="selectNotBought">
+                        <button
+                            v-if="!sourceTemplateId"
+                            type="button"
+                            class="list-form__chip list-form__chip--small"
+                            @click="selectNotBought"
+                        >
                             {{ t('listForm.selectNotBought') }}
                         </button>
                     </span>
@@ -389,7 +480,7 @@ function remove() {
                     :selected="selected"
                     :items="sourceItems ?? []"
                     :loading="sourceItems === null"
-                    :skeleton-rows="Math.min(sourceList?.counts?.total ?? 3, 8) || 3"
+                    :skeleton-rows="Math.min(chosenTemplate?.count ?? sourceList?.counts?.total ?? 3, 8) || 3"
                     :label="t('listForm.chooseProducts')"
                     @update:selected="onSelect"
                 />
@@ -397,7 +488,7 @@ function remove() {
                     <CircleAlert aria-hidden="true" />
                     {{ selectError }}
                 </p>
-                <p class="list-form__hint">{{ t('listForm.fromHint') }}</p>
+                <p class="list-form__hint">{{ sourceTemplateId ? t('listForm.fromTemplateHint') : t('listForm.fromHint') }}</p>
             </template>
         </form>
 
@@ -523,7 +614,18 @@ function remove() {
                 </div>
             </section>
 
-            <fieldset v-if="isNew && previous.length > 0" class="choice-list">
+            <section v-if="!isNew" class="list-form__owner" :aria-labelledby="ids.templateHeading">
+                <h3 :id="ids.templateHeading" class="form-field__label">{{ t('listForm.templateLabel') }}</h3>
+                <p class="list-form__hint">{{ t('listForm.templateHint') }}</p>
+                <div class="list-form__owner-actions">
+                    <AppButton variant="secondary" @click="saveTemplate">
+                        <Files aria-hidden="true" />
+                        {{ t('listForm.saveTemplate') }}
+                    </AppButton>
+                </div>
+            </section>
+
+            <fieldset v-if="isNew && (previous.length > 0 || templates.length > 0)" class="choice-list">
                 <legend class="form-field__label list-form__legend">{{ t('listForm.start') }}</legend>
                 <label class="choice">
                     <input v-model="start" class="choice__radio" type="radio" :name="ids.start" value="empty">
@@ -532,16 +634,39 @@ function remove() {
                         <span class="choice__hint">{{ t('listForm.startEmptyHint') }}</span>
                     </span>
                 </label>
-                <p class="list-form__group-hint">
-                    <strong>{{ t('listForm.startPrevious') }}</strong> · {{ t('listForm.startPreviousHint') }}
-                </p>
-                <label v-for="item in previous" :key="item.id" class="choice">
-                    <input v-model="start" class="choice__radio" type="radio" :name="ids.start" :value="item.id">
-                    <span class="choice__text">
-                        <span class="choice__title">{{ previousTitle(item) }}</span>
-                        <span class="choice__hint">{{ t('listForm.previousCount', { count: item.counts?.total ?? 0 }) }}</span>
-                    </span>
-                </label>
+                <template v-if="templates.length > 0">
+                    <p class="list-form__group-hint">
+                        <strong>{{ t('listForm.startTemplate') }}</strong> · {{ t('listForm.startTemplateHint') }}
+                    </p>
+                    <label v-for="item in templates" :key="item.id" class="choice">
+                        <input
+                            v-model="start"
+                            class="choice__radio"
+                            type="radio"
+                            :name="ids.start"
+                            :value="TEMPLATE_PREFIX + item.id"
+                        >
+                        <span class="choice__text">
+                            <span class="choice__title">{{ item.name }}</span>
+                            <span class="choice__hint">
+                                {{ t('listForm.previousCount', { count: item.count ?? 0 }) }}
+                                · {{ item.householdId ? t('lists.originHousehold') : t('lists.originPersonal') }}
+                            </span>
+                        </span>
+                    </label>
+                </template>
+                <template v-if="previous.length > 0">
+                    <p class="list-form__group-hint">
+                        <strong>{{ t('listForm.startPrevious') }}</strong> · {{ t('listForm.startPreviousHint') }}
+                    </p>
+                    <label v-for="item in previous" :key="item.id" class="choice">
+                        <input v-model="start" class="choice__radio" type="radio" :name="ids.start" :value="item.id">
+                        <span class="choice__text">
+                            <span class="choice__title">{{ previousTitle(item) }}</span>
+                            <span class="choice__hint">{{ t('listForm.previousCount', { count: item.counts?.total ?? 0 }) }}</span>
+                        </span>
+                    </label>
+                </template>
             </fieldset>
 
             <AppButton

@@ -3,8 +3,9 @@
  * Sheet zum Verlassen, Wechseln oder Auflösen des Haushalts (Entscheidungen
  * „Wechsel“ und „Letztes Mitglied geht / Auflösen“).
  *
- * - Vorher bietet es an, einzelne Haushaltslisten als persönliche Kopie
- *   mitzunehmen (nichts vorgewählt); die Kopien entstehen vor dem Gehen.
+ * - Vorher bietet es an, einzelne Haushaltslisten und -vorlagen als
+ *   persönliche Kopie mitzunehmen (nichts vorgewählt); die Kopien entstehen
+ *   vor dem Gehen. Beim Löschen verschwinden auch die Vorlagen.
  * - `leave`: Die Listen bleiben im Haushalt. Als letztes Mitglied werden
  *   Haushalt und Listen gelöscht (Hinweis, Knopf „Verlassen und löschen“).
  * - `switch`: zusätzlich der Code des neuen Haushalts.
@@ -21,6 +22,7 @@ import AppSheet from '@/components/ui/AppSheet.vue';
 import { ApiError } from '@/api/index.js';
 import { dissolveHousehold, joinHousehold, leaveHousehold, leaveSituation } from '@/composables/useHousehold.js';
 import { copyListTo, loadLists, useLists } from '@/composables/useLists.js';
+import { copyTemplateTo, loadTemplates, useTemplates } from '@/composables/useTemplates.js';
 import { showToast } from '@/composables/useToast.js';
 import { formatShopDate } from '@/utils/shopDate.js';
 import { t } from '@/i18n/index.js';
@@ -46,14 +48,17 @@ const ids = {
 };
 
 const { activeLists, archivedLists } = useLists();
+const { overview: templateOverview } = useTemplates();
 
 const selected = ref([]);
+const selectedTemplates = ref([]);
 const code = ref('');
 const error = ref('');
 const pending = ref(false);
 
-// schon kopierte Listen: ein zweiter Versuch (z. B. falscher Code) kopiert nicht erneut
+// schon kopierte Listen und Vorlagen: ein zweiter Versuch (z. B. falscher Code) kopiert nicht erneut
 const copied = new Set();
+const copiedTemplates = new Set();
 
 const situation = computed(() => leaveSituation(props.household));
 const blocked = computed(() => props.mode !== 'dissolve' && situation.value.blocked);
@@ -62,6 +67,10 @@ const deletes = computed(() => props.mode === 'dissolve' || situation.value.last
 /** Listen des Haushalts, aktive zuerst. */
 const lists = computed(() => [...activeLists.value, ...archivedLists.value]
     .filter((list) => list.householdId === props.household.id));
+
+/** Vorlagen des Haushalts. */
+const templates = computed(() => templateOverview.templates
+    .filter((template) => template.householdId === props.household.id));
 
 const title = computed(() => {
     if (props.mode === 'dissolve') {
@@ -100,10 +109,13 @@ const confirmLabel = computed(() => {
 watch(open, (isOpen) => {
     if (isOpen) {
         selected.value = [];
+        selectedTemplates.value = [];
         code.value = '';
         error.value = '';
         copied.clear();
+        copiedTemplates.clear();
         loadLists().catch((loadError) => console.error(loadError));
+        loadTemplates().catch((loadError) => console.error(loadError));
     }
 });
 
@@ -163,6 +175,13 @@ async function confirm() {
             }
         }
 
+        for (const templateId of selectedTemplates.value) {
+            if (!copiedTemplates.has(templateId)) {
+                await copyTemplateTo(templateId, 'personal');
+                copiedTemplates.add(templateId);
+            }
+        }
+
         let toast;
 
         if (props.mode === 'dissolve') {
@@ -183,6 +202,10 @@ async function confirm() {
             toast += ' · ' + t('household.copiedLists', { count: copied.size });
         }
 
+        if (copiedTemplates.size > 0) {
+            toast += ' · ' + t('household.copiedTemplates', { count: copiedTemplates.size });
+        }
+
         open.value = false;
         showToast(toast, { icon: 'info' });
     } catch (failure) {
@@ -201,6 +224,9 @@ async function confirm() {
 
             <template v-else>
                 <p class="leave__text">{{ text }}</p>
+                <p v-if="deletes && templates.length > 0" class="leave__hint">
+                    {{ t('household.templatesDeleted', { count: templates.length }) }}
+                </p>
 
                 <label v-if="mode === 'switch'" class="form-field" :for="ids.code">
                     <span class="form-field__label">{{ t('household.code') }}</span>
@@ -228,6 +254,17 @@ async function confirm() {
                         <span class="choice__text">
                             <span class="choice__title">{{ list.name }}</span>
                             <span class="choice__hint">{{ listHint(list) }}</span>
+                        </span>
+                    </label>
+                </fieldset>
+
+                <fieldset v-if="templates.length > 0" class="leave__copies">
+                    <legend class="form-field__label">{{ t('household.copyTemplates') }}</legend>
+                    <label v-for="template in templates" :key="template.id" class="choice">
+                        <input v-model="selectedTemplates" class="leave__check" type="checkbox" :value="template.id">
+                        <span class="choice__text">
+                            <span class="choice__title">{{ template.name }}</span>
+                            <span class="choice__hint">{{ t('household.templateHint', { count: template.count ?? 0 }) }}</span>
                         </span>
                     </label>
                 </fieldset>

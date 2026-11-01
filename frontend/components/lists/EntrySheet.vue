@@ -8,6 +8,7 @@
  * Schritte: g und ml in 50ern, kg und l in halben, sonst ganze.
  *
  * v-model:open · entry (angezeigter Stand) · productName · listName
+ * · `subtitle` und `noteHint` ersetzen die Texte für Listen (Vorlage bearbeiten)
  * Emits: save({ quantity?, note? }) nur mit geänderten Feldern
  */
 import { computed, ref, useId, watch } from 'vue';
@@ -29,6 +30,14 @@ const props = defineProps({
         default: ''
     },
     listName: {
+        type: String,
+        default: ''
+    },
+    subtitle: {
+        type: String,
+        default: ''
+    },
+    noteHint: {
         type: String,
         default: ''
     }
@@ -134,7 +143,7 @@ function submit() {
     <AppSheet
         v-model:open="open"
         :title="productName"
-        :subtitle="listName ? t('entry.sheetSubtitle', { name: listName }) : ''"
+        :subtitle="subtitle || (listName ? t('entry.sheetSubtitle', { name: listName }) : '')"
     >
         <form :id="ids.form" class="entry-form" novalidate @submit.prevent="submit">
             <div class="form-field">
@@ -197,7 +206,7 @@ function submit() {
                     enterkeyhint="done"
                     :aria-describedby="ids.noteHint"
                 >
-                <span :id="ids.noteHint" class="form-field__hint">{{ t('entry.noteHint') }}</span>
+                <span :id="ids.noteHint" class="form-field__hint">{{ noteHint || t('entry.noteHint') }}</span>
             </label>
         </form>
 

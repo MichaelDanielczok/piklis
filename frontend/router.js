@@ -75,6 +75,17 @@ const routes = [
         component: () => import('./views/TemplatesView.vue')
     },
     {
+        path: '/templates/:id',
+        name: 'template',
+        component: () => import('./views/TemplateView.vue')
+    },
+    // dieselbe Produktauswahl wie bei Listen, füllt den Entwurf der Vorlage
+    {
+        path: '/templates/:id/add',
+        name: 'template-add',
+        component: () => import('./views/ListAddView.vue')
+    },
+    {
         path: '/profile',
         name: 'profile',
         component: () => import('./views/ProfileView.vue')

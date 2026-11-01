@@ -19,6 +19,11 @@
  *   „„Begriff“ neu anlegen“ (Produkt und Eintrag als Operationen).
  * - Bild oder Name öffnen das Produkt: auf der Liste mit Menge und Notiz,
  *   sonst die Produktseite. „Fertig“ führt zur Liste.
+ *
+ * Dieselbe Auswahl füllt beim Bearbeiten einer Vorlage deren Entwurf
+ * (Route `/templates/:id/add`, Schritt 12): Plus und Minus ändern nur den
+ * Entwurf, gespeichert wird erst in der Vorlage. Dort gibt es kein
+ * „erledigt“ und kein „nicht bekommen“; Bild oder Name öffnen das Produkt.
  */
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 import { onIonViewWillEnter, useIonRouter } from '@ionic/vue';
@@ -31,7 +36,8 @@ import AppButton from '@/components/ui/AppButton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import SearchField from '@/components/ui/SearchField.vue';
 import SectionLabel from '@/components/ui/SectionLabel.vue';
-import { createProductOnList, isVisible, listView, loadList, setProductQuantity } from '@/composables/useLists.js';
+import { createProductOnList, createQuickProduct, isVisible, listView, loadList, setProductQuantity } from '@/composables/useLists.js';
+import { draftFor, ensureTemplateLoaded, setDraftQuantity, startEditing, templateDetail } from '@/composables/useTemplates.js';
 import { loadProducts, loadSuggestions, useProducts } from '@/composables/useProducts.js';
 import { navigateBack } from '@/composables/usePageTransition.js';
 import { showToast } from '@/composables/useToast.js';
@@ -47,10 +53,41 @@ const route = useRoute();
 const ionRouter = useIonRouter();
 
 // Ionic hält Seiten im Verlauf; die ID gehört zu dieser Seite, nicht zur aktuellen Route
+const isTemplate = route.name === 'template-add';
 const listId = String(route.params.id ?? '');
-const backTo = '/lists/' + encodeURIComponent(listId);
+const backTo = (isTemplate ? '/templates/' : '/lists/') + encodeURIComponent(listId);
 
-const view = listView(listId);
+const listState = isTemplate ? null : listView(listId);
+
+/**
+ * Ziel der Auswahl im Format des Listenstands: `{ status, list: { name },
+ * entries }`. Bei einer Vorlage der Entwurf (ein offener Eintrag je Produkt).
+ */
+const view = computed(() => {
+    if (!isTemplate) {
+        return listState.value;
+    }
+
+    const detail = templateDetail(listId);
+    const draft = draftFor(listId);
+
+    if (detail.status === 'missing' || detail.status === 'error') {
+        return { status: detail.status, list: null, entries: null };
+    }
+
+    if (!draft) {
+        return { status: 'loading', list: null, entries: null };
+    }
+
+    const entries = new Map(draft.items.map((item) => [item.productId, {
+        id: item.productId,
+        productId: item.productId,
+        quantity: item.quantity,
+        status: 'open'
+    }]));
+
+    return { status: 'ready', list: { name: draft.name }, entries };
+});
 const { catalog, status: productStatus, search, findProduct } = useProducts();
 
 const query = ref('');
@@ -199,16 +236,27 @@ loadSuggestions().then((loaded) => {
     suggestionsLoaded.value = true;
 });
 
+/** Ziel laden; eine Vorlage direkt aufgerufen (z. B. neu geladen): Entwurf beginnen. */
+function loadTarget() {
+    if (!isTemplate) {
+        return loadList(listId);
+    }
+
+    return ensureTemplateLoaded(listId).then(() => {
+        startEditing(listId);
+    });
+}
+
 onIonViewWillEnter(() => {
     if (view.value.status !== 'ready') {
-        loadList(listId).catch((error) => console.error(error));
+        loadTarget().catch((error) => console.error(error));
     }
 
     loadProducts().catch((error) => console.error(error));
 });
 
 function retry() {
-    loadList(listId).catch((error) => console.error(error));
+    loadTarget().catch((error) => console.error(error));
     loadProducts().catch((error) => console.error(error));
 }
 
@@ -235,7 +283,11 @@ function metaOf(product) {
 function setQuantity(productId, amount) {
     const before = quantityOf(productId);
 
-    setProductQuantity(listId, productId, amount);
+    if (isTemplate) {
+        setDraftQuantity(listId, productId, amount);
+    } else {
+        setProductQuantity(listId, productId, amount);
+    }
 
     if (before === 0 && amount > 0) {
         announcement.value = t('addProducts.added', { name: productName(productId) });
@@ -245,7 +297,7 @@ function setQuantity(productId, amount) {
 }
 
 function openProduct(productId) {
-    const entry = onList.value.active.get(productId);
+    const entry = isTemplate ? null : onList.value.active.get(productId);
 
     if (entry) {
         ionRouter.push(backTo + '/entries/' + encodeURIComponent(entry.id));
@@ -265,7 +317,14 @@ function create() {
     }
 
     const name = searchText.value;
-    const productId = createProductOnList(listId, name);
+    let productId;
+
+    if (isTemplate) {
+        productId = createQuickProduct(name);
+        setDraftQuantity(listId, productId, 1);
+    } else {
+        productId = createProductOnList(listId, name);
+    }
 
     createdHere.value = [productId, ...createdHere.value];
     query.value = '';
@@ -340,7 +399,7 @@ onBeforeUnmount(() => {
                 <span class="picker__info">{{ info }}</span>
             </div>
 
-            <EmptyState v-if="failed" :icon="TriangleAlert" :title="t('list.loadError')">
+            <EmptyState v-if="failed" :icon="TriangleAlert" :title="isTemplate ? t('template.loadError') : t('list.loadError')">
                 <AppButton variant="secondary" @click="retry">{{ t('common.retry') }}</AppButton>
             </EmptyState>
 
@@ -379,7 +438,9 @@ onBeforeUnmount(() => {
                     <span class="picker__create-text">
                         <span class="picker__create-title">{{ t('addProducts.create', { name: searchText }) }}</span>
                         <span class="picker__create-hint">
-                            {{ canCreate ? t('addProducts.createHint') : t('addProducts.nameTooLong', { max: NAME_MAX }) }}
+                            {{ canCreate
+                                ? t(isTemplate ? 'addProducts.createHintTemplate' : 'addProducts.createHint')
+                                : t('addProducts.nameTooLong', { max: NAME_MAX }) }}
                         </span>
                     </span>
                 </button>

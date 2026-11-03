@@ -92,9 +92,8 @@ async function scan() {
 
             lastCode = code ?? '';
         }
-    } catch (error) {
-        // einzelne Bilder dürfen scheitern (z. B. noch kein Bild da)
-        console.debug('Scan', error);
+    } catch {
+        // einzelne Bilder dürfen scheitern (z. B. noch kein Bild da); nächstes Bild
     }
 
     if (!stopped) {

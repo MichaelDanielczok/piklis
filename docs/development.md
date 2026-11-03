@@ -133,6 +133,15 @@ npm test
 - The built-in browser of the Claude desktop app does not register service
   workers (“An unknown error occurred when fetching the script”); check the
   PWA in Chrome or Safari.
+- Offline in the dev server: Einstellungen › Entwicklung › “Offline
+  simulieren” (stays on across reloads, per origin). Two users at once:
+  <http://localhost:5180> and <http://127.0.0.1:5180> keep separate cookies,
+  `localStorage` and IndexedDB.
+- PWA offline with the build: the mock backend serves the start page, the
+  build, `/sw.js` and `/manifest.webmanifest` at <http://localhost:8180/>
+  (`localhost` is a secure context). Open it twice (the second visit is
+  controlled by the service worker), then stop `piklis-mock-php`: the app
+  starts from the cache and IndexedDB, images come from `pk-images`.
 
 ## Real instance and deployment
 

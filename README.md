@@ -23,7 +23,17 @@ under `design/piklis-designpaket/`.
   tile, section label, sheet, skeleton row) with a pattern page in the dev
   server (`/#/components`)
 - Permission `piklis.products.manage` for product maintainers
-- PWA: manifest, service worker (precache, start page stale-while-revalidate)
+- PWA: manifest, service worker (precache, start page stale-while-revalidate,
+  product images cache-first)
+- Offline: active lists, catalog and the images of the products on the
+  lists stay on the device (IndexedDB module without a library, image cache
+  of the service worker); start without network from the local state;
+  check, change quantities, add from the local catalog, sort and complete
+  offline; the queue survives reloading and is sent in order on
+  reconnecting, with the offline note and “noch nicht übertragen” per
+  entry; conflicts through the choice sheet; changes to a list whose share
+  was revoked can be saved as an own list; “Offline simulieren” switch in
+  the dev server
 - Data model and sync: lists, entries and change log in the database;
   all changes as operations with ID (`POST /ops`), revision per list,
   “all since revision N” (`GET /lists/{id}?since=N`), conflict rules per

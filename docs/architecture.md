@@ -57,6 +57,7 @@ committed because the server does not build (no Node there).
 | `app.js`, `App.vue`, `router.js` | entry, shell, routes |
 | `api/index.js` | the only module that talks to the server (REST and core Ajax) |
 | `api/operations.js` | operations: builders, queue, sending, pull since revision (see [Sync](#sync)) |
+| `api/localStore.js` | local storage in IndexedDB without a library: the queue and the offline copies (see [Offline](#offline)) |
 | `composables/` | shared state: session (with the household summary), household (`useHousehold.js`), templates with their drafts (`useTemplates.js`), toast, page transition, product catalog (`useProducts.js`), server settings (`useConfig.js`), media query, shopping lists (`useLists.js`), sorting by the drag handle (`useDragSort.js`), swiping a row (`useRowSwipe.js`) |
 | `components/layout/` | page frame and header, sidebar, mobile navigation, nav items, user menu |
 | `components/ui/` | button, sheet, section label, theme switch, avatar, logo, empty state, search field |
@@ -238,7 +239,13 @@ Add a language later, e.g. Polish:
   the Workbox runtime is inlined.
 - Precache: all `js`, `css`, fonts and icons. The start page `/` uses
   `StaleWhileRevalidate` (otherwise the installed app shows white for a
-  while). `/admin/`, `/api/`, `/media/` and `/ajax.php` are never cached.
+  while). Product images in list and detail size
+  (`/media/cache/…__128x128.webp`, `__640x640.webp`) use `CacheFirst` in
+  the cache `pk-images` (600 entries, 60 days; every new image has a new
+  address). `/admin/`, `/api/`, `/ajax.php`, the large view and originals
+  are never cached; data offline lives in IndexedDB (see [Offline](#offline)).
+- The app asks for persistent storage (`navigator.storage.persist()`), so
+  the browser does not clear the offline copies under storage pressure.
 - A new build takes over immediately (`skipWaiting`, `clientsClaim`); an
   open page reloads once on `controllerchange`.
 - Service workers need a secure context: HTTPS or `localhost`.
@@ -650,7 +657,7 @@ merge rules in `Sync\TakeOverMerge`, cases shared with
 - **Revoking a share** deletes the share row: the list disappears from the
   guest's overview at the next poll, an open list shows “Kein Zugriff mehr”
   at its next poll (5 s); their pending operations get `no_access` (see
-  table; “als eigene Liste speichern” comes with step 13). The same happens when somebody leaves a household
+  table; “als eigene Liste speichern”, see [Offline](#offline)). The same happens when somebody leaves a household
   (household lists stay there) or a household is dissolved (its lists are
   deleted: `list_deleted`).
 
@@ -702,9 +709,8 @@ merge rules in `Sync\TakeOverMerge`, cases shared with
   visible. While sending fails, pending entries show “noch nicht
   übertragen” and the list a blue offline note with the number of waiting
   changes.
-- Storage: in memory now (`createMemoryStorage()`); step 13 adds IndexedDB
-  with the same interface `{ load(), save(ops) }`, plus the offline copies of
-  lists, catalog and images.
+- Storage: IndexedDB (`localStore.queueStorage`, see [Offline](#offline));
+  `createMemoryStorage()` remains for tests.
 
 ### Sort keys
 
@@ -747,6 +753,79 @@ merge rules in `Sync\TakeOverMerge`, cases shared with
 - Stored as `decimal(10,3)`; PHP compares in thousandths, so `equals()` is
   exact. Package size (“1,5 l”) belongs to the product; the quantity counts
   packages.
+
+## Offline
+
+Concept in Obsidian “Piklis Konzept” › “Offline und Synchronisierung”,
+decisions “Lokaler Speicher” and “Freigabe entzogen”.
+
+- **Local storage** (`api/localStore.js`, IndexedDB `piklis`, own module
+  without a library): store `ops` holds the queue, one record per operation
+  (`{ seq, op }`, key = operation ID); `save(ops)` writes only the
+  difference to the last call in one transaction, transactions on the same
+  store run in call order, so the last reported state always wins, also
+  for fast repeated taps (the queue reports an operation before it is
+  saved). Store `data` holds the offline copies: `me` (user), `overview`
+  (`GET /lists`), `list:<id>` (server state `{ list, revision, entries }`
+  of every active list, and of a list with pending operations),
+  `orphan:<id>` (see below), `products` and `suggestions`, plus
+  `meta:user`. Values go in as JSON (Vue proxies cannot be cloned). Without
+  IndexedDB the same module works in memory.
+- **One user**: `bindUser(id)` after the session is known; data of another
+  user is deleted first, the queue only loads after that. Signing out
+  deletes everything (`wipe`); an expired session (401) keeps everything, so
+  pending changes are sent after signing in again as the same user.
+- **Start**: `loadSession()` asks `GET /me`; without a server (network
+  error, 5xx) it uses the stored user and starts offline. Before the first
+  view the modules restore their state (`onSessionStart`: overview, lists,
+  orphans, catalog, suggestions, locally created products from pending
+  `product.create`) and the queue is sent. Without a stored user the login
+  page says that the server is unreachable.
+- **What is offline**: after every `GET /lists` the app fetches every
+  active list it has not loaded yet (`prefetchActiveLists`), also when it
+  starts on another view; the overview and these lists are written shortly
+  after every change (`persistNow`, 300 ms, only changed keys, and on
+  `pagehide`); lists that are no longer active or accessible are removed.
+  The catalog is written after every confirmed change. Images of the
+  products on these lists (128 and 640 px) are fetched once into
+  `pk-images` (`utils/offlineImages.js`, only with an active service
+  worker, four at a time). Templates are online only (decision): the view
+  keeps what it loaded in this session with a note, otherwise it says
+  “Vorlagen nur mit Verbindung”.
+- **Offline use**: check, uncheck, not got, quantities and notes, adding
+  from the local catalog (also new products), sorting, completing and
+  creating lists all go through the queue and are shown at once. Moving,
+  copying and sharing are REST calls: offline they answer “Das geht nur mit
+  Verbindung.”
+- **Display**: connection state in `composables/useConnection.js` (a
+  request failed with a network error, browser `offline`, or the dev
+  switch). While offline or while sending fails: blue note at the top of
+  the overview and of the list (`OfflineNote.vue`) with the number of
+  waiting changes, and every entry with a pending change shows a cloud and
+  “noch nicht übertragen” on its own line (also checked and not-got
+  entries). A list that is not on the device shows “Nicht auf diesem
+  Gerät”.
+- **Reconnecting**: `online`, app visible again, retry timer (1/3/10/30 s)
+  or the dev switch send the queue in order; answers and polls merge as
+  usual, conflicts (quantity, note, old check, removed) open the conflict
+  sheet. Expected network errors of background loads are logged as info
+  (`logError`), not as errors.
+- **Share revoked, list deleted** (`no_access`, `list_deleted` for pending
+  operations): the rejected operations are kept per list as an orphan
+  (last known server state plus the rejected operations, stored as
+  `orphan:<id>`). The list shows “Kein Zugriff mehr” or “Liste gelöscht”
+  and below it, like the overview, `OrphanNotice.vue`: “Als eigene Liste
+  speichern” creates a personal list with the name and the entries
+  including the own changes (`list.create`, `entry.add`, status for done
+  and not-got entries); “Änderungen verwerfen” drops them. Either way the
+  local copy disappears.
+- **Testing** in the dev server: Einstellungen › Entwicklung › “Offline
+  simulieren” (`setSimulatedOffline` in `api/index.js`, kept in
+  `localStorage` `pk.dev.offline` across reloads): every API request fails
+  like without network. Images are not cached in the dev server (no service
+  worker); test the PWA with the build through the mock backend at
+  <http://localhost:8180/> (see docs/development.md). Einstellungen shows
+  what is stored (lists, products, images, size, waiting changes).
 
 ## Shopping lists
 
@@ -1273,8 +1352,8 @@ picture of SmartPicker.
   `quiqqer/cache` with `webp=1` (HTML cache, JS cache and lazy loading
   off, see docs/development.md).
 - **Protection**: whoever knows an address sees the image without login
-  (decision “Schutz”). `/media/` is not cached by the service worker yet
-  (offline images come with step 13).
+  (decision “Schutz”). The service worker caches the 128 and 640 px sizes
+  for offline use (see [Offline](#offline)).
 - **Display**: `ProductImage` takes `imageUrl` (128 px) in rows and tiles,
   `image.medium` in the detail; done rows show photos with an overlay
   (`muted`). The detail opens the large view (`ImageViewer.vue`,
@@ -1296,7 +1375,7 @@ picture of SmartPicker.
 | `PATCH` / `DELETE` | `/household/members/{userId}` | `{ role: admin \| member }` / remove a member (admins) |
 | `GET` | `/templates` | accessible templates without entries, with `role`, `count`, `preview` (first four product IDs), sorted by name (ETag) |
 | `POST` | `/templates` | `{ id, name, householdId, entries: [{ productId, quantity, note }] }`: create (201, again 200 `unchanged`) |
-| `GET` | `/templates/{id}` | `{ template }` with `entries`, `role`, `updatedByName` (ETag); `403 no_access`, `410 template_deleted` |
+| `GET` | `/templates/{id}` | `{ template }` with `entries`, `role`, `updatedByName` (ETag); `410 template_deleted` (checked first, like lists: also former members of a dissolved household), `403 no_access` |
 | `PUT` | `/templates/{id}` | `If-Match: "<revision>"`, `{ name, entries }`: save as a whole; `409 template_changed` with `template`, `428 precondition_required`, `400 invalid_template` / `unknown_product` with `field` |
 | `DELETE` | `/templates/{id}` | tombstone (owner, members): `{ status: 'deleted' }` |
 | `POST` | `/templates/{id}/move` | `{ to: 'household' }`: personal template into the household (owner) |

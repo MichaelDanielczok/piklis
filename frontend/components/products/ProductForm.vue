@@ -1,7 +1,7 @@
 <script setup>
 /**
  * Produkt anlegen oder bearbeiten (Designpaket 11, ohne Kurzname, Zutaten
- * und Nährwerte). Nur der Name ist Pflicht. Das Foto (`ProductImageField`)
+ * und Nährwerte; die kommen nur aus Open Food Facts). Nur der Name ist Pflicht. Das Foto (`ProductImageField`)
  * wird nach den Produktdaten hochgeladen, beim Anlegen also erst, wenn das
  * Produkt existiert.
  *
@@ -38,6 +38,7 @@ import { t } from '@/i18n/index.js';
 
 const NAME_MAX = 120;
 const SIZE_MAX = 50;
+const BRAND_MAX = 120;
 const DESCRIPTION_MAX = 2000;
 const SUGGESTION_LIMIT = 5;
 
@@ -65,6 +66,7 @@ const isNew = computed(() => props.product === null);
 const form = reactive({
     name: props.product?.name ?? props.initialName,
     packageSize: props.product?.packageSize ?? '',
+    brand: props.product?.brand ?? '',
     category: props.product?.category ?? '',
     icon: iconOf(props.product),
     description: props.product?.description ?? ''
@@ -105,6 +107,7 @@ const ids = {
     nameError: useId(),
     suggestions: useId(),
     packageSize: useId(),
+    brand: useId(),
     category: useId(),
     categoryHint: useId(),
     iconHint: useId(),
@@ -134,6 +137,7 @@ function fieldsFromForm() {
     return {
         name: form.name.trim(),
         packageSize: form.packageSize.trim() || null,
+        brand: form.brand.trim() || null,
         category: form.category || null,
         icon: form.icon === DEFAULT_ICON ? null : form.icon,
         description: form.description.trim() || null
@@ -296,6 +300,21 @@ onMounted(async () => {
                 autocomplete="off"
                 :maxlength="SIZE_MAX"
                 :placeholder="t('productForm.packageSizePlaceholder')"
+            >
+        </div>
+
+        <div class="form-field">
+            <label :for="ids.brand" class="form-field__label">{{ t('productForm.brand') }}</label>
+            <input
+                :id="ids.brand"
+                v-model="form.brand"
+                class="form-field__input"
+                type="text"
+                name="brand"
+                autocomplete="off"
+                autocapitalize="words"
+                :maxlength="BRAND_MAX"
+                :placeholder="t('productForm.brandPlaceholder')"
             >
         </div>
 

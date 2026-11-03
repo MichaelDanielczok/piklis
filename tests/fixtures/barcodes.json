@@ -1,0 +1,19 @@
+{
+    "valid": [
+        { "input": "4311501489840", "barcode": "4311501489840" },
+        { "input": " 4 311501 489840 ", "barcode": "4311501489840" },
+        { "input": "4311501-489840", "barcode": "4311501489840" },
+        { "input": "22144928", "barcode": "22144928" },
+        { "input": "036000291452", "barcode": "036000291452" },
+        { "input": "14311501489847", "barcode": "14311501489847" }
+    ],
+    "invalid": [
+        { "input": "", "reason": "required" },
+        { "input": "   ", "reason": "required" },
+        { "input": "43115O1489840", "reason": "invalid" },
+        { "input": "1234567", "reason": "invalid" },
+        { "input": "12345678901", "reason": "invalid" },
+        { "input": "4311501489841", "reason": "checksum" },
+        { "input": "4311501498840", "reason": "checksum" }
+    ]
+}

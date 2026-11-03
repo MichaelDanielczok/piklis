@@ -6,7 +6,13 @@
  * Produkt im Zustand.
  *
  * Bilder: `product.image` = { small (128 px), medium (640), large (1600),
- * original } als Adressen im Media-Cache (WebP), `product.imageUrl` = small.
+ * original } als Adressen im Media-Cache (WebP), `product.imageUrl` = small,
+ * `product.imageSource` = 'openfoodfacts' für ein von dort übernommenes Bild.
+ *
+ * Open Food Facts: `product.barcode`, `product.brand` und `product.foodFacts`
+ * = { fetchedAt, language, ingredients, nutrition, url } oder null. Sie
+ * liegen mit dem Katalog im lokalen Speicher, das Detail zeigt sie also auch
+ * offline; nachschlagen und übernehmen geht nur online.
  *
  * Offline: Katalog und Vorschläge liegen nach jedem Laden im lokalen
  * Speicher (`localStore`, Schlüssel `products` und `suggestions`); beim Start
@@ -189,8 +195,12 @@ export function addLocalProduct(product) {
         icon: null,
         description: null,
         packageSize: null,
+        brand: null,
+        barcode: null,
+        foodFacts: null,
         image: null,
         imageUrl: null,
+        imageSource: null,
         hidden: false,
         createdBy: user.value?.id ?? null,
         ...product,
@@ -243,7 +253,7 @@ export async function setProductHidden(productId, hidden) {
 /**
  * Bild setzen, ersetzen oder neu zuschneiden (ohne `original`).
  *
- * @param {{ image: Blob, original?: Blob|null }} files
+ * @param {{ image: Blob, original?: Blob|null, source?: string|null }} files
  */
 export async function setProductImage(productId, files) {
     const { product } = await api.uploadProductImage(productId, files);
@@ -253,6 +263,22 @@ export async function setProductImage(productId, files) {
 
 export async function removeProductImage(productId) {
     const { product } = await api.removeProductImage(productId);
+
+    return upsert(product);
+}
+
+/**
+ * Gewählte Angaben aus Open Food Facts übernehmen (Werte aus dem Cache des
+ * Servers). @param {{ barcode: string, fields: string[] }} choice
+ */
+export async function applyFoodFacts(productId, choice) {
+    const { product } = await api.applyFoodFacts(productId, choice);
+
+    return upsert(product);
+}
+
+export async function removeFoodFacts(productId) {
+    const { product } = await api.removeFoodFacts(productId);
 
     return upsert(product);
 }

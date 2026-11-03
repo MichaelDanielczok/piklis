@@ -7,22 +7,38 @@ use MichaelDanielczok\Piklis\FoodFacts\InvalidBarcodeException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
+use function file_get_contents;
+use function json_decode;
+
 class BarcodeTest extends TestCase
 {
+    /**
+     * Gemeinsame Fälle mit `tests/js/barcode.test.js`.
+     *
+     * @return array{valid: list<array{input: string, barcode: string}>, invalid: list<array{input: string, reason: string}>}
+     */
+    private static function fixture(): array
+    {
+        /** @var array{valid: list<array{input: string, barcode: string}>, invalid: list<array{input: string, reason: string}>} $fixture */
+        $fixture = json_decode((string)file_get_contents(__DIR__ . '/../../fixtures/barcodes.json'), true);
+
+        return $fixture;
+    }
+
     /**
      * @return array<string, array{0: mixed, 1: string}>
      */
     public static function validBarcodes(): array
     {
-        return [
-            'EAN-13' => ['4311501489840', '4311501489840'],
-            'EAN-13 mit Leerzeichen' => [' 4 311501 489840 ', '4311501489840'],
-            'EAN-13 mit Bindestrichen' => ['4311501-489840', '4311501489840'],
-            'EAN-8' => ['22144928', '22144928'],
-            'UPC-A' => ['036000291452', '036000291452'],
-            'GTIN-14' => ['14311501489847', '14311501489847'],
+        $cases = [
             'Zahl' => [4311501489840, '4311501489840']
         ];
+
+        foreach (self::fixture()['valid'] as $case) {
+            $cases['"' . $case['input'] . '"'] = [$case['input'], $case['barcode']];
+        }
+
+        return $cases;
     }
 
     #[DataProvider('validBarcodes')]
@@ -36,15 +52,15 @@ class BarcodeTest extends TestCase
      */
     public static function invalidBarcodes(): array
     {
-        return [
-            'leer' => ['  ', 'required'],
-            'null' => [null, 'required'],
-            'Buchstaben' => ['43115O1489840', 'invalid'],
-            'zu kurz' => ['1234567', 'invalid'],
-            '11 Ziffern' => ['12345678901', 'invalid'],
-            'Tippfehler' => ['4311501489841', 'checksum'],
-            'Zahlendreher' => ['4311501498840', 'checksum']
+        $cases = [
+            'null' => [null, 'required']
         ];
+
+        foreach (self::fixture()['invalid'] as $case) {
+            $cases['"' . $case['input'] . '"'] = [$case['input'], $case['reason']];
+        }
+
+        return $cases;
     }
 
     #[DataProvider('invalidBarcodes')]

@@ -8,6 +8,10 @@
  * Produktpfleger alle) und Aus-/Einblenden (nur Produktpfleger). Ohne Recht
  * steht dort ein Hinweis statt der Knöpfe.
  *
+ * Open Food Facts (Schritt 14): Marke unter dem Namen; Zutaten, Nährwerte
+ * und Quelle aufklappbar (`FoodFactsDetails`); mit Recht zum Bearbeiten
+ * „Mit Open Food Facts ergänzen“ bzw. „Neu abrufen“ (`FoodFactsSheet`).
+ *
  * Genutzt auf der Detailseite (Handy), rechts in der Produktpflege
  * (Desktop) und im Kontext einer Einkaufsliste: Der Slot `context` steht
  * nach der Beschreibung (Menge und Notiz in dieser Liste). `headingLevel`
@@ -15,11 +19,13 @@
  * Emits: edit
  */
 import { computed, ref } from 'vue';
-import { Eye, EyeOff, Maximize2, Pencil } from '@lucide/vue';
+import { Eye, EyeOff, Maximize2, Pencil, ScanBarcode } from '@lucide/vue';
 import AppButton from '@/components/ui/AppButton.vue';
+import FoodFactsDetails from './FoodFactsDetails.vue';
+import FoodFactsSheet from './FoodFactsSheet.vue';
 import ImageViewer from './ImageViewer.vue';
 import ProductImage from './ProductImage.vue';
-import { canEditProduct, setProductHidden, useProducts } from '@/composables/useProducts.js';
+import { canEditProduct, removeFoodFacts, setProductHidden, useProducts } from '@/composables/useProducts.js';
 import { showToast } from '@/composables/useToast.js';
 import { categoryOf, iconOf } from '@/products/catalog.js';
 import { t } from '@/i18n/index.js';
@@ -42,6 +48,26 @@ const { canManageProducts, isOwn } = useProducts();
 const canEdit = computed(() => canEditProduct(props.product));
 const pending = ref(false);
 const viewerOpen = ref(false);
+const foodFactsOpen = ref(false);
+const foodFactsMode = ref('add');
+
+function openFoodFacts(mode) {
+    foodFactsMode.value = mode;
+    foodFactsOpen.value = true;
+}
+
+async function unlinkFoodFacts() {
+    pending.value = true;
+
+    try {
+        await removeFoodFacts(props.product.id);
+        showToast(t('foodFacts.unlinkedToast'), { icon: 'info' });
+    } catch (error) {
+        showToast(t(error?.status === 0 ? 'common.onlineOnly' : 'products.saveError'), { icon: 'notgot' });
+    } finally {
+        pending.value = false;
+    }
+}
 
 async function toggleHidden(hidden) {
     pending.value = true;
@@ -104,7 +130,17 @@ async function toggleHidden(hidden) {
                 </span>
             </p>
             <component :is="'h' + headingLevel" class="product-detail__name">{{ product.name }}</component>
-            <p v-if="product.packageSize" class="product-detail__size">{{ product.packageSize }}</p>
+            <p v-if="product.brand || product.packageSize" class="product-detail__size">
+                <span v-if="product.brand" class="product-detail__brand">
+                    <span class="visually-hidden">{{ t('products.brand') }}:</span>
+                    {{ product.brand }}
+                </span>
+                <span v-if="product.brand && product.packageSize" aria-hidden="true"> · </span>
+                <span v-if="product.packageSize">
+                    <span class="visually-hidden">{{ t('products.packageSize') }}:</span>
+                    {{ product.packageSize }}
+                </span>
+            </p>
         </div>
 
         <p v-if="product.description" class="product-detail__description">{{ product.description }}</p>
@@ -115,6 +151,14 @@ async function toggleHidden(hidden) {
         <p v-if="product.hidden" class="product-detail__note">{{ t('products.hiddenHint') }}</p>
 
         <slot name="context" />
+
+        <FoodFactsDetails
+            :product="product"
+            :can-edit="canEdit"
+            :pending="pending"
+            @refresh="openFoodFacts('refresh')"
+            @unlink="unlinkFoodFacts"
+        />
 
         <div class="product-detail__actions">
             <AppButton v-if="canEdit" variant="primary" @click="$emit('edit')">
@@ -133,10 +177,16 @@ async function toggleHidden(hidden) {
             </template>
         </div>
 
+        <AppButton v-if="canEdit && !product.foodFacts" variant="secondary" block @click="openFoodFacts('add')">
+            <ScanBarcode aria-hidden="true" />
+            {{ t('foodFacts.add') }}
+        </AppButton>
+
         <p v-if="!canEdit" class="product-detail__note">{{ t('products.readOnly') }}</p>
         <p v-else-if="isOwn(product) && !canManageProducts" class="product-detail__note">{{ t('products.own') }}</p>
 
         <ImageViewer v-if="product.image" v-model:open="viewerOpen" :src="product.image.large" :alt="product.name" />
+        <FoodFactsSheet v-if="canEdit" v-model:open="foodFactsOpen" :product="product" :mode="foodFactsMode" />
     </article>
 </template>
 
@@ -233,6 +283,10 @@ async function toggleHidden(hidden) {
     font-size: var(--font-size-text);
     font-weight: var(--font-weight-semibold);
     line-height: var(--line-height-qty);
+}
+
+.product-detail__brand {
+    color: var(--color-text-1);
 }
 
 .product-detail__description {

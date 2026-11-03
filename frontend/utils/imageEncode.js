@@ -67,6 +67,39 @@ export function renderOriginal(image, maxPixels) {
     return toJpeg(canvas.element, ORIGINAL_QUALITY);
 }
 
+/**
+ * Setzt ein Bild mittig auf eine weiße quadratische Fläche (längste Seite,
+ * höchstens `maxPixels`), damit sich hohe Packungen (Milch, Flaschen) ganz
+ * zuschneiden lassen. Für Bilder aus Open Food Facts vor dem Zuschnitt.
+ *
+ * @param {Blob} blob
+ * @param {number} maxPixels
+ * @returns {Promise<Blob>}
+ */
+export async function padToSquare(blob, maxPixels) {
+    const { image, url, width, height } = await loadImage(blob);
+
+    try {
+        const side = Math.min(Math.max(width, height), maxPixels);
+        const scale = side / Math.max(width, height);
+        const drawWidth = Math.round(width * scale);
+        const drawHeight = Math.round(height * scale);
+        const canvas = createCanvas(side, side);
+
+        canvas.context.drawImage(
+            image,
+            Math.round((side - drawWidth) / 2),
+            Math.round((side - drawHeight) / 2),
+            drawWidth,
+            drawHeight
+        );
+
+        return await toJpeg(canvas.element, ORIGINAL_QUALITY);
+    } finally {
+        URL.revokeObjectURL(url);
+    }
+}
+
 function createCanvas(width, height) {
     const element = document.createElement('canvas');
 

@@ -506,10 +506,13 @@ export const api = {
      * quadratische Zuschnitt (JPEG, cropSize px), `original` das verkleinerte
      * Original; ohne `original` bleibt das bisherige (neu zuschneiden).
      *
+     * `source: 'openfoodfacts'` markiert ein von Open Food Facts übernommenes
+     * Bild (Lizenzhinweis am Produkt).
+     *
      * @param {string} productId
-     * @param {{ image: Blob, original?: Blob|null }} files
+     * @param {{ image: Blob, original?: Blob|null, source?: string|null }} files
      */
-    uploadProductImage(productId, { image, original = null }) {
+    uploadProductImage(productId, { image, original = null, source = null }) {
         const form = new FormData();
 
         form.append('image', image, 'image.jpg');
@@ -518,12 +521,76 @@ export const api = {
             form.append('original', original, 'original.jpg');
         }
 
+        if (source) {
+            form.append('source', source);
+        }
+
         return request('POST', '/products/' + encodeURIComponent(productId) + '/image', form);
     },
 
     /** Produktbild entfernen (wieder das Ersatzicon): { product } */
     removeProductImage(productId) {
         return request('DELETE', '/products/' + encodeURIComponent(productId) + '/image');
+    },
+
+    /**
+     * Barcode bei Open Food Facts nachschlagen (über den Server, mit Cache):
+     * { result: { barcode, name, brand, packageSize, ingredients, language,
+     * nutrition, hasImage, fields, url, fetchedAt } }. Fehler: 400
+     * invalid_barcode (reason), 404 off_not_found, 429 off_busy, 503
+     * off_unavailable. `refresh` fragt Open Food Facts neu („Neu abrufen“).
+     */
+    lookupFoodFacts(barcode, { refresh = false, signal } = {}) {
+        const query = refresh ? '?refresh=1' : '';
+
+        return request('GET', '/openfoodfacts/' + encodeURIComponent(barcode) + query, undefined, { signal });
+    },
+
+    /**
+     * Vorderseitenbild des Treffers als Blob (über den Server): 400 px zur
+     * Vorschau, `full` in voller Größe zum Zuschneiden.
+     */
+    async getFoodFactsImage(barcode, { full = false } = {}) {
+        if (simulatedOffline) {
+            throw networkError();
+        }
+
+        let response;
+
+        try {
+            response = await fetch(this.foodFactsImageUrl(barcode, { full }), { credentials: 'same-origin' });
+        } catch {
+            throw networkError();
+        }
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => null);
+
+            throw new ApiError(response.status, data?.error ?? 'http_' + response.status, data?.message);
+        }
+
+        return response.blob();
+    },
+
+    /** Adresse des Vorderseitenbilds (für `<img>` in der Vorschau). */
+    foodFactsImageUrl(barcode, { full = false } = {}) {
+        return REST_BASE + '/openfoodfacts/' + encodeURIComponent(barcode) + '/image' + (full ? '?size=full' : '');
+    },
+
+    /**
+     * Gewählte Angaben übernehmen: { product }. Die Werte nimmt der Server aus
+     * seinem Cache; `image` verknüpft nur, das Bild lädt die App danach hoch.
+     *
+     * @param {string} productId
+     * @param {{ barcode: string, fields: string[] }} choice
+     */
+    applyFoodFacts(productId, { barcode, fields }) {
+        return request('POST', '/products/' + encodeURIComponent(productId) + '/openfoodfacts', { barcode, fields });
+    },
+
+    /** Verknüpfung mit Open Food Facts lösen (Zutaten und Nährwerte weg): { product } */
+    removeFoodFacts(productId) {
+        return request('DELETE', '/products/' + encodeURIComponent(productId) + '/openfoodfacts');
     },
 
     async login(username, password) {

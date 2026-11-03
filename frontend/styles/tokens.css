@@ -83,6 +83,8 @@
     --viewer-bg: #0E0F0F;
     --viewer-text: #ECEDEA;
     --viewer-button-bg: rgb(38 42 40 / 0.72);
+    /* Scanner: Kamerabild außerhalb des Zielrahmens abgedunkelt */
+    --scanner-shade: rgb(14 15 15 / 0.45);
 
     /* Glas hinter Statusleiste und Navigation (folgt --color-bg) */
     --bar-glass-bg: color-mix(in srgb, var(--color-bg) 80%, transparent);

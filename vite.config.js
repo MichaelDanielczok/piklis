@@ -68,7 +68,10 @@ const pwa = VitePWA({
         // Workbox-Laufzeit im sw.js, ein importScripts() suchte sie sonst unter /
         inlineWorkboxRuntime: true,
         globPatterns: ['**/*.{js,css,woff2,webp,png,svg}'],
-        globIgnores: ['sw.js'],
+        // Barcode-Scanner (barcode-detector, zxing-wasm ~1 MB) nur beim Scannen
+        // nachgeladen und nicht vorab gecacht: Scannen braucht ohnehin Verbindung
+        // (Open Food Facts); .wasm fällt schon durch globPatterns heraus.
+        globIgnores: ['sw.js', 'chunks/barcodeScanner-*.js', 'chunks/ponyfill-*.js'],
         modifyURLPrefix: { '': appBase },
         cleanupOutdatedCaches: true,
         // Die Startseite liefert QUIQQER; gecacht wird sie unten zur Laufzeit

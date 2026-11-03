@@ -13,6 +13,7 @@
     "@ionic/vue": "^9.0.6",
     "@ionic/vue-router": "^9.0.6",
     "@lucide/vue": "^1.50.0",
+    "barcode-detector": "^3.2.3",
     "vue": "^3.5.43",
     "vue-router": "^5.3.1"
   },

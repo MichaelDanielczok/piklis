@@ -743,7 +743,7 @@ export default {
         create: 'Haushalt anlegen',
         createText: 'Du wirst Administrator und bekommst einen Einladungscode für die anderen.',
         name: 'Name des Haushalts',
-        namePlaceholder: 'z. B. Familie Danielczok',
+        namePlaceholder: 'z. B. Familie Müller',
         nameRequired: 'Bitte einen Namen eingeben.',
         join: 'Mit Code beitreten',
         joinText: 'Den Code bekommst du von einem Administrator des Haushalts.',

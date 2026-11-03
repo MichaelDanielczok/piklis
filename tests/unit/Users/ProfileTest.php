@@ -14,7 +14,7 @@ class ProfileTest extends TestCase
 {
     public function testInitialsFromFirstAndLastName(): void
     {
-        $this->assertSame('MD', Profile::initials('Michael', 'Danielczok', 'Michael'));
+        $this->assertSame('AM', Profile::initials('Anna', 'Muster', 'Anna'));
         $this->assertSame('ÖÄ', Profile::initials(' öz ', ' äb ', 'öz'));
     }
 

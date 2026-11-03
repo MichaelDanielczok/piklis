@@ -27,4 +27,8 @@ export function registerServiceWorker() {
         // ohne sicheren Kontext (HTTP außer localhost) gibt es keinen Service Worker; die App läuft trotzdem
         console.warn('Service worker not registered', error);
     });
+
+    // Offline-Kopien (IndexedDB, Bilder) nicht bei Speicherknappheit räumen lassen;
+    // der Browser entscheidet selbst (installierte PWA meist ja), Ablehnung ist folgenlos
+    navigator.storage?.persist?.().catch(() => {});
 }

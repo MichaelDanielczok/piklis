@@ -16,7 +16,12 @@
  *   mit einem geteilten Liste (Gast) stattdessen „Geteilte Liste“ mit
  *   „Liste verlassen“ (`ListShareSheet`).
  * - Freigabe entzogen oder Liste gelöscht (auch beim Live-Abgleich): eine
- *   klare Meldung statt der Liste.
+ *   klare Meldung statt der Liste; nicht übertragene eigene Änderungen
+ *   bleiben mit „Als eigene Liste speichern“ (`OrphanNotice`).
+ * - Offline (docs/architecture.md, „Offline“): oben der blaue Hinweis mit
+ *   der Zahl wartender Änderungen, je Eintrag „noch nicht übertragen“.
+ *   Abhaken, Mengen, Hinzufügen, Sortieren und Abschließen gehen über die
+ *   Warteschlange; Verschieben, Kopieren und Teilen nur mit Verbindung.
  * - Nach links wischen: „Nicht bekommen“ (eigener Abschnitt, mit
  *   „Rückgängig“ im Toast); dort wischen: „Wieder offen“. Der Pfeil in der
  *   Zeile oder „Alle übernehmen …“ übernimmt in eine andere Liste
@@ -38,6 +43,7 @@
  * (`useDragSort` arbeitet am DOM); was inzwischen kam, erscheint beim
  * Ablegen, und der gezogene Eintrag landet hinter demselben Nachbarn.
  */
+import { logError } from '@/api/index.js';
 import { computed, nextTick, ref, shallowRef, useTemplateRef, watch } from 'vue';
 import { onIonViewWillEnter, useIonRouter } from '@ionic/vue';
 import {
@@ -67,15 +73,21 @@ import ListFormSheet from '@/components/lists/ListFormSheet.vue';
 import ListShareSheet from '@/components/lists/ListShareSheet.vue';
 import TransferSheet from '@/components/lists/TransferSheet.vue';
 import TemplateSaveSheet from '@/components/templates/TemplateSaveSheet.vue';
+import OfflineNote from '@/components/ui/OfflineNote.vue';
+import OrphanNotice from '@/components/lists/OrphanNotice.vue';
 import {
     checkEntry,
     completeList,
     copyListTo,
     createListWith,
     deleteList,
+    discardOrphan,
     findEntry,
     forgetLeftList,
     isEntryUnsynced,
+    orphanView,
+    saveOrphanAsList,
+    waitingCount,
     listView,
     loadList,
     loadLists,
@@ -117,7 +129,7 @@ const live = listView(listId);
 // Stand beim Anheben einer Zeile; solange gezogen wird, zeigt die Liste ihn
 const frozen = shallowRef(null);
 const view = computed(() => frozen.value ?? live.value);
-const { pendingOps, syncTrouble, activeLists, archivedLists, overview } = useLists();
+const { activeLists, archivedLists, overview, online, orphans } = useLists();
 const { findProduct, status: productStatus } = useProducts();
 
 const openListRef = useTemplateRef('openList');
@@ -144,6 +156,10 @@ const isGuest = computed(() => list.value?.role === 'guest');
 
 /** Meldung, wenn die Liste nicht (mehr) da ist: Symbol, Titel, Text. */
 const missing = computed(() => {
+    if (view.value.status === 'error' && view.value.reason === 'offline') {
+        return { icon: CloudOff, title: t('list.offlineMissingTitle'), text: t('list.offlineMissingText') };
+    }
+
     switch (view.value.reason) {
         case 'no_access':
             return { icon: UserX, title: t('lists.noAccessTitle'), text: t('lists.noAccessText') };
@@ -186,7 +202,13 @@ const subtitle = computed(() => {
     return parts.join(' · ');
 });
 
-const offlineCount = computed(() => (syncTrouble.value ? pendingOps.value.filter((op) => op.listId === listId).length : 0));
+const offlineCount = computed(() => waitingCount(listId));
+
+/** Offline-Hinweis: ohne Verbindung immer, sonst solange Änderungen hängen. */
+const showOffline = computed(() => !online.value || offlineCount.value > 0);
+
+/** Nicht übertragene Änderungen, falls die Liste entzogen oder gelöscht wurde. */
+const orphan = computed(() => (orphans.value.some((item) => item.listId === listId) ? orphanView(listId) : null));
 
 const percent = computed(() => (counts.value.total > 0 ? Math.round((counts.value.done / counts.value.total) * 100) : 0));
 
@@ -240,10 +262,10 @@ function toggleDone() {
 }
 
 function reload() {
-    loadList(listId).catch((error) => console.error(error));
-    loadProducts().catch((error) => console.error(error));
+    loadList(listId).catch(logError);
+    loadProducts().catch(logError);
     // Namen der Ziellisten für „nicht bekommen · nach …“ (ETag, meist 304)
-    loadLists().catch((error) => console.error(error));
+    loadLists().catch(logError);
 }
 
 onIonViewWillEnter(reload);
@@ -614,6 +636,12 @@ function onSave(fields) {
     }
 }
 
+/** Verschieben und Kopieren laufen über REST, nicht über die Warteschlange: nur online. */
+function ownershipError(error) {
+    console.error(error);
+    showToast(error?.status === 0 ? t('common.onlineOnly') : t('listForm.ownershipError'), { icon: 'notgot' });
+}
+
 async function onMove() {
     const name = list.value?.name ?? '';
 
@@ -621,8 +649,7 @@ async function onMove() {
         await moveListToHousehold(listId);
         showToast(t('listForm.movedToast', { name }), { icon: 'info' });
     } catch (error) {
-        console.error(error);
-        showToast(t('listForm.ownershipError'), { icon: 'notgot' });
+        ownershipError(error);
     }
 }
 
@@ -633,9 +660,26 @@ async function onCopy() {
         await copyListTo(listId, 'household');
         showToast(t('listForm.copiedToast', { name }), { icon: 'info' });
     } catch (error) {
-        console.error(error);
-        showToast(t('listForm.ownershipError'), { icon: 'notgot' });
+        ownershipError(error);
     }
+}
+
+async function onSaveOrphan() {
+    const name = orphan.value?.name ?? '';
+    const newId = await saveOrphanAsList(listId);
+
+    showToast(t('orphan.savedToast', { name }), { icon: 'done' });
+
+    if (newId) {
+        ionRouter.navigate('/lists/' + encodeURIComponent(newId), 'forward', 'replace');
+    }
+}
+
+function onDiscardOrphan() {
+    const name = orphan.value?.name ?? '';
+
+    discardOrphan(listId);
+    showToast(t('orphan.discardedToast', { name }), { icon: 'info' });
 }
 
 function openActions() {
@@ -677,8 +721,9 @@ async function onDelete() {
 
 <template>
     <AppPage :title="list?.name ?? NBSP" :subtitle="subtitle || NBSP" back back-to="/" width="list" :user-menu="false">
-        <template v-if="list && view.status !== 'missing' && !isCompleted" #actions>
-            <button type="button" class="list__add" :aria-label="t('list.add')" @click="addProducts">
+        <!-- abgeschlossen: nur der Gast braucht „…“ (Liste verlassen), sonst stehen die Aktionen oben im Archiv-Hinweis -->
+        <template v-if="list && view.status !== 'missing' && (!isCompleted || isGuest)" #actions>
+            <button v-if="!isCompleted" type="button" class="list__add" :aria-label="t('list.add')" @click="addProducts">
                 <Plus aria-hidden="true" />
             </button>
             <button
@@ -716,13 +761,20 @@ async function onDelete() {
                 </div>
             </section>
 
+            <template v-if="view.status === 'missing'">
+                <EmptyState :icon="missing.icon" :title="missing.title" :text="missing.text">
+                    <AppButton variant="secondary" @click="navigateBack(ionRouter, '/')">{{ t('lists.toOverview') }}</AppButton>
+                </EmptyState>
+                <OrphanNotice v-if="orphan" :orphan="orphan" @save="onSaveOrphan" @discard="onDiscardOrphan" />
+            </template>
+
             <EmptyState
-                v-if="view.status === 'missing'"
+                v-else-if="view.status === 'error' && view.reason === 'offline'"
                 :icon="missing.icon"
                 :title="missing.title"
                 :text="missing.text"
             >
-                <AppButton variant="secondary" @click="navigateBack(ionRouter, '/')">{{ t('lists.toOverview') }}</AppButton>
+                <AppButton variant="secondary" @click="reload">{{ t('common.retry') }}</AppButton>
             </EmptyState>
 
             <EmptyState v-else-if="view.status === 'error'" :icon="TriangleAlert" :title="t('list.loadError')">
@@ -745,10 +797,7 @@ async function onDelete() {
             <template v-else>
 
 
-                <p v-if="offlineCount > 0" class="list__offline" role="status">
-                    <CloudOff class="list__offline-icon" aria-hidden="true" />
-                    <span><strong>{{ t('list.offlineTitle') }}</strong> {{ t('list.offline', { count: offlineCount }) }}</span>
-                </p>
+                <OfflineNote v-if="showOffline" class="list__offline" :count="offlineCount" />
 
                 <div v-if="counts.total > 0" class="list__progress">
                     <p class="list__progress-line">
@@ -964,6 +1013,7 @@ async function onDelete() {
                                 :icon="row.icon"
                                 :category="row.category"
                                 status="done"
+                                :unsynced="isEntryUnsynced(row.entry.id)"
                                 @details="openEntry(row.entry)"
                                 @toggle="uncheck(row.entry)"
                             />
@@ -1068,22 +1118,7 @@ async function onDelete() {
 }
 
 .list__offline {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--space-3);
     margin: 0 var(--space-2);
-    padding: var(--space-3) var(--space-4);
-    border-radius: var(--radius-md);
-    background: var(--color-offline-bg);
-    color: var(--color-offline-text);
-    font-size: var(--font-size-text);
-    line-height: var(--line-height-qty);
-}
-
-.list__offline-icon {
-    flex: none;
-    width: var(--icon-size-md);
-    height: var(--icon-size-md);
 }
 
 .list__progress {

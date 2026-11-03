@@ -17,20 +17,34 @@
  *   Revision jeder geladenen Liste und holt geänderte nach; nicht mehr
  *   zugängliche Listen (entfernt, Haushalt aufgelöst) fallen heraus.
  * - Abgelehnte Operationen meldet ein Toast; ihr Effekt verschwindet, weil
- *   sie nicht mehr in der Warteschlange stehen.
+ *   sie nicht mehr in der Warteschlange stehen. Ausnahme „Freigabe
+ *   entzogen“ (`no_access`, `list_deleted`): Die abgelehnten Änderungen
+ *   bleiben als `orphans` sichtbar, mit dem Angebot „Als eigene Liste
+ *   speichern“ (`saveOrphanAsList`) oder Verwerfen; danach verschwindet die
+ *   lokale Kopie.
  * - Konflikte (gleichzeitig verschieden geändert, alter Haken, inzwischen
  *   entfernt) sammelt `conflicts`; die App fragt nach (`ConflictSheet`) und
  *   schickt die Antwort mit `resolveConflict`. Nichts wird still
  *   überschrieben.
  *
- * IndexedDB (Schritt 13) setzt hier an.
+ * Offline (docs/architecture.md, „Offline“): Die Warteschlange liegt in
+ * IndexedDB (`localStore.queueStorage`) und übersteht Neuladen. Alle aktiven
+ * Listen werden nach dem Laden der Übersicht ganz geholt und mit der
+ * Übersicht lokal gespeichert (`list:<id>`, `overview`, kurz nach jeder
+ * Änderung); beim Start kommen sie vor der ersten Ansicht aus dem Speicher
+ * (`onSessionStart`), das Netz aktualisiert danach. Die Bilder der Produkte
+ * auf diesen Listen holt die App vorab in den Bild-Cache des Service
+ * Workers (`utils/offlineImages.js`).
  */
-import { computed, reactive, ref, shallowRef } from 'vue';
-import { api } from '@/api/index.js';
+import { computed, reactive, ref, shallowRef, watch } from 'vue';
+import { api, logError } from '@/api/index.js';
+import { localStore } from '@/api/localStore.js';
 import { createOperationQueue, operations, OPERATION_TYPES as T } from '@/api/operations.js';
 import { showToast } from './useToast.js';
-import { onLogout, setSessionHousehold, useSession } from './useSession.js';
-import { addLocalProduct, confirmProduct, dropLocalProduct } from './useProducts.js';
+import { onLogout, onSessionStart, setSessionHousehold, useSession } from './useSession.js';
+import { useConnection } from './useConnection.js';
+import { addLocalProduct, confirmProduct, dropLocalProduct, useProducts } from './useProducts.js';
+import { warmImages } from '@/utils/offlineImages.js';
 import { suggestForName } from '@/products/suggest.js';
 import {
     activeEntryOf,
@@ -53,7 +67,13 @@ import { t } from '@/i18n/index.js';
 
 const PREVIEW_SIZE = 4;
 
-const queue = createOperationQueue();
+/** Kurz nach einer Änderung lokal speichern (ms). */
+const PERSIST_DELAY = 300;
+
+const queue = createOperationQueue({ storage: localStore.queueStorage });
+
+const { online } = useConnection();
+const { findProduct, products: catalogProducts } = useProducts();
 
 /** Noch nicht bestätigte Operationen (alle Listen). */
 const pendingOps = shallowRef([]);
@@ -68,13 +88,23 @@ const overview = reactive({
 });
 
 /**
- * Geladene Listen: id → { status, list, revision, entries, reason }.
+ * Geladene Listen: id → { status, list, revision, entries, reason, last }.
  * status: loading · ready · error · missing (gelöscht oder kein Zugriff);
  * `reason` bei missing: `no_access` (Freigabe entzogen, Haushalt verlassen),
  * `list_deleted`, `list_not_found`, `left` (als Gast verlassen) oder null
- * (fehlt in der Übersicht).
+ * (fehlt in der Übersicht); bei error `offline`, wenn die Liste ohne Netz
+ * nicht auf dem Gerät ist. `last`: letzter bekannter Stand `{ list, entries }`
+ * einer fehlenden Liste (Grundlage für „Als eigene Liste speichern“).
  */
 const details = shallowRef({});
+
+/**
+ * Nicht übertragene Änderungen an Listen, deren Freigabe entzogen wurde
+ * (oder die gelöscht sind): listId → { list, entries: object[], ops: object[] }.
+ * `list`/`entries` ist der letzte bekannte Serverstand, `ops` die
+ * abgelehnten eigenen Operationen in Reihenfolge.
+ */
+const orphans = shallowRef({});
 
 const pullsWanted = new Set();
 
@@ -104,6 +134,19 @@ function dropDetail(listId) {
         delete next[listId];
         details.value = next;
     }
+}
+
+/**
+ * Liste fehlt (kein Zugriff, gelöscht, verlassen): den letzten bekannten
+ * Stand für „Als eigene Liste speichern“ behalten.
+ */
+function markMissing(listId, reason) {
+    const detail = details.value[listId];
+    const last = detail?.status === 'ready' && detail.list
+        ? { list: detail.list, entries: detail.entries }
+        : (detail?.last ?? null);
+
+    setDetail(listId, { status: 'missing', list: null, revision: 0, entries: null, reason, last });
 }
 
 function patchDetail(listId, change) {
@@ -169,7 +212,7 @@ function pullWhenIdle() {
     for (const listId of [...pullsWanted]) {
         if (!pendingOps.value.some((op) => op.listId === listId)) {
             pullsWanted.delete(listId);
-            loadList(listId, { since: true }).catch((error) => console.error(error));
+            loadList(listId, { since: true }).catch(logError);
         }
     }
 }
@@ -199,11 +242,13 @@ queue.onResult((result, op) => {
 
     if (result.status === 'rejected') {
         console.warn('Operation abgelehnt', op.type, result.error);
-        showToast(t('lists.syncRejected'), { icon: 'notgot' });
 
         if (result.error === 'list_deleted' || result.error === 'no_access') {
-            patchDetail(op.listId, { status: 'missing', reason: result.error });
+            keepOrphan(op, result.error);
+            return;
         }
+
+        showToast(t('lists.syncRejected'), { icon: 'notgot' });
 
         return;
     }
@@ -254,6 +299,43 @@ queue.onResult((result, op) => {
     setDetail(op.listId, { ...detail, ...change });
 });
 
+/**
+ * Abgelehnt wegen entzogener Freigabe oder gelöschter Liste: Die Änderung
+ * bleibt als „nicht übertragen“ sichtbar (Angebot „Als eigene Liste
+ * speichern“), die Liste selbst fehlt.
+ */
+function keepOrphan(op, reason) {
+    const listId = op.listId;
+    const known = orphans.value[listId];
+    const detail = details.value[listId];
+
+    if (!known) {
+        const last = detail?.status === 'ready' && detail.list
+            ? { list: detail.list, entries: detail.entries }
+            : (detail?.last ?? null);
+        const name = last?.list?.name ?? overview.lists.find((item) => item.id === listId)?.name ?? '';
+
+        orphans.value = {
+            ...orphans.value,
+            [listId]: Object.freeze({
+                list: last?.list ?? overview.lists.find((item) => item.id === listId) ?? null,
+                entries: last?.entries ? [...last.entries.values()] : [],
+                ops: [op],
+                reason
+            })
+        };
+        showToast(t('lists.orphanToast', { name }), { icon: 'notgot' });
+    } else {
+        orphans.value = { ...orphans.value, [listId]: Object.freeze({ ...known, ops: [...known.ops, op] }) };
+    }
+
+    if (detail?.status !== 'missing') {
+        markMissing(listId, reason);
+    }
+
+    dropFromOverview(listId);
+}
+
 if (typeof window !== 'undefined') {
     window.addEventListener('online', () => queue.flush());
     document.addEventListener('visibilitychange', () => {
@@ -261,16 +343,224 @@ if (typeof window !== 'undefined') {
             queue.flush();
         }
     });
+    // beim Schließen den letzten Stand noch schreiben
+    window.addEventListener('pagehide', () => persistNow());
 }
+
+let hydratedFor = null;
 
 onLogout(() => {
     queue.clear();
     overview.status = 'idle';
     overview.lists = [];
     details.value = {};
+    orphans.value = {};
     pullsWanted.clear();
     conflicts.value = [];
+    hydratedFor = null;
 });
+
+/**
+ * Start (auch offline): Übersicht, Listen und nicht übertragene Änderungen
+ * aus dem lokalen Speicher, bevor die erste Ansicht erscheint; danach die
+ * gespeicherte Warteschlange senden.
+ */
+onSessionStart(async (current) => {
+    if (hydratedFor !== current.id) {
+        hydratedFor = current.id;
+        await hydrate();
+    }
+
+    queue.flush();
+    // aktive Listen gleich auf das Gerät holen, egal mit welcher Ansicht die App startet
+    loadLists().catch(logError);
+});
+
+async function hydrate() {
+    const [stored, lists, orphanRows] = await Promise.all([
+        localStore.data.get('overview').catch(() => null),
+        localStore.data.entries('list:').catch(() => []),
+        localStore.data.entries('orphan:').catch(() => [])
+    ]);
+
+    await queue.ready;
+
+    // offline angelegte Produkte stehen wieder im Katalog
+    for (const op of queue.pending()) {
+        if (op.type === T.PRODUCT_CREATE) {
+            addLocalProduct({ id: op.productId, ...op.product });
+        }
+    }
+
+    if (stored?.lists && overview.status !== 'ready') {
+        overview.lists = stored.lists;
+        overview.status = 'ready';
+    }
+
+    const next = { ...details.value };
+
+    for (const [key, value] of lists) {
+        const listId = key.slice('list:'.length);
+
+        if (!next[listId] && value?.list) {
+            next[listId] = Object.freeze({
+                status: 'ready',
+                list: value.list,
+                revision: value.revision ?? 0,
+                entries: new Map((value.entries ?? []).map((entry) => [entry.id, entry]))
+            });
+        }
+    }
+
+    details.value = next;
+
+    if (orphanRows.length > 0) {
+        const restored = { ...orphans.value };
+
+        for (const [key, value] of orphanRows) {
+            const listId = key.slice('orphan:'.length);
+
+            restored[listId] ??= Object.freeze(value);
+
+            if (!next[listId] || next[listId].status !== 'missing') {
+                markMissing(listId, value.reason ?? 'no_access');
+            }
+        }
+
+        orphans.value = restored;
+    }
+}
+
+/** Lokal gespeicherte Listen: aktive (und solche mit wartenden Änderungen). */
+function listsToKeep() {
+    const keep = new Map();
+    const waiting = new Set(pendingOps.value.map((op) => op.listId).filter(Boolean));
+
+    for (const [listId, detail] of Object.entries(details.value)) {
+        if (detail.status !== 'ready' || !detail.list || detail.revision <= 0) {
+            continue;
+        }
+
+        if (detail.list.status !== 'active' && !waiting.has(listId)) {
+            continue;
+        }
+
+        keep.set(listId, detail);
+    }
+
+    return keep;
+}
+
+let persistTimer = null;
+
+function schedulePersist() {
+    if (persistTimer !== null || hydratedFor === null) {
+        return;
+    }
+
+    persistTimer = setTimeout(() => {
+        persistTimer = null;
+        persistNow();
+    }, PERSIST_DELAY);
+}
+
+/** Übersicht, aktive Listen und verwaiste Änderungen lokal schreiben (nur Geändertes). */
+function persistNow() {
+    if (persistTimer !== null) {
+        clearTimeout(persistTimer);
+        persistTimer = null;
+    }
+
+    if (hydratedFor === null) {
+        return;
+    }
+
+    const keep = listsToKeep();
+    const changes = [];
+
+    if (overview.status === 'ready') {
+        changes.push(['overview', { lists: overview.lists }]);
+    }
+
+    for (const [listId, detail] of keep) {
+        changes.push(['list:' + listId, {
+            list: detail.list,
+            revision: detail.revision,
+            entries: [...detail.entries.values()]
+        }]);
+    }
+
+    for (const key of localStore.data.knownKeys('list:')) {
+        if (!keep.has(key.slice('list:'.length))) {
+            changes.push([key, undefined]);
+        }
+    }
+
+    for (const [listId, orphan] of Object.entries(orphans.value)) {
+        changes.push(['orphan:' + listId, orphan]);
+    }
+
+    for (const key of localStore.data.knownKeys('orphan:')) {
+        if (!(key.slice('orphan:'.length) in orphans.value)) {
+            changes.push([key, undefined]);
+        }
+    }
+
+    localStore.data.setMany(changes).catch((error) => console.warn('Listen nicht lokal gespeichert', error));
+
+    if (online.value) {
+        warmImages(imageUrlsOf(keep));
+    }
+}
+
+/** Bilder der Produkte auf den lokal gespeicherten Listen (Liste und Detail). */
+function imageUrlsOf(keep) {
+    const urls = new Set();
+
+    for (const detail of keep.values()) {
+        for (const entry of detail.entries.values()) {
+            if (!isVisible(entry)) {
+                continue;
+            }
+
+            const image = findProduct(entry.productId)?.image;
+
+            if (image?.small) {
+                urls.add(image.small);
+            }
+
+            if (image?.medium) {
+                urls.add(image.medium);
+            }
+        }
+    }
+
+    return [...urls];
+}
+
+watch([details, () => overview.lists, () => overview.status, orphans, pendingOps], schedulePersist);
+
+// Bilder nachholen, sobald Katalog oder Verbindung da sind
+watch([catalogProducts, online], () => {
+    if (online.value) {
+        schedulePersist();
+    }
+});
+
+/** Alle aktiven Listen ganz holen, damit sie offline da sind. */
+function prefetchActiveLists(lists) {
+    for (const item of lists) {
+        const detail = details.value[item.id];
+
+        if (item.status !== 'active' || pulling.has(item.id)) {
+            continue;
+        }
+
+        if (!detail || detail.status === 'error') {
+            loadList(item.id).catch((error) => console.warn('Liste nicht vorab geladen', item.id, error?.code ?? error));
+        }
+    }
+}
 
 /**
  * Haushalt hat sich laut Übersicht geändert (entfernt, aufgelöst, Rolle):
@@ -319,7 +609,7 @@ function syncLoadedLists(lists, knownBefore) {
                 // eine geteilte Liste fehlt: Freigabe entzogen (gelöscht kann sie auch sein)
                 const reason = detail.list?.role === 'guest' ? 'no_access' : null;
 
-                setDetail(listId, { status: 'missing', list: null, revision: 0, entries: null, reason });
+                markMissing(listId, reason);
             }
 
             continue;
@@ -361,6 +651,7 @@ export async function loadLists() {
         }
 
         syncLoadedLists(lists, knownBefore);
+        prefetchActiveLists(lists);
     } catch (error) {
         if (overview.status !== 'ready') {
             overview.status = 'error';
@@ -424,13 +715,16 @@ async function pullList(listId, since) {
         }
 
         if (error?.code === 'list_not_found' || error?.code === 'list_deleted' || error?.code === 'no_access') {
-            setDetail(listId, { status: 'missing', list: null, revision: 0, entries: null, reason: error.code });
+            markMissing(listId, error.code);
             dropFromOverview(listId);
             return;
         }
 
         if (!known) {
-            setDetail(listId, { status: 'error', list: null, revision: 0, entries: null });
+            // ohne Netz und nicht auf dem Gerät: eigene Meldung
+            const reason = error?.status === 0 ? 'offline' : null;
+
+            setDetail(listId, { status: 'error', list: null, revision: 0, entries: null, reason });
         }
 
         throw error;
@@ -530,7 +824,9 @@ export function listView(listId) {
 
         return {
             status,
-            reason: status === 'missing' ? (detail?.reason ?? (state.list?.deleted ? 'list_deleted' : null)) : null,
+            reason: status === 'missing' || status === 'error'
+                ? (detail?.reason ?? (state.list?.deleted ? 'list_deleted' : null))
+                : null,
             list: state.list,
             entries,
             open: sortedEntries(entries, 'open'),
@@ -541,9 +837,21 @@ export function listView(listId) {
     });
 }
 
-/** Einträge, deren Änderung noch nicht beim Server ist, solange Senden scheitert. */
+/**
+ * Einträge, deren Änderung noch nicht beim Server ist, solange Senden
+ * scheitert oder keine Verbindung besteht.
+ */
 export function isEntryUnsynced(entryId) {
-    return syncTrouble.value && pendingEntryIds.value.has(entryId);
+    return (syncTrouble.value || !online.value) && pendingEntryIds.value.has(entryId);
+}
+
+/** Wartende Änderungen (je Liste oder alle), solange sie nicht übertragen werden können. */
+export function waitingCount(listId = null) {
+    if (!syncTrouble.value && online.value) {
+        return 0;
+    }
+
+    return pendingOps.value.filter((op) => listId === null || op.listId === listId).length;
 }
 
 function enqueue(op) {
@@ -605,13 +913,13 @@ export function setProductQuantity(listId, productId, amount) {
             sortKey: appendKey(entries)
         });
 
-        enqueue(op).catch((error) => console.error(error));
+        enqueue(op).catch(logError);
 
         return op.entryId;
     }
 
     if (target <= 0) {
-        enqueue(operations.removeEntry(existing)).catch((error) => console.error(error));
+        enqueue(operations.removeEntry(existing)).catch(logError);
 
         return null;
     }
@@ -619,7 +927,7 @@ export function setProductQuantity(listId, productId, amount) {
     if (target !== existing.quantity.amount) {
         enqueue(operations.setEntry(existing, {
             quantity: { amount: target, unit: existing.quantity.unit }
-        })).catch((error) => console.error(error));
+        })).catch(logError);
     }
 
     return existing.id;
@@ -656,7 +964,7 @@ export function createQuickProduct(name) {
     });
 
     addLocalProduct({ id: op.productId, ...op.product });
-    enqueue(op).catch((error) => console.error(error));
+    enqueue(op).catch(logError);
 
     return op.productId;
 }
@@ -898,7 +1206,7 @@ export async function copyListTo(listId, to) {
     const { list } = await api.copyList(listId, crypto.randomUUID(), to);
 
     upsertOverview(list);
-    loadLists().catch((error) => console.error(error));
+    loadLists().catch(logError);
 
     return list;
 }
@@ -919,7 +1227,7 @@ export async function acceptListInvite(token) {
         dropDetail(result.list.id);
     }
 
-    loadLists().catch((error) => console.error(error));
+    loadLists().catch(logError);
 
     return result;
 }
@@ -936,6 +1244,100 @@ export function forgetLeftList(listId) {
         setDetail(listId, { status: 'missing', list: null, revision: 0, entries: null, reason: 'left' });
     }
 }
+
+/**
+ * Verwaiste Änderungen einer Liste für die Anzeige: Liste und Einträge im
+ * letzten bekannten Stand mit den abgelehnten Änderungen darüber, oder null.
+ */
+export function orphanView(listId) {
+    const orphan = orphans.value[listId];
+
+    if (!orphan) {
+        return null;
+    }
+
+    const base = {
+        list: orphan.list ?? null,
+        entries: new Map(orphan.entries.map((entry) => [entry.id, entry]))
+    };
+    const state = applyOperations(base, orphan.ops, listId);
+
+    return {
+        listId,
+        reason: orphan.reason,
+        name: state.list?.name ?? '',
+        list: state.list,
+        entries: sortedEntries(state.entries, null),
+        count: orphan.ops.length
+    };
+}
+
+function dropOrphan(listId) {
+    if (listId in orphans.value) {
+        const next = { ...orphans.value };
+
+        delete next[listId];
+        orphans.value = next;
+    }
+
+    const detail = details.value[listId];
+
+    // die lokale Kopie verschwindet; die Meldung „Kein Zugriff mehr“ bleibt
+    if (detail?.last) {
+        setDetail(listId, { ...detail, last: null });
+    }
+}
+
+/**
+ * „Als eigene Liste speichern“: neue persönliche Liste mit dem Namen und
+ * den Einträgen der entzogenen Liste samt eigener Änderungen (Menge, Notiz,
+ * Reihenfolge, Zustand). Danach verschwindet die lokale Kopie.
+ *
+ * @returns {Promise<string>} ID der neuen Liste
+ */
+export async function saveOrphanAsList(listId) {
+    const view = orphanView(listId);
+
+    if (!view) {
+        return null;
+    }
+
+    const create = startLocalList({
+        name: view.name || t('lists.orphanFallbackName'),
+        shopDate: view.list?.shopDate ?? null,
+        householdId: null
+    });
+    const keys = keysBetween(null, null, view.entries.length);
+
+    dropOrphan(listId);
+    await enqueue(create);
+
+    for (const [index, entry] of view.entries.entries()) {
+        const add = operations.addEntry({
+            listId: create.listId,
+            productId: entry.productId,
+            quantity: entry.quantity,
+            note: entry.note ?? '',
+            sortKey: keys[index]
+        });
+
+        await enqueue(add);
+
+        if (entry.status === 'done' || entry.status === 'notGot') {
+            await enqueue(operations.setEntryStatus({ ...entry, id: add.entryId, listId: create.listId }, entry.status));
+        }
+    }
+
+    return create.listId;
+}
+
+/** Verwaiste Änderungen verwerfen. */
+export function discardOrphan(listId) {
+    dropOrphan(listId);
+}
+
+/** Alle verwaisten Änderungen (für die Übersicht), älteste zuerst. */
+const orphanList = computed(() => Object.keys(orphans.value).map(orphanView).filter(Boolean));
 
 /**
  * Nach Beitritt, Wechsel, Austritt oder Auflösen: geladene Listen verwerfen
@@ -1013,6 +1415,8 @@ export function useLists() {
         archivedLists,
         pendingOps,
         syncTrouble,
-        conflicts
+        conflicts,
+        orphans: orphanList,
+        online
     };
 }

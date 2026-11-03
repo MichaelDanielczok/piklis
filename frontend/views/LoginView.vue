@@ -3,18 +3,20 @@
  * Anmeldung mit QUIQQER-Benutzer (Core-Ajax ajax_users_login). Nach Erfolg
  * zurück zur Seite aus `?redirect=`, sonst zur Startseite. Aus einem
  * Einladungslink (`/invite/…`) erklärt ein Hinweis, dass ein vorhandenes
- * Konto nötig ist.
+ * Konto nötig ist. War der Server beim Start nicht erreichbar und ist auf
+ * dem Gerät noch nichts gespeichert, sagt die Seite das gleich.
  */
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppPage from '@/components/layout/AppPage.vue';
 import AppLogo from '@/components/ui/AppLogo.vue';
-import { login } from '@/composables/useSession.js';
+import { login, useSession } from '@/composables/useSession.js';
 import { ApiError } from '@/api/index.js';
 import { t } from '@/i18n/index.js';
 
 const route = useRoute();
 const router = useRouter();
+const { unreachable } = useSession();
 
 /** Kommt man über einen Einladungslink, erklärt ein Hinweis die Anmeldung. */
 const fromInvite = computed(() => typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/invite/'));
@@ -59,6 +61,7 @@ async function submit() {
                 <AppLogo class="login__logo" />
                 <h1 class="login__title">{{ t('login.title') }}</h1>
                 <p v-if="fromInvite" class="login__hint">{{ t('login.inviteHint') }}</p>
+                <p v-if="unreachable && !error" class="login__hint" role="status">{{ t('login.unreachable') }}</p>
 
                 <label class="login__field">
                     <span class="login__label">{{ t('login.username') }}</span>

@@ -9,7 +9,7 @@
  * der Übersicht (`GET /lists` liefert die Kurzform mit).
  */
 import { ref } from 'vue';
-import { api } from '@/api/index.js';
+import { api, logError } from '@/api/index.js';
 import { onLogout, setSessionHousehold } from './useSession.js';
 import { onHouseholdChange, reloadAfterHouseholdChange } from './useLists.js';
 
@@ -26,7 +26,7 @@ onLogout(() => {
 // geändert hat (entfernt, aufgelöst, Rolle): geladenen Stand neu holen
 onHouseholdChange(() => {
     if (household.value !== undefined) {
-        loadHousehold().catch((error) => console.error(error));
+        loadHousehold().catch(logError);
     }
 });
 
@@ -37,7 +37,7 @@ function apply(next, { membershipChanged = false } = {}) {
     setSessionHousehold(household.value);
 
     if (membershipChanged || before !== (household.value?.id ?? null)) {
-        reloadAfterHouseholdChange().catch((error) => console.error(error));
+        reloadAfterHouseholdChange().catch(logError);
     }
 
     return household.value;

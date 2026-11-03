@@ -13,7 +13,9 @@
  *
  * Zustände (status): open · done (Haken gefüllt, durchgestrichen, kein Griff) ·
  * notGot (Kreuz und Text „nicht bekommen“). Unabhängig davon `unsynced`:
- * Wolke vor der Notiz bzw. Text „noch nicht übertragen“.
+ * eigene Zeile mit Wolke und Text „noch nicht übertragen“ (auch bei
+ * erledigten und nicht bekommenen Einträgen, z. B. offline abgehakt), die
+ * Notiz darunter.
  * Status nie nur über Farbe: immer Symbol und Text dazu.
  *
  * Sortieren selbst (Ziehen, Platzhalter) übernimmt die Liste
@@ -189,15 +191,11 @@ const { offset, dragging, runAction, listeners, onClickCapture } = useRowSwipe({
                             {{ notGotText }}
                         </span>
                     </span>
-                    <span v-else-if="unsynced" class="list-row__meta list-row__meta--unsynced">
+                    <span v-if="unsynced" class="list-row__meta list-row__meta--unsynced">
                         <CloudUpload class="list-row__meta-icon" aria-hidden="true" />
-                        <template v-if="note">
-                            <span class="visually-hidden">{{ t('row.unsynced') }}:</span>
-                            <span class="list-row__note">{{ note }}</span>
-                        </template>
-                        <span v-else class="list-row__status-text">{{ t('row.unsynced') }}</span>
+                        <span class="list-row__status-text">{{ t('row.unsynced') }}</span>
                     </span>
-                    <span v-else-if="note" class="list-row__meta">
+                    <span v-if="note && !isDone && !isNotGot" class="list-row__meta">
                         <span class="list-row__note">{{ note }}</span>
                     </span>
                 </span>

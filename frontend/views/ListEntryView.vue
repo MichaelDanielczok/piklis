@@ -12,6 +12,7 @@
  * hier als Knöpfe (in der Liste per Wischen). Ist der Einkauf abgeschlossen,
  * ist alles nur lesbar.
  */
+import { logError } from '@/api/index.js';
 import { computed, ref } from 'vue';
 import { onIonViewWillEnter, useIonRouter } from '@ionic/vue';
 import { PackageX, SearchX, Trash2 } from '@lucide/vue';
@@ -87,11 +88,11 @@ const loading = computed(() => {
 
 onIonViewWillEnter(() => {
     if (view.value.status !== 'ready') {
-        loadList(listId).catch((error) => console.error(error));
+        loadList(listId).catch(logError);
     }
 
-    loadProducts().catch((error) => console.error(error));
-    loadLists().catch((error) => console.error(error));
+    loadProducts().catch(logError);
+    loadLists().catch(logError);
 });
 
 function editProduct() {

@@ -4,6 +4,7 @@
  * großes Bild bzw. Icon, Kategorie, Name, Beschreibung und die erlaubten
  * Aktionen. Am Desktop zeigt die Produktpflege dasselbe rechts neben der Liste.
  */
+import { logError } from '@/api/index.js';
 import { computed } from 'vue';
 import { onIonViewWillEnter, useIonRouter } from '@ionic/vue';
 import { SearchX } from '@lucide/vue';
@@ -23,7 +24,7 @@ const productId = String(route.params.id ?? '');
 const product = computed(() => findProduct(productId));
 
 onIonViewWillEnter(() => {
-    loadProducts().catch((error) => console.error(error));
+    loadProducts().catch(logError);
 });
 
 function edit() {

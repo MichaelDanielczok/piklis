@@ -8,16 +8,22 @@
  * Bilder: `product.image` = { small (128 px), medium (640), large (1600),
  * original } als Adressen im Media-Cache (WebP), `product.imageUrl` = small.
  *
+ * Offline: Katalog und Vorschläge liegen nach jedem Laden im lokalen
+ * Speicher (`localStore`, Schlüssel `products` und `suggestions`); beim Start
+ * (auch ohne Netz) kommen sie von dort, das Netz aktualisiert danach. Suchen
+ * und Hinzufügen gehen so auch offline.
+ *
  * Rechte wie im Server (`Products\ProductPermissions`): bearbeiten darf, wer
  * ein Produkt angelegt hat (solange es nicht ausgeblendet ist), und jeder
  * Produktpfleger; ausblenden nur Produktpfleger. Die Oberfläche bietet nur
  * an, was erlaubt ist; entscheidend bleibt der Server (403).
  */
-import { computed, ref } from 'vue';
-import { api } from '@/api/index.js';
+import { computed, ref, watch } from 'vue';
+import { api, logError } from '@/api/index.js';
+import { localStore } from '@/api/localStore.js';
 import { locale } from '@/i18n/index.js';
 import { searchProducts } from '@/utils/productSearch.js';
-import { onLogout, useSession } from './useSession.js';
+import { onLogout, onSessionStart, useSession } from './useSession.js';
 
 const products = ref([]);
 const status = ref('idle'); // idle · loading · ready · error
@@ -33,6 +39,8 @@ const localProducts = new Map();
 
 const { user, canManageProducts } = useSession();
 
+let hydratedFor = null;
+
 onLogout(() => {
     products.value = [];
     status.value = 'idle';
@@ -40,7 +48,59 @@ onLogout(() => {
     pendingLoad = null;
     pendingSuggestions = null;
     localProducts.clear();
+    hydratedFor = null;
 });
+
+/** Lokalen Katalog laden, bevor die erste Ansicht erscheint (auch offline). */
+onSessionStart(async (current) => {
+    if (hydratedFor === current.id) {
+        return;
+    }
+
+    hydratedFor = current.id;
+
+    const [stored, storedSuggestions] = await Promise.all([
+        localStore.data.get('products').catch(() => null),
+        localStore.data.get('suggestions').catch(() => null)
+    ]);
+
+    if (Array.isArray(stored) && status.value !== 'ready') {
+        const ids = new Set(stored.map((product) => product.id));
+        const local = [...localProducts.values()].filter((product) => !ids.has(product.id));
+
+        products.value = sortByName([...stored, ...local]);
+        status.value = 'ready';
+    }
+
+    if (Array.isArray(storedSuggestions) && suggestions.value === null) {
+        suggestions.value = storedSuggestions;
+    }
+
+    // Katalog und Vorschläge für offline, auch wenn die App nicht mit „Produkte“ startet
+    loadProducts().catch(logError);
+    loadSuggestions();
+});
+
+// jeder bestätigte Stand (Laden, Anlegen, Bearbeiten, Bild) kurz danach lokal
+let productsTimer = null;
+
+watch(products, () => {
+    if (status.value !== 'ready' || productsTimer !== null) {
+        return;
+    }
+
+    productsTimer = setTimeout(() => {
+        productsTimer = null;
+
+        if (status.value === 'ready') {
+            remember('products', products.value.filter((product) => !product.local));
+        }
+    }, 500);
+});
+
+function remember(key, value) {
+    localStore.data.set(key, value).catch((error) => console.warn('Nicht lokal gespeichert: ' + key, error));
+}
 
 function sortByName(list) {
     const collator = new Intl.Collator(locale.value, { sensitivity: 'base', numeric: true });
@@ -101,6 +161,7 @@ export function loadSuggestions() {
         pendingSuggestions = api.getSuggestions()
             .then((data) => {
                 suggestions.value = data.suggestions ?? [];
+                remember('suggestions', suggestions.value);
 
                 return suggestions.value;
             })

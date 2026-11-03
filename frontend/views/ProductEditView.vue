@@ -5,6 +5,7 @@
  * Bearbeiten erscheint ein Hinweis statt des Formulars; entscheidend ist
  * trotzdem der Server (403).
  */
+import { logError } from '@/api/index.js';
 import { computed } from 'vue';
 import { onIonViewWillEnter, useIonRouter } from '@ionic/vue';
 import { Lock, SearchX } from '@lucide/vue';
@@ -28,7 +29,7 @@ const product = computed(() => (isNew ? null : findProduct(productId)));
 const backTo = isNew ? '/products' : '/products/' + encodeURIComponent(productId);
 
 onIonViewWillEnter(() => {
-    loadProducts().catch((error) => console.error(error));
+    loadProducts().catch(logError);
 });
 
 function onSaved(saved) {

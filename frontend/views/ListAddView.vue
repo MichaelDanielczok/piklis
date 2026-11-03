@@ -25,6 +25,7 @@
  * Entwurf, gespeichert wird erst in der Vorlage. Dort gibt es kein
  * „erledigt“ und kein „nicht bekommen“; Bild oder Name öffnen das Produkt.
  */
+import { logError } from '@/api/index.js';
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 import { onIonViewWillEnter, useIonRouter } from '@ionic/vue';
 import { Check, Plus, TriangleAlert } from '@lucide/vue';
@@ -249,15 +250,15 @@ function loadTarget() {
 
 onIonViewWillEnter(() => {
     if (view.value.status !== 'ready') {
-        loadTarget().catch((error) => console.error(error));
+        loadTarget().catch(logError);
     }
 
-    loadProducts().catch((error) => console.error(error));
+    loadProducts().catch(logError);
 });
 
 function retry() {
-    loadTarget().catch((error) => console.error(error));
-    loadProducts().catch((error) => console.error(error));
+    loadTarget().catch(logError);
+    loadProducts().catch(logError);
 }
 
 function productName(productId) {

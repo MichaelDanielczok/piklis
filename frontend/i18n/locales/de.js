@@ -6,6 +6,7 @@ export default {
         loading: 'Wird geladen …',
         error: 'Etwas ist schiefgelaufen. Bitte noch einmal versuchen.',
         offline: 'Keine Verbindung zum Server.',
+        onlineOnly: 'Das geht nur mit Verbindung.',
         back: 'Zurück',
         close: 'Schließen',
         undo: 'Rückgängig',
@@ -51,7 +52,8 @@ export default {
         password: 'Passwort',
         submit: 'Anmelden',
         failed: 'Benutzername oder Passwort ist falsch.',
-        inviteHint: 'Melde dich mit deinem Konto an, um die Einladung zu einer Liste anzunehmen. Ein neues Konto lässt sich hier nicht anlegen.'
+        inviteHint: 'Melde dich mit deinem Konto an, um die Einladung zu einer Liste anzunehmen. Ein neues Konto lässt sich hier nicht anlegen.',
+        unreachable: 'Der Server ist gerade nicht erreichbar. Auf diesem Gerät ist noch nichts gespeichert, deshalb geht es erst mit Verbindung weiter.'
     },
     lists: {
         title: 'Listen',
@@ -82,6 +84,10 @@ export default {
         deletedTitle: 'Liste gelöscht',
         deletedText: 'Diese Liste wurde gelöscht.',
         syncRejected: 'Eine Änderung hat der Server abgelehnt.',
+        orphanToast: 'Kein Zugriff mehr auf „{name}“. Deine Änderungen kannst du als eigene Liste speichern.',
+        orphanFallbackName: 'Gerettete Liste',
+        offlineEmptyTitle: 'Keine Verbindung',
+        offlineEmptyText: 'Auf diesem Gerät sind noch keine Listen gespeichert. Sie erscheinen, sobald wieder Netz da ist.',
         notFoundTitle: 'Liste nicht gefunden',
         notFoundText: 'Diese Liste gibt es nicht mehr, oder du hast keinen Zugriff darauf.',
         toOverview: 'Zu den Listen',
@@ -89,6 +95,24 @@ export default {
         archiveHint: { one: '{count} abgeschlossener Einkauf', other: '{count} abgeschlossene Einkäufe' },
         completedToast: '„{name}“ abgeschlossen',
         reopenedToast: '„{name}“ ist wieder aktiv'
+    },
+    // Nicht übertragene Änderungen an einer entzogenen oder gelöschten Liste
+    orphan: {
+        title: 'Nicht übertragen: „{name}“',
+        noAccess: {
+            one: '{count} Änderung ließ sich nicht übertragen, weil du keinen Zugriff mehr auf die Liste hast.',
+            other: '{count} Änderungen ließen sich nicht übertragen, weil du keinen Zugriff mehr auf die Liste hast.'
+        },
+        deleted: {
+            one: '{count} Änderung ließ sich nicht übertragen, weil die Liste gelöscht wurde.',
+            other: '{count} Änderungen ließen sich nicht übertragen, weil die Liste gelöscht wurde.'
+        },
+        hint: 'Speichere die Liste mit deinen Änderungen als eigene Liste, sonst gehen sie verloren.',
+        save: 'Als eigene Liste speichern',
+        discard: 'Änderungen verwerfen',
+        open: 'Liste öffnen',
+        savedToast: '„{name}“ als eigene Liste gespeichert',
+        discardedToast: 'Änderungen an „{name}“ verworfen'
     },
     archive: {
         title: 'Archiv',
@@ -311,6 +335,9 @@ export default {
             other: '{count} Änderungen sind gespeichert und werden übertragen, sobald wieder Netz da ist.'
         },
         offlineTitle: 'Offline.',
+        offlineNone: 'Du siehst den Stand auf diesem Gerät. Änderungen werden gespeichert und übertragen, sobald wieder Netz da ist.',
+        offlineMissingTitle: 'Nicht auf diesem Gerät',
+        offlineMissingText: 'Diese Liste ist nicht offline gespeichert. Sie erscheint, sobald wieder Netz da ist.',
         moved: '„{name}“ steht jetzt an Position {position} von {count}.',
         loadError: 'Die Liste konnte nicht geladen werden.',
         transferAll: 'Alle übernehmen …',
@@ -650,6 +677,9 @@ export default {
         new: 'Neue Vorlage',
         fromListHint: 'Am schnellsten aus einer Liste: „…“ › „Als Vorlage speichern“.',
         loadError: 'Die Vorlagen konnten nicht geladen werden.',
+        offlineTitle: 'Vorlagen nur mit Verbindung',
+        offlineText: 'Vorlagen werden nicht auf dem Gerät gespeichert. Sobald wieder Netz da ist, erscheinen sie hier.',
+        offlineNote: 'Vorlagen lassen sich nur mit Verbindung öffnen und speichern.',
         originPersonalLabel: 'Persönliche Vorlage, nur für dich sichtbar',
         originHouseholdLabel: 'Haushaltsvorlage, alle im Haushalt sehen und bearbeiten sie'
     },
@@ -823,7 +853,18 @@ export default {
     settings: {
         title: 'Einstellungen',
         theme: 'Darstellung',
-        themeHint: 'Automatisch folgt der Einstellung des Geräts.'
+        themeHint: 'Automatisch folgt der Einstellung des Geräts.',
+        offline: 'Offline',
+        offlineHint: 'Aktive Listen, der Katalog und die Bilder der Produkte auf deinen Listen liegen auf diesem Gerät. So kannst du auch ohne Netz einkaufen; Änderungen werden übertragen, sobald wieder Netz da ist.',
+        offlineLists: { one: '{count} Liste', other: '{count} Listen' },
+        offlineProducts: { one: '{count} Produkt', other: '{count} Produkte' },
+        offlineImages: { one: '{count} Bild', other: '{count} Bilder' },
+        offlineNoImages: 'Bilder nur in der installierten App',
+        offlineWaiting: { one: '{count} Änderung wartet', other: '{count} Änderungen warten' },
+        offlineSize: 'zusammen {size}',
+        dev: 'Entwicklung',
+        simulateOffline: 'Offline simulieren',
+        simulateOfflineHint: 'Jede Anfrage an den Server scheitert wie ohne Netz, auch nach dem Neuladen. Nur im Entwicklungsserver.'
     },
     // Mengen: Zahl plus optionale Einheit; ohne Einheit „2 ד
     units: {

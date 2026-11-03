@@ -18,9 +18,10 @@
  * fragt nach, wenn sich etwas geändert hat. Der Entwurf überlebt den Weg in
  * die Auswahl und zurück.
  */
+import { logError } from '@/api/index.js';
 import { computed, nextTick, ref, useId, useTemplateRef } from 'vue';
 import { onIonViewWillEnter, useIonRouter } from '@ionic/vue';
-import { CircleAlert, Ellipsis, Files, History, Pencil, Plus, SearchX, Trash2, TriangleAlert, UserX } from '@lucide/vue';
+import { CircleAlert, CloudOff, Ellipsis, Files, History, Pencil, Plus, SearchX, Trash2, TriangleAlert, UserX } from '@lucide/vue';
 import { useRoute } from 'vue-router';
 import AppPage from '@/components/layout/AppPage.vue';
 import AppButton from '@/components/ui/AppButton.vue';
@@ -33,6 +34,7 @@ import EntrySheet from '@/components/lists/EntrySheet.vue';
 import ListFormSheet from '@/components/lists/ListFormSheet.vue';
 import TemplateFormSheet from '@/components/templates/TemplateFormSheet.vue';
 import { useDragSort } from '@/composables/useDragSort.js';
+import { useConnection } from '@/composables/useConnection.js';
 import { createListWith } from '@/composables/useLists.js';
 import { navigateBack } from '@/composables/usePageTransition.js';
 import { loadProducts, useProducts } from '@/composables/useProducts.js';
@@ -93,6 +95,7 @@ const saveError = ref('');
 const nameSubmitted = ref(false);
 const announcement = ref('');
 
+const { online } = useConnection();
 const detail = computed(() => templateDetail(templateId));
 const template = computed(() => detail.value.template);
 const draft = computed(() => draftFor(templateId));
@@ -180,8 +183,8 @@ const sourceTemplate = computed(() => (template.value
     : null));
 
 function reload() {
-    loadTemplate(templateId).catch((error) => console.error(error));
-    loadProducts().catch((error) => console.error(error));
+    loadTemplate(templateId).catch(logError);
+    loadProducts().catch(logError);
 }
 
 onIonViewWillEnter(() => {
@@ -457,6 +460,15 @@ async function onCreateList(fields) {
                 :text="missing.text"
             >
                 <AppButton variant="secondary" @click="navigateBack(ionRouter, '/templates')">{{ t('template.toOverview') }}</AppButton>
+            </EmptyState>
+
+            <EmptyState
+                v-else-if="detail.status === 'error' && !online"
+                :icon="CloudOff"
+                :title="t('templates.offlineTitle')"
+                :text="t('templates.offlineText')"
+            >
+                <AppButton variant="secondary" @click="reload">{{ t('common.retry') }}</AppButton>
             </EmptyState>
 
             <EmptyState v-else-if="detail.status === 'error'" :icon="TriangleAlert" :title="t('template.loadError')">

@@ -6,6 +6,7 @@
  * etwas geändert wurde. Antippen öffnet den Einkauf zum Ansehen; dort
  * „Wieder öffnen“ und „Neue Liste daraus“.
  */
+import { logError } from '@/api/index.js';
 import { computed } from 'vue';
 import { onIonViewWillEnter, useIonRouter } from '@ionic/vue';
 import { Archive, ChevronRight, TriangleAlert } from '@lucide/vue';
@@ -25,7 +26,7 @@ const loading = computed(() => overview.status === 'idle' || (overview.status ==
 const subtitle = computed(() => (loading.value ? ' ' : t('archive.subtitle', { count: archivedLists.value.length })));
 
 function reload() {
-    loadLists().catch((error) => console.error(error));
+    loadLists().catch(logError);
 }
 
 onIonViewWillEnter(reload);

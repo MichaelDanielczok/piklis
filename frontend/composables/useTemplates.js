@@ -17,7 +17,7 @@
  *   früheren Einkauf); die Liste ist unabhängig von der Vorlage.
  */
 import { reactive, shallowRef, watch } from 'vue';
-import { api } from '@/api/index.js';
+import { api, logError } from '@/api/index.js';
 import { onLogout, useSession } from './useSession.js';
 import { draftOf, isDraftChanged, moveItem, templateEntries, withQuantity } from '@/utils/templates.js';
 
@@ -104,7 +104,7 @@ watch(() => household.value?.id ?? null, () => {
     details.value = {};
 
     if (overview.status !== 'idle') {
-        loadTemplates().catch((error) => console.error(error));
+        loadTemplates().catch(logError);
     }
 });
 

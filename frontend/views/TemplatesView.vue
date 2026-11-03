@@ -9,10 +9,15 @@
  * Ladezustand in Endhöhe wie bei den Listen: so viele Skeleton-Karten wie
  * zuletzt auf diesem Gerät (`pk.templateCount.<user>`, höchstens 8). Kein
  * Live-Abgleich; die Übersicht lädt beim Öffnen.
+ *
+ * Offline: Vorlagen sind laut Entscheidung nur online und liegen nicht im
+ * lokalen Speicher. Ohne Verbindung bleibt ein in dieser Sitzung geladener
+ * Stand stehen (mit Hinweis), sonst eine klare Meldung statt eines Fehlers.
  */
+import { logError } from '@/api/index.js';
 import { computed, ref, watch } from 'vue';
 import { onIonViewWillEnter, useIonRouter } from '@ionic/vue';
-import { Files, Plus, TriangleAlert } from '@lucide/vue';
+import { CloudOff, Files, Plus, TriangleAlert } from '@lucide/vue';
 import AppPage from '@/components/layout/AppPage.vue';
 import AppButton from '@/components/ui/AppButton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
@@ -20,6 +25,8 @@ import SectionLabel from '@/components/ui/SectionLabel.vue';
 import ListCard from '@/components/lists/ListCard.vue';
 import ListCardSkeleton from '@/components/lists/ListCardSkeleton.vue';
 import TemplateFormSheet from '@/components/templates/TemplateFormSheet.vue';
+import OfflineNote from '@/components/ui/OfflineNote.vue';
+import { useConnection } from '@/composables/useConnection.js';
 import { loadProducts } from '@/composables/useProducts.js';
 import { useSession } from '@/composables/useSession.js';
 import { createTemplate, loadTemplates, startEditing, useTemplates } from '@/composables/useTemplates.js';
@@ -31,6 +38,7 @@ const COUNT_KEY = 'pk.templateCount.';
 
 const ionRouter = useIonRouter();
 const { overview } = useTemplates();
+const { online } = useConnection();
 const { user } = useSession();
 
 function readCount() {
@@ -66,8 +74,8 @@ watch(
 
 const loading = computed(() => overview.status === 'idle' || (overview.status === 'loading' && overview.templates.length === 0));
 function reload() {
-    loadTemplates().catch((error) => console.error(error));
-    loadProducts().catch((error) => console.error(error));
+    loadTemplates().catch(logError);
+    loadProducts().catch(logError);
 }
 
 onIonViewWillEnter(reload);
@@ -103,6 +111,8 @@ async function onCreate(fields) {
 <template>
     <AppPage :title="t('templates.title')" :subtitle="t('templates.subtitle')" width="list">
         <div class="templates">
+            <OfflineNote v-if="!online && overview.templates.length > 0" :text="t('templates.offlineNote')" />
+
             <template v-if="loading && skeletonCount > 0">
                 <SectionLabel class="templates__label" :label="t('templates.title')" />
                 <ul class="templates__cards" aria-busy="true">
@@ -121,6 +131,15 @@ async function onCreate(fields) {
                 :title="t('templates.emptyTitle')"
                 :text="t('templates.emptyText')"
             />
+
+            <EmptyState
+                v-else-if="overview.status === 'error' && overview.templates.length === 0 && !online"
+                :icon="CloudOff"
+                :title="t('templates.offlineTitle')"
+                :text="t('templates.offlineText')"
+            >
+                <AppButton variant="secondary" @click="reload">{{ t('common.retry') }}</AppButton>
+            </EmptyState>
 
             <EmptyState
                 v-else-if="overview.status === 'error' && overview.templates.length === 0"

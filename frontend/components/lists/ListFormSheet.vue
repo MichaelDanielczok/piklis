@@ -32,6 +32,7 @@
  * Emits: submit({ name, shopDate, householdId, items }) (`items` null = leer)
  * · delete · move · copy · share · saveTemplate („Als Vorlage speichern …“)
  */
+import { logError } from '@/api/index.js';
 import { computed, ref, useId, watch } from 'vue';
 import { CircleAlert, Copy, Files, House, Share2, Trash2, User } from '@lucide/vue';
 import AppButton from '@/components/ui/AppButton.vue';
@@ -282,7 +283,7 @@ watch(open, (isOpen) => {
         selectedFor = null;
 
         if (isNew.value) {
-            loadTemplates().catch((error) => console.error(error));
+            loadTemplates().catch(logError);
         }
 
         if (given) {

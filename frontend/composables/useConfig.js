@@ -4,7 +4,7 @@
  * sie entsprechen den Projekteinstellungen von `piklis`.
  */
 import { ref } from 'vue';
-import { api } from '@/api/index.js';
+import { api, logError } from '@/api/index.js';
 import { onLogout } from './useSession.js';
 
 const DEFAULT_IMAGES = {
@@ -41,7 +41,7 @@ export function loadConfig() {
             images.value = { ...DEFAULT_IMAGES, ...(data?.images ?? {}) };
             loaded = true;
         })
-        .catch((error) => console.error(error))
+        .catch(logError)
         .finally(() => {
             pending = null;
         });

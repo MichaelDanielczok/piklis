@@ -17,10 +17,15 @@
  *
  * Live-Abgleich: alle 30 s `GET /lists` (ETag, nur bei sichtbarer App);
  * Listen anderer, Fortschritt und Haushalt kommen so ohne Neuladen an.
+ *
+ * Offline: Die Übersicht kommt aus dem lokalen Speicher; oben der blaue
+ * Hinweis mit allen wartenden Änderungen, darunter nicht übertragene
+ * Änderungen an entzogenen Listen (`OrphanNotice`).
  */
+import { logError } from '@/api/index.js';
 import { computed, ref, watch } from 'vue';
 import { onIonViewWillEnter, useIonRouter } from '@ionic/vue';
-import { Archive, ChevronRight, ListChecks, Plus, TriangleAlert } from '@lucide/vue';
+import { Archive, ChevronRight, CloudOff, ListChecks, Plus, TriangleAlert } from '@lucide/vue';
 import AppPage from '@/components/layout/AppPage.vue';
 import AppButton from '@/components/ui/AppButton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
@@ -28,7 +33,17 @@ import SectionLabel from '@/components/ui/SectionLabel.vue';
 import ListCard from '@/components/lists/ListCard.vue';
 import ListCardSkeleton from '@/components/lists/ListCardSkeleton.vue';
 import ListFormSheet from '@/components/lists/ListFormSheet.vue';
-import { createListWith, loadLists, useLists } from '@/composables/useLists.js';
+import OrphanNotice from '@/components/lists/OrphanNotice.vue';
+import OfflineNote from '@/components/ui/OfflineNote.vue';
+import {
+    createListWith,
+    discardOrphan,
+    loadLists,
+    saveOrphanAsList,
+    useLists,
+    waitingCount
+} from '@/composables/useLists.js';
+import { showToast } from '@/composables/useToast.js';
 import { loadProducts } from '@/composables/useProducts.js';
 import { OVERVIEW_POLL_MS, useLivePoll } from '@/composables/useLivePoll.js';
 import { useSession } from '@/composables/useSession.js';
@@ -40,7 +55,12 @@ const COUNT_KEY = 'pk.activeListCount.';
 const ARCHIVE_KEY = 'pk.hasArchive.';
 
 const ionRouter = useIonRouter();
-const { overview, activeLists, archivedLists } = useLists();
+const { overview, activeLists, archivedLists, online, orphans } = useLists();
+
+const waiting = computed(() => waitingCount());
+// ohne lokale Listen sagt der leere Zustand schon „Keine Verbindung“
+const showOffline = computed(() => (!online.value || waiting.value > 0)
+    && !(overview.status === 'error' && activeLists.value.length === 0));
 const { user } = useSession();
 
 function readCount() {
@@ -105,8 +125,8 @@ const formOpen = ref(false);
 const loading = computed(() => overview.status === 'idle' || (overview.status === 'loading' && activeLists.value.length === 0));
 
 function reload() {
-    loadLists().catch((error) => console.error(error));
-    loadProducts().catch((error) => console.error(error));
+    loadLists().catch(logError);
+    loadProducts().catch(logError);
 }
 
 onIonViewWillEnter(reload);
@@ -122,11 +142,35 @@ async function onCreate(fields) {
 
     ionRouter.push('/lists/' + encodeURIComponent(listId));
 }
+
+async function onSaveOrphan(orphan) {
+    const listId = await saveOrphanAsList(orphan.listId);
+
+    showToast(t('orphan.savedToast', { name: orphan.name }), {
+        icon: 'done',
+        action: listId ? { text: t('orphan.open'), handler: () => openList({ id: listId }) } : undefined
+    });
+}
+
+function onDiscardOrphan(orphan) {
+    discardOrphan(orphan.listId);
+    showToast(t('orphan.discardedToast', { name: orphan.name }), { icon: 'info' });
+}
 </script>
 
 <template>
     <AppPage :title="t('lists.title')" :subtitle="today" width="list">
         <div class="lists">
+            <OfflineNote v-if="showOffline" :count="waiting" />
+
+            <OrphanNotice
+                v-for="orphan in orphans"
+                :key="orphan.listId"
+                :orphan="orphan"
+                @save="onSaveOrphan(orphan)"
+                @discard="onDiscardOrphan(orphan)"
+            />
+
             <template v-if="loading && skeletonCount > 0">
                 <SectionLabel class="lists__label" :label="t('lists.active')" />
                 <ul class="lists__cards" aria-busy="true">
@@ -145,6 +189,15 @@ async function onCreate(fields) {
                 :title="t('lists.emptyTitle')"
                 :text="t('lists.emptyText')"
             />
+
+            <EmptyState
+                v-else-if="overview.status === 'error' && activeLists.length === 0 && !online"
+                :icon="CloudOff"
+                :title="t('lists.offlineEmptyTitle')"
+                :text="t('lists.offlineEmptyText')"
+            >
+                <AppButton variant="secondary" @click="reload">{{ t('common.retry') }}</AppButton>
+            </EmptyState>
 
             <EmptyState
                 v-else-if="overview.status === 'error' && activeLists.length === 0"

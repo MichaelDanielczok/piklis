@@ -10,6 +10,12 @@
  *
  * Pfade absolut: Die App ist immer die Startseite `/` der Instanz. Im
  * Vite-Entwicklungsserver leitet ein Proxy beide Pfade an die Instanz weiter.
+ *
+ * Verbindung: Jede Anfrage meldet, ob der Server erreichbar war
+ * (`onConnectionChange`, `isReachable`); Netzfehler sind `ApiError` mit
+ * Status 0. Im Entwicklungsserver lässt sich „offline“ simulieren
+ * (`setSimulatedOffline`, Schalter in den Einstellungen): Dann scheitert
+ * jede Anfrage sofort wie ohne Netz, auch nach dem Neuladen.
  */
 import { locale } from '@/i18n/index.js';
 
@@ -27,6 +33,105 @@ export class ApiError extends Error {
 }
 
 let unauthorizedHandler = null;
+
+const OFFLINE_KEY = 'pk.dev.offline';
+const DEV = Boolean(import.meta.env?.DEV);
+
+let simulatedOffline = DEV && readSimulatedOffline();
+let reachable = true;
+const connectionListeners = new Set();
+
+function readSimulatedOffline() {
+    try {
+        return globalThis.localStorage?.getItem(OFFLINE_KEY) === '1';
+    } catch {
+        return false;
+    }
+}
+
+function setReachable(value) {
+    if (reachable === value) {
+        return;
+    }
+
+    reachable = value;
+
+    for (const listener of connectionListeners) {
+        listener(value);
+    }
+}
+
+/** War der Server bei der letzten Anfrage erreichbar (und ist nichts simuliert)? */
+export function isReachable() {
+    return reachable && !simulatedOffline;
+}
+
+/** `listener(reachable)` bei jedem Wechsel; gibt eine Abmeldefunktion zurück. */
+export function onConnectionChange(listener) {
+    connectionListeners.add(listener);
+
+    return () => connectionListeners.delete(listener);
+}
+
+/** Nur im Entwicklungsserver: Ist „offline simulieren“ an? */
+export function isSimulatedOffline() {
+    return simulatedOffline;
+}
+
+/**
+ * Nur im Entwicklungsserver: „offline simulieren“ an oder aus (bleibt nach
+ * dem Neuladen). Aus löst `online` aus, damit Warteschlange und Abgleich
+ * sofort weitermachen.
+ */
+export function setSimulatedOffline(value) {
+    if (!DEV) {
+        return;
+    }
+
+    simulatedOffline = Boolean(value);
+
+    try {
+        if (simulatedOffline) {
+            globalThis.localStorage?.setItem(OFFLINE_KEY, '1');
+        } else {
+            globalThis.localStorage?.removeItem(OFFLINE_KEY);
+        }
+    } catch {
+        // gilt dann nur bis zum Neuladen
+    }
+
+    if (simulatedOffline) {
+        setReachable(false);
+    }
+
+    for (const listener of connectionListeners) {
+        listener(isReachable());
+    }
+
+    if (!simulatedOffline && typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('online'));
+    }
+}
+
+/**
+ * Fehler eines Ladevorgangs im Hintergrund melden: ohne Netz ist das
+ * erwartet (die App zeigt den lokalen Stand), also nur ein Hinweis; alles
+ * andere bleibt ein Fehler in der Konsole.
+ */
+export function logError(error) {
+    if (error instanceof ApiError && error.status === 0) {
+        console.info('Offline:', error.message);
+        return;
+    }
+
+    console.error(error);
+}
+
+function networkError() {
+    setReachable(false);
+
+    return new ApiError(0, 'network', 'Network error');
+}
 
 /**
  * Wird bei 401 einer REST-Anfrage aufgerufen (Session abgelaufen).
@@ -57,6 +162,10 @@ async function request(method, path, body = undefined, { signal, ifMatch } = {})
         headers['Content-Type'] = 'application/json';
     }
 
+    if (simulatedOffline) {
+        throw networkError();
+    }
+
     let response;
 
     try {
@@ -72,8 +181,10 @@ async function request(method, path, body = undefined, { signal, ifMatch } = {})
             throw error;
         }
 
-        throw new ApiError(0, 'network', 'Network error');
+        throw networkError();
     }
+
+    setReachable(true);
 
     const data = await response.json().catch(() => null);
 
@@ -105,6 +216,10 @@ async function callAjax(functionName, params = {}) {
         ...params
     });
 
+    if (simulatedOffline) {
+        throw networkError();
+    }
+
     let text;
 
     try {
@@ -116,8 +231,10 @@ async function callAjax(functionName, params = {}) {
 
         text = await response.text();
     } catch {
-        throw new ApiError(0, 'network', 'Network error');
+        throw networkError();
     }
+
+    setReachable(true);
 
     const match = text.match(/<quiqqer>([\s\S]*)<\/quiqqer>/);
     const data = match ? JSON.parse(match[1]) : null;

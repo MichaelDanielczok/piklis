@@ -75,7 +75,8 @@ const pwa = VitePWA({
         navigateFallback: null,
         runtimeCaching: [
             {
-                // nur die Startseite; /admin/, /api/, /media/ und /ajax.php bleiben unberührt.
+                // nur die Startseite; /admin/, /api/ und /ajax.php bleiben unberührt (Daten
+                // offline: IndexedDB, api/localStore.js).
                 // Sofort aus dem Cache, im Hintergrund aktualisiert: Ein Warten aufs Netz
                 // zeigte beim Start der installierten App lange nur Weiß.
                 urlPattern: ({ request, url }) => request.mode === 'navigate' && url.pathname === '/',
@@ -83,6 +84,20 @@ const pwa = VitePWA({
                 options: {
                     cacheName: 'pk-start',
                     expiration: { maxEntries: 1 }
+                }
+            },
+            {
+                // Produktbilder offline: nur Listen- und Detailgröße aus dem Media-Cache
+                // (utils/offlineImages.js holt die Bilder der aktiven Listen vorab). Jedes neue
+                // Bild hat eine neue Adresse (UUID), deshalb CacheFirst ohne Nachfragen.
+                // Großansicht, Originale und alles andere unter /media/ bleiben ungecacht.
+                urlPattern: ({ url }) => url.origin === self.location.origin
+                    && /^\/media\/cache\/.+__(128x128|640x640)\.webp$/.test(url.pathname),
+                handler: 'CacheFirst',
+                options: {
+                    cacheName: 'pk-images',
+                    expiration: { maxEntries: 600, maxAgeSeconds: 60 * 24 * 60 * 60 },
+                    cacheableResponse: { statuses: [200] }
                 }
             }
         ]

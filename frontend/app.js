@@ -18,11 +18,12 @@ applyDocumentLanguage();
 applyStoredTheme();
 installIconSprite();
 
-// Session abgelaufen: zurück zur Anmeldeseite, danach wieder hierher
+// Session abgelaufen: zurück zur Anmeldeseite, danach wieder hierher. Der
+// lokale Stand (auch nicht übertragene Änderungen) bleibt für die Anmeldung.
 onUnauthorized(() => {
     const current = router.currentRoute.value;
 
-    markLoggedOut();
+    markLoggedOut({ expired: true });
 
     if (!current.meta.public) {
         router.replace({ name: 'login', query: { redirect: current.fullPath } });

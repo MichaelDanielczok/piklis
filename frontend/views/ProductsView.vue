@@ -13,6 +13,7 @@
  * man öffnen oder bewusst ein neues anlegen, ähnliche Namen werden nie
  * zusammengeführt.
  */
+import { logError } from '@/api/index.js';
 import { computed, ref, watch } from 'vue';
 import { onIonViewWillEnter, useIonRouter } from '@ionic/vue';
 import { LayoutGrid, PackagePlus, Plus, TriangleAlert } from '@lucide/vue';
@@ -112,7 +113,7 @@ const empty = computed(() => {
 });
 
 function reload() {
-    loadProducts().catch((error) => console.error(error));
+    loadProducts().catch(logError);
 }
 
 onIonViewWillEnter(reload);

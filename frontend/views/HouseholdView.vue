@@ -22,7 +22,7 @@ import SectionLabel from '@/components/ui/SectionLabel.vue';
 import UserAvatar from '@/components/ui/UserAvatar.vue';
 import MemberSheet from '@/components/household/MemberSheet.vue';
 import HouseholdLeaveSheet from '@/components/household/HouseholdLeaveSheet.vue';
-import { ApiError } from '@/api/index.js';
+import { ApiError, logError } from '@/api/index.js';
 import {
     createHousehold,
     joinHousehold,
@@ -126,7 +126,7 @@ function errorText(error) {
 }
 
 function reload() {
-    loadHousehold().catch((error) => console.error(error));
+    loadHousehold().catch(logError);
 }
 
 onIonViewWillEnter(reload);

@@ -333,14 +333,16 @@ final class TemplateService
             throw new TemplateException('template_not_found', 'The template does not exist.', 404);
         }
 
+        // wie bei Listen: Ein Grabstein gilt vor dem Zugriff, damit ehemalige
+        // Mitglieder eines aufgelösten Haushalts „gelöscht“ statt „kein Zugriff“ sehen
+        if ($Template->isDeleted()) {
+            throw new TemplateException('template_deleted', 'The template has been deleted.', 410);
+        }
+
         $householdId = $Template->householdId === null ? null : $this->Store->householdIdOf($userId);
 
         if (self::roleOf($Template, $userId, $householdId) === null) {
             throw new TemplateException('no_access', 'No access to this template.', 403);
-        }
-
-        if ($Template->isDeleted()) {
-            throw new TemplateException('template_deleted', 'The template has been deleted.', 410);
         }
 
         return $Template;

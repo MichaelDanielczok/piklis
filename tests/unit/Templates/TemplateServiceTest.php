@@ -231,6 +231,16 @@ class TemplateServiceTest extends TestCase
         ));
     }
 
+    public function testDeletedTemplateAnswersDeletedAlsoForFormerMembers(): void
+    {
+        $this->createLidl(self::HOUSEHOLD);
+        $this->Service->delete(self::TEMPLATE_ID, self::EWA);
+
+        // Haushalt aufgelöst: Grabstein gesetzt, Michael ist kein Mitglied mehr (wie bei Listen 410)
+        $this->Store->householdMembers = [];
+        $this->expectError('template_deleted', 410, fn() => $this->Service->get(self::TEMPLATE_ID, self::MICHAEL));
+    }
+
     public function testOwnerMovesPersonalTemplateIntoTheHousehold(): void
     {
         $this->createLidl(null);

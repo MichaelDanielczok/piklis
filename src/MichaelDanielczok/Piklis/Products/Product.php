@@ -3,6 +3,10 @@
 namespace MichaelDanielczok\Piklis\Products;
 
 use DateTimeImmutable;
+use MichaelDanielczok\Piklis\FoodFacts\FoodFactsProduct;
+
+use function in_array;
+use function serialize;
 
 /**
  * Ein Produkt des globalen Katalogs (`pk_products`).
@@ -10,9 +14,18 @@ use DateTimeImmutable;
  * Nur der Name ist Pflicht. `icon` null heißt allgemeines Ersatzicon,
  * `category` null heißt ohne Kategorie. Ausgeblendete Produkte bleiben
  * erhalten, damit alte Einkäufe sie weiter zeigen.
+ *
+ * Open Food Facts (Schritt 14): `barcode` verknüpft das Produkt,
+ * `foodFacts` hält Abrufdatum, Zutaten und Nährwerte, `imageSource`
+ * `openfoodfacts` markiert ein von dort übernommenes Bild (Lizenzhinweis).
  */
 final class Product
 {
+    public const IMAGE_SOURCE_FOOD_FACTS = 'openfoodfacts';
+
+    /** Felder, die sich aus Open Food Facts übernehmen lassen; `image` lädt die App selbst hoch. */
+    public const FOOD_FACTS_FIELDS = ['name', 'brand', 'packageSize', 'ingredients', 'nutrition', 'image'];
+
     public function __construct(
         public readonly string $id,
         public string $name,
@@ -29,7 +42,10 @@ final class Product
         public readonly string $createdBy,
         public readonly DateTimeImmutable $createdAt,
         public string $updatedBy,
-        public DateTimeImmutable $updatedAt
+        public DateTimeImmutable $updatedAt,
+        public ?string $brand = null,
+        public ?FoodFactsData $foodFacts = null,
+        public ?string $imageSource = null
     ) {
     }
 
@@ -55,7 +71,8 @@ final class Product
             $userId,
             $now,
             $userId,
-            $now
+            $now,
+            $Input->brand
         );
     }
 
@@ -91,6 +108,10 @@ final class Product
             $this->packageSize = $Input->packageSize;
         }
 
+        if ($Input->has('brand')) {
+            $this->brand = $Input->brand;
+        }
+
         if ($before === $this->editableFields()) {
             return false;
         }
@@ -102,16 +123,102 @@ final class Product
 
     /**
      * Setzt Zuschnitt und Original (QUIQQER-Medien) oder entfernt beide (null).
+     * `$source` ist die Herkunft (`openfoodfacts`, null = eigenes Foto).
      * Gibt zurück, ob sich etwas geändert hat.
      */
-    public function setImage(?int $imageId, ?int $originalId, string $userId, DateTimeImmutable $now): bool
-    {
-        if ($this->imageId === $imageId && $this->imageOriginalId === $originalId) {
+    public function setImage(
+        ?int $imageId,
+        ?int $originalId,
+        string $userId,
+        DateTimeImmutable $now,
+        ?string $source = null
+    ): bool {
+        $source = $imageId === null ? null : $source;
+
+        if (
+            $this->imageId === $imageId
+            && $this->imageOriginalId === $originalId
+            && $this->imageSource === $source
+        ) {
             return false;
         }
 
         $this->imageId = $imageId;
         $this->imageOriginalId = $imageId === null ? null : $originalId;
+        $this->imageSource = $source;
+        $this->touch($userId, $now);
+
+        return true;
+    }
+
+    /**
+     * Übernimmt die gewählten Angaben eines Treffers bei Open Food Facts und
+     * verknüpft das Produkt mit dessen Barcode. Was Open Food Facts nicht
+     * kennt, bleibt, wie es ist; nicht gewählte Felder ebenso (eigene Namen
+     * werden nur auf ausdrücklichen Wunsch ersetzt). Die Beschreibung
+     * (eigene Hinweise) wird nie berührt. Gibt zurück, ob sich etwas
+     * geändert hat.
+     *
+     * @param list<string> $fields aus `FOOD_FACTS_FIELDS`
+     */
+    public function applyFoodFacts(
+        FoodFactsProduct $Off,
+        array $fields,
+        string $userId,
+        DateTimeImmutable $now
+    ): bool {
+        $before = $this->foodFactsFields();
+
+        if (in_array('name', $fields, true) && $Off->name !== null) {
+            $this->name = $Off->name;
+        }
+
+        if (in_array('brand', $fields, true) && $Off->brand !== null) {
+            $this->brand = $Off->brand;
+        }
+
+        if (in_array('packageSize', $fields, true) && $Off->packageSize !== null) {
+            $this->packageSize = $Off->packageSize;
+        }
+
+        $ingredients = $this->foodFacts?->ingredients;
+        $language = $this->foodFacts?->language;
+        $nutrition = $this->foodFacts?->nutrition;
+
+        if (in_array('ingredients', $fields, true) && $Off->ingredients !== null) {
+            $ingredients = $Off->ingredients;
+            $language = $Off->ingredientsLanguage;
+        }
+
+        if (in_array('nutrition', $fields, true) && $Off->nutrition !== null) {
+            $nutrition = $Off->nutrition;
+        }
+
+        $this->barcode = $Off->barcode;
+        $this->foodFacts = new FoodFactsData($Off->fetchedAt, $language, $ingredients, $nutrition);
+
+        if ($before === $this->foodFactsFields()) {
+            return false;
+        }
+
+        $this->touch($userId, $now);
+
+        return true;
+    }
+
+    /**
+     * Löst die Verknüpfung: Barcode, Zutaten und Nährwerte weg. Übernommene
+     * Namen, Marke, Packungsgröße und Bild bleiben (sie gehören jetzt zum
+     * Produkt; ein Bild behält seinen Lizenzhinweis).
+     */
+    public function removeFoodFacts(string $userId, DateTimeImmutable $now): bool
+    {
+        if ($this->barcode === null && $this->foodFacts === null) {
+            return false;
+        }
+
+        $this->barcode = null;
+        $this->foodFacts = null;
         $this->touch($userId, $now);
 
         return true;
@@ -151,9 +258,12 @@ final class Product
             'icon' => $this->icon,
             'description' => $this->description,
             'packageSize' => $this->packageSize,
+            'brand' => $this->brand,
             'barcode' => $this->barcode,
             'imageUrl' => $image['small'] ?? null,
             'image' => $image,
+            'imageSource' => $this->imageSource,
+            'foodFacts' => $this->foodFacts?->toArray($this->barcode),
             'hidden' => $this->hidden,
             'hiddenAt' => $this->hiddenAt?->format(DATE_ATOM),
             'createdBy' => $this->createdBy,
@@ -178,7 +288,19 @@ final class Product
             'category' => $this->category,
             'icon' => $this->icon,
             'description' => $this->description,
-            'packageSize' => $this->packageSize
+            'packageSize' => $this->packageSize,
+            'brand' => $this->brand
         ];
+    }
+
+    private function foodFactsFields(): string
+    {
+        return serialize([
+            $this->name,
+            $this->brand,
+            $this->packageSize,
+            $this->barcode,
+            $this->foodFacts
+        ]);
     }
 }

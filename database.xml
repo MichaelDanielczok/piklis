@@ -21,10 +21,21 @@
                 <field type="text" nullable="true" default="null">description</field>
                 <!-- „1,5 l“, „500 g“: von Hand oder aus Open Food Facts -->
                 <field type="string" length="50" nullable="true" default="null">package_size</field>
+                <!-- Marke, von Hand oder aus Open Food Facts (Schritt 14) -->
+                <field type="string" length="120" nullable="true" default="null">brand</field>
+                <!-- EAN/GTIN, verknüpft das Produkt mit Open Food Facts (Schritt 14) -->
                 <field type="string" length="32" nullable="true" default="null">barcode</field>
+                <!-- Open Food Facts: übernommene Zutaten und Nährwerte als JSON
+                     ({ ingredients, nutrition }), Sprache der Zutaten, Abrufdatum;
+                     off_fetched_at null = keine Daten aus Open Food Facts -->
+                <field type="text" nullable="true" default="null">off_data</field>
+                <field type="string" length="5" nullable="true" default="null">off_language</field>
+                <field type="datetime" nullable="true" default="null">off_fetched_at</field>
                 <!-- QUIQQER-Medien im Projekt piklis (Schritt 4) -->
                 <field type="integer" nullable="true" default="null">image_id</field>
                 <field type="integer" nullable="true" default="null">image_original_id</field>
+                <!-- Herkunft des Bildes: null = eigenes Foto, openfoodfacts (Lizenzhinweis) -->
+                <field type="string" length="20" nullable="true" default="null">image_source</field>
                 <!-- Ausgeblendet von Produktpflegern: nicht mehr in Katalog und
                      Vorschlägen, alte Einkäufe zeigen es weiter -->
                 <field type="boolean" default="0">hidden</field>
@@ -214,6 +225,18 @@
 
                 <index>template_id</index>
                 <index>product_id</index>
+            </table>
+
+            <!-- Abrufe bei Open Food Facts (Schritt 14): ein Datensatz je Barcode,
+                 Antwort verkleinert als JSON, null = nicht gefunden. Treffer gelten
+                 7 Tage, „nicht gefunden“ 1 Tag (FoodFacts\FoodFactsLookup). -->
+            <table name="pk_off_cache">
+                <field type="string" length="32" primary="true">barcode</field>
+                <field type="boolean" default="0">found</field>
+                <field type="text" nullable="true" default="null">product</field>
+                <field type="datetime">fetched_at</field>
+
+                <index>fetched_at</index>
             </table>
         </global>
     </database>

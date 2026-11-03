@@ -19,6 +19,7 @@ final class Tables
     public const LIST_INVITES = 'pk_list_invites';
     public const TEMPLATES = 'pk_templates';
     public const TEMPLATE_ENTRIES = 'pk_template_entries';
+    public const OFF_CACHE = 'pk_off_cache';
 
     public const DATETIME_FORMAT = 'Y-m-d H:i:s';
 

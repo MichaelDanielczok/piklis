@@ -67,6 +67,11 @@ class Provider implements ProviderInterface
                 $Group->post('/products/{id}/unhide', [ProductsEndpoint::class, 'unhide']);
                 $Group->post('/products/{id}/image', [ProductsEndpoint::class, 'setImage']);
                 $Group->delete('/products/{id}/image', [ProductsEndpoint::class, 'removeImage']);
+                $Group->post('/products/{id}/openfoodfacts', [ProductsEndpoint::class, 'applyFoodFacts']);
+                $Group->delete('/products/{id}/openfoodfacts', [ProductsEndpoint::class, 'removeFoodFacts']);
+
+                $Group->get('/openfoodfacts/{barcode}', [FoodFactsEndpoint::class, 'lookup']);
+                $Group->get('/openfoodfacts/{barcode}/image', [FoodFactsEndpoint::class, 'image']);
             }
         )->add(new SessionAuthentication());
     }

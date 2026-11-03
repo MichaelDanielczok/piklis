@@ -21,6 +21,7 @@ use function trim;
  *   gibt, weiß nur das Frontend; ein unbekanntes zeigt es als allgemein.
  * - `description`: höchstens 2000 Zeichen, leer = null.
  * - `packageSize`: höchstens 50 Zeichen („1,5 l“), leer = null.
+ * - `brand`: höchstens 120 Zeichen, leer = null (Schritt 14).
  */
 final class ProductInput
 {
@@ -30,9 +31,11 @@ final class ProductInput
 
     public const PACKAGE_SIZE_MAX_LENGTH = 50;
 
+    public const BRAND_MAX_LENGTH = 120;
+
     public const DEFAULT_ICON = 'allgemein';
 
-    private const FIELDS = ['name', 'category', 'icon', 'description', 'packageSize'];
+    private const FIELDS = ['name', 'category', 'icon', 'description', 'packageSize', 'brand'];
 
     private const ICON_PATTERN = '/^[a-z0-9][a-z0-9-]{0,63}$/';
 
@@ -45,6 +48,8 @@ final class ProductInput
     public ?string $description = null;
 
     public ?string $packageSize = null;
+
+    public ?string $brand = null;
 
     /** @var list<string> */
     private array $present = [];
@@ -123,6 +128,10 @@ final class ProductInput
 
                 case 'packageSize':
                     $Input->packageSize = self::optionalText($value, 'packageSize', self::PACKAGE_SIZE_MAX_LENGTH);
+                    break;
+
+                case 'brand':
+                    $Input->brand = self::optionalText($value, 'brand', self::BRAND_MAX_LENGTH);
                     break;
             }
         }

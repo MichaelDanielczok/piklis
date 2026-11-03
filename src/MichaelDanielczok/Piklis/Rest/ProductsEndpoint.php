@@ -5,13 +5,18 @@ namespace MichaelDanielczok\Piklis\Rest;
 use DateTimeImmutable;
 use DateTimeInterface;
 use Doctrine\DBAL\Exception as DBALException;
+use JsonException;
+use MichaelDanielczok\Piklis\FoodFacts\FoodFactsException;
+use MichaelDanielczok\Piklis\FoodFacts\InvalidBarcodeException;
 use MichaelDanielczok\Piklis\Images\ImageLimits;
 use MichaelDanielczok\Piklis\Images\InvalidImageException;
 use MichaelDanielczok\Piklis\Images\QuiqqerImageMedia;
 use MichaelDanielczok\Piklis\Images\UploadedImage;
 use MichaelDanielczok\Piklis\Lists\ListRepository;
 use MichaelDanielczok\Piklis\Products\InvalidProductException;
+use MichaelDanielczok\Piklis\Products\Product;
 use MichaelDanielczok\Piklis\Products\ProductException;
+use MichaelDanielczok\Piklis\Products\ProductFoodFactsService;
 use MichaelDanielczok\Piklis\Products\ProductImageService;
 use MichaelDanielczok\Piklis\Products\ProductPresenter;
 use MichaelDanielczok\Piklis\Products\ProductRepository;
@@ -46,12 +51,15 @@ use const UPLOAD_ERR_OK;
  * | POST | /products | `{ status, product }`, 201 angelegt, 200 schon vorhanden |
  * | PATCH | /products/{id} | `{ product }` |
  * | POST | /products/{id}/hide, /unhide | `{ product }` |
- * | POST | /products/{id}/image | `{ product }`, multipart: `image` (Zuschnitt), `original` (optional) |
+ * | POST | /products/{id}/image | `{ product }`, multipart: `image` (Zuschnitt), `original` (optional), `source` (optional) |
  * | DELETE | /products/{id}/image | `{ product }` |
+ * | POST | /products/{id}/openfoodfacts | `{ product }`, `{ barcode, fields }`: Angaben aus Open Food Facts übernehmen |
+ * | DELETE | /products/{id}/openfoodfacts | `{ product }`: Verknüpfung mit Open Food Facts lösen |
  *
  * Fehler: `400 invalid_product` (mit `field`, `reason`), `400 invalid_image`
  * und `413 too_large` (mit `field`, `reason`), `403 forbidden`,
- * `404 product_not_found`, `409 product_exists`, `500 save_failed`.
+ * `404 product_not_found`, `409 product_exists`, `500 save_failed`; beim
+ * Übernehmen zusätzlich die Fehler von `FoodFactsEndpoint`.
  */
 class ProductsEndpoint
 {
@@ -278,13 +286,20 @@ class ProductsEndpoint
             return self::imageError($Response, new InvalidImageException(UploadedImage::FIELD_CROP, 'required'));
         }
 
-        return self::run($Response, static function () use ($args, $crop, $original): array {
+        $body = $Request->getParsedBody();
+        $source = is_array($body) && ($body['source'] ?? null) === Product::IMAGE_SOURCE_FOOD_FACTS
+            ? Product::IMAGE_SOURCE_FOOD_FACTS
+            : null;
+
+        return self::run($Response, static function () use ($args, $crop, $original, $source): array {
             $Product = self::imageService()->setImage(
                 (string)($args['id'] ?? ''),
                 $crop,
                 $original,
                 SessionUser::id(),
-                SessionUser::canManageProducts()
+                SessionUser::canManageProducts(),
+                null,
+                $source
             );
 
             return [
@@ -305,6 +320,61 @@ class ProductsEndpoint
     ): ResponseInterface {
         return self::run($Response, static function () use ($args): array {
             $Product = self::imageService()->removeImage(
+                (string)($args['id'] ?? ''),
+                SessionUser::id(),
+                SessionUser::canManageProducts()
+            );
+
+            return [
+                'product' => self::presenter()->one($Product)
+            ];
+        });
+    }
+
+    /**
+     * Übernimmt die gewählten Angaben eines Treffers bei Open Food Facts:
+     * `{ barcode, fields: ['name', 'brand', 'packageSize', 'ingredients',
+     * 'nutrition', 'image'] }`. Die Werte kommen aus dem Cache des Servers;
+     * `image` verknüpft nur, das Bild lädt die App danach selbst hoch.
+     *
+     * @param array<string, string> $args
+     */
+    public function applyFoodFacts(
+        ServerRequestInterface $Request,
+        ResponseInterface $Response,
+        array $args
+    ): ResponseInterface {
+        $input = $Request->getParsedBody();
+
+        if (!is_array($input)) {
+            return Json::error($Response, 'invalid_request', 'Expected a JSON object.', 400);
+        }
+
+        return self::run($Response, static function () use ($args, $input): array {
+            $Product = self::foodFactsService()->apply(
+                (string)($args['id'] ?? ''),
+                $input['barcode'] ?? null,
+                $input['fields'] ?? null,
+                SessionUser::id(),
+                SessionUser::canManageProducts()
+            );
+
+            return [
+                'product' => self::presenter()->one($Product)
+            ];
+        });
+    }
+
+    /**
+     * @param array<string, string> $args
+     */
+    public function removeFoodFacts(
+        ServerRequestInterface $Request,
+        ResponseInterface $Response,
+        array $args
+    ): ResponseInterface {
+        return self::run($Response, static function () use ($args): array {
+            $Product = self::foodFactsService()->remove(
                 (string)($args['id'] ?? ''),
                 SessionUser::id(),
                 SessionUser::canManageProducts()
@@ -407,6 +477,10 @@ class ProductsEndpoint
             );
         } catch (InvalidImageException $Exception) {
             return self::imageError($Response, $Exception);
+        } catch (InvalidBarcodeException $Exception) {
+            return FoodFactsEndpoint::invalidBarcode($Response, $Exception);
+        } catch (FoodFactsException $Exception) {
+            return FoodFactsEndpoint::foodFactsError($Response, $Exception);
         } catch (ProductException $Exception) {
             return Json::error(
                 $Response,
@@ -414,7 +488,7 @@ class ProductsEndpoint
                 $Exception->getMessage(),
                 $Exception->getHttpStatus()
             );
-        } catch (DBALException | QUI\Exception $Exception) {
+        } catch (DBALException | JsonException | QUI\Exception $Exception) {
             QUI\System\Log::writeException($Exception);
 
             return Json::error($Response, 'save_failed', 'The product could not be saved.', 500);
@@ -424,6 +498,11 @@ class ProductsEndpoint
     private static function service(): ProductService
     {
         return new ProductService(new ProductRepository());
+    }
+
+    private static function foodFactsService(): ProductFoodFactsService
+    {
+        return new ProductFoodFactsService(new ProductRepository(), FoodFactsEndpoint::lookupService());
     }
 
     /**

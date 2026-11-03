@@ -5,13 +5,20 @@ namespace MichaelDanielczok\Piklis\Products;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception as DBALException;
+use JsonException;
 use MichaelDanielczok\Piklis\Database\Tables;
 use QUI;
 
 use function addcslashes;
 use function array_map;
+use function is_array;
 use function is_numeric;
 use function is_string;
+use function json_decode;
+use function json_encode;
+
+use const JSON_THROW_ON_ERROR;
+use const JSON_UNESCAPED_UNICODE;
 
 /**
  * Katalog in der Datenbank (`pk_products`). `search_name` wird bei jedem
@@ -125,14 +132,51 @@ class ProductRepository implements ProductStore
             (string)$row['created_by'],
             self::date($row['created_at']) ?? new DateTimeImmutable(),
             (string)$row['updated_by'],
-            self::date($row['updated_at']) ?? new DateTimeImmutable()
+            self::date($row['updated_at']) ?? new DateTimeImmutable(),
+            self::nullableString($row['brand'] ?? null),
+            self::foodFacts($row),
+            self::nullableString($row['image_source'] ?? null)
         );
     }
 
     /**
-     * Ohne `barcode`: den setzt Schritt 14.
+     * Angaben aus Open Food Facts; ohne Abrufdatum keine.
      *
+     * @param array<string, mixed> $row
+     */
+    private static function foodFacts(array $row): ?FoodFactsData
+    {
+        $fetchedAt = self::date($row['off_fetched_at'] ?? null);
+
+        if ($fetchedAt === null) {
+            return null;
+        }
+
+        $data = [];
+
+        if (is_string($row['off_data'] ?? null) && $row['off_data'] !== '') {
+            try {
+                $decoded = json_decode($row['off_data'], true, 64, JSON_THROW_ON_ERROR);
+                $data = is_array($decoded) ? $decoded : [];
+            } catch (JsonException) {
+                $data = [];
+            }
+        }
+
+        $nutrition = is_array($data['nutrition'] ?? null) ? $data['nutrition'] : null;
+
+        /** @var array<string, mixed>|null $nutrition */
+        return new FoodFactsData(
+            $fetchedAt,
+            self::nullableString($row['off_language'] ?? null),
+            self::nullableString($data['ingredients'] ?? null),
+            $nutrition
+        );
+    }
+
+    /**
      * @return array<string, mixed>
+     * @throws JsonException
      */
     private static function toRow(Product $Product): array
     {
@@ -144,6 +188,14 @@ class ProductRepository implements ProductStore
             'icon' => $Product->icon,
             'description' => $Product->description,
             'package_size' => $Product->packageSize,
+            'brand' => $Product->brand,
+            'barcode' => $Product->barcode,
+            'off_data' => $Product->foodFacts === null
+                ? null
+                : json_encode($Product->foodFacts->data(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
+            'off_language' => $Product->foodFacts?->language,
+            'off_fetched_at' => $Product->foodFacts?->fetchedAt->format(Tables::DATETIME_FORMAT),
+            'image_source' => $Product->imageSource,
             'image_id' => $Product->imageId,
             'image_original_id' => $Product->imageOriginalId,
             'hidden' => $Product->hidden ? 1 : 0,

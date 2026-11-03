@@ -35,6 +35,8 @@ final class ProductImageService
     /**
      * @param string $crop JPEG, quadratisch mit `ImageLimits::CROP_SIZE` px
      * @param string|null $original JPEG, verkleinertes Original; null behält das bisherige (neu zuschneiden)
+     * @param string|null $source Herkunft eines neuen Bildes (`Product::IMAGE_SOURCE_FOOD_FACTS`, null =
+     *   eigenes Foto); neu zuschneiden behält die bisherige
      * @throws InvalidImageException
      * @throws ProductException
      */
@@ -44,9 +46,11 @@ final class ProductImageService
         ?string $original,
         string $userId,
         bool $isManager,
-        ?DateTimeImmutable $now = null
+        ?DateTimeImmutable $now = null,
+        ?string $source = null
     ): Product {
         $Product = $this->loadEditable($productId, $userId, $isManager);
+        $source = $original === null ? $Product->imageSource : $source;
 
         UploadedImage::checkCrop($crop, $this->Limits);
 
@@ -68,7 +72,7 @@ final class ProductImageService
                 $stored[] = $originalId;
             }
 
-            $Product->setImage($imageId, $originalId, $userId, $now ?? new DateTimeImmutable());
+            $Product->setImage($imageId, $originalId, $userId, $now ?? new DateTimeImmutable(), $source);
             $this->Store->update($Product);
         } catch (Throwable $Exception) {
             foreach ($stored as $id) {

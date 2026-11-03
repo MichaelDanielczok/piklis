@@ -24,13 +24,14 @@ use const CURLPROTO_HTTPS;
 
 /**
  * HTTP-Abruf mit cURL: nur HTTPS, keine Weiterleitungen (eine Weiterleitung
- * zu Open Beauty Facts o. Ä. gilt als „nicht gefunden“), kurze Zeitgrenzen,
- * Größenbegrenzung schon beim Lesen.
+ * zu Open Beauty Facts o. Ä. gilt als „nicht gefunden“), Größenbegrenzung
+ * schon beim Lesen. Zeitgrenzen großzügig: Der Bildserver von Open Food
+ * Facts brauchte im Test zeitweise 2–3 s zum Verbinden und 10 s für 18 KB.
  */
 final class CurlHttpClient implements HttpClient
 {
-    private const CONNECT_TIMEOUT = 5;
-    private const TIMEOUT = 12;
+    private const CONNECT_TIMEOUT = 10;
+    private const TIMEOUT = 30;
 
     public function get(string $url, array $headers, int $maxBytes): HttpResponse
     {

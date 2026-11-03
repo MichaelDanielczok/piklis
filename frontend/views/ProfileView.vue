@@ -103,7 +103,13 @@ async function signOut() {
 }
 
 .profile__logout {
-    align-self: flex-start;
+    align-self: stretch;
     color: var(--color-danger);
+}
+
+@media (min-width: 64em) {
+    .profile__logout {
+        align-self: flex-start;
+    }
 }
 </style>

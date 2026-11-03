@@ -419,7 +419,7 @@ async function confirmAction() {
 }
 
 .share__leave {
-    align-self: flex-start;
+    align-self: stretch;
 }
 
 .share__card {

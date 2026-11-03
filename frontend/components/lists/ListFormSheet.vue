@@ -766,7 +766,7 @@ function remove() {
 }
 
 .list-form__delete {
-    align-self: flex-start;
+    align-self: stretch;
 }
 
 .list-form__stack {
@@ -799,7 +799,7 @@ function remove() {
 
 .list-form__owner-actions {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: var(--space-2);
     padding-top: var(--space-1);
 }

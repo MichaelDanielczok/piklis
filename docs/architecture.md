@@ -307,8 +307,12 @@ users.
 | `icon` | string(64), null | fallback icon from the sprite (`#pk-<icon>`); null = general icon |
 | `description` | text, null | long, permanent description (“die blaue Packung”) |
 | `package_size` | string(50), null | “1,5 l”, “500 g”: by hand or from Open Food Facts |
-| `barcode` | string(32), null, index | EAN for Open Food Facts (step 14) |
+| `brand` | string(120), null | brand, by hand or from Open Food Facts (step 14) |
+| `barcode` | string(32), null, index | GTIN linking the product to Open Food Facts (step 14) |
+| `off_data` | text, null | JSON `{ ingredients, nutrition }` taken over from Open Food Facts |
+| `off_language`, `off_fetched_at` | string(5), datetime, null | language of the ingredients, fetch date; no date = no Open Food Facts data |
 | `image_id`, `image_original_id` | integer, null | QUIQQER media in project `piklis`, folder “Produktbilder” and its “Originale” (step 4) |
+| `image_source` | string(20), null | null = own photo, `openfoodfacts` = taken over (licence note) |
 | `hidden`, `hidden_at`, `hidden_by` | boolean, datetime, string | hidden by a product maintainer |
 | `created_by`, `created_at`, `updated_by`, `updated_at` | | creator may edit own products; `catalog` = base catalog without creator |
 
@@ -317,10 +321,9 @@ users.
 - **Images** are QUIQQER media, not a table: the product points to the square
   image and the reduced original. Sizes 128/640/1600 px come as `.webp`
   addresses of the media cache, see [Product images](#product-images).
-- **Open Food Facts** (step 14) adds columns to `pk_products`: `brand`,
-  `off_data` (JSON: ingredients, nutrition per 100 g/ml and per portion, with
-  their reference), `off_language`, `off_fetched_at`. Own name, photo and
-  description are never overwritten.
+- **Open Food Facts** (step 14): the columns above plus the cache table
+  `pk_off_cache`, see [Open Food Facts](#open-food-facts). Own name, photo
+  and description are never overwritten unasked.
 - **Rights:** see [Product catalog](#product-catalog).
 - **Hiding instead of deleting:** hidden products disappear from catalog
   search and suggestions; entries keep pointing to them and show the current
@@ -1191,15 +1194,18 @@ One catalog for all signed-in users (Obsidian “Piklis Konzept” ›
 
 - **Product** (`Products\Product`, JSON camelCase through
   `Products\ProductPresenter`): `id`, `name`, `category`, `icon`,
-  `description`, `packageSize`, `barcode`, `imageUrl` (128 px or null),
-  `image` (`{ small, medium, large, original }` or null, see
-  [Product images](#product-images)), `hidden`, `hiddenAt`, `createdBy`,
+  `description`, `packageSize`, `brand`, `barcode`, `imageUrl` (128 px or
+  null), `image` (`{ small, medium, large, original }` or null, see
+  [Product images](#product-images)), `imageSource`, `foodFacts`
+  (`{ fetchedAt, language, ingredients, nutrition, url }` or null, see
+  [Open Food Facts](#open-food-facts)), `hidden`, `hiddenAt`, `createdBy`,
   `createdAt`, `updatedAt`.
 - **Input** (`Products\ProductInput`): only `name` is required (1–120
   characters, whitespace collapsed); `category` one of the fixed keys or
   null; `icon` a sprite key (`a-z0-9-`), null or `allgemein` = general icon
   (stored as null; the server does not know the sprite, unknown keys show the
-  general icon); `description` up to 2000, `packageSize` up to 50 characters;
+  general icon); `description` up to 2000, `packageSize` up to 50, `brand`
+  up to 120 characters;
   empty optional fields become null. `400 invalid_product` names `field` and
   `reason` (`required`, `too_long`, `invalid`).
 - **Rights** (`Products\ProductPermissions`, same rule in
@@ -1262,10 +1268,95 @@ One catalog for all signed-in users (Obsidian “Piklis Konzept” ›
   a row opens the detail page, “+” the form page. Desktop (from `64em`):
   product maintenance in two columns like design screen 11, list on the left,
   detail or form on the right (sticky) without changing the page.
-- **Detail:** large image or icon (`hero`), category chip, name, package
-  size, description, “Ausgeblendet” with symbol and text; buttons only when
+- **Detail:** large image or icon (`hero`), category chip, name, brand ·
+  package size, description, “Ausgeblendet” with symbol and text;
+  ingredients, nutrition and source from Open Food Facts; buttons only when
   allowed (Bearbeiten; Ausblenden or Wieder einblenden for maintainers, with
-  undo in the toast), otherwise a hint who may edit.
+  undo in the toast; “Mit Open Food Facts ergänzen”), otherwise a hint who
+  may edit.
+
+## Open Food Facts
+
+Optional completion of a product (Obsidian “Piklis Konzept” › “Open Food
+Facts”). PHP in `FoodFacts/` and `Products\ProductFoodFactsService`, REST
+in `Rest\FoodFactsEndpoint` and `Rest\ProductsEndpoint`, app in
+`components/products/FoodFactsSheet.vue`, `FoodFactsDetails.vue`,
+`BarcodeScanner.vue`, `utils/foodFacts.js`, `utils/barcode.js`.
+
+- **Server only:** the app never talks to Open Food Facts; the server asks
+  `https://world.openfoodfacts.org/api/v3.4/product/{barcode}` with a fixed
+  field list (`OpenFoodFactsClient::FIELDS`). API v3.4 is pinned: v3.5
+  changes the nutrition structure and is still in development, Open Food
+  Facts serves older versions in their old form. No account, no key; the
+  user agent is `Piklis/1.0 (private shopping list app)` (app name as asked
+  by Open Food Facts, no person's name or e-mail address). cURL with HTTPS
+  only, no redirects (a redirect to another database counts as not found),
+  connect 10 s, total 30 s (the image server was slow in tests).
+- **Barcode** (`FoodFacts\Barcode`, JS `utils/barcode.js`, shared cases in
+  `tests/fixtures/barcodes.json`): digits only, spaces and hyphens removed,
+  8, 12, 13 or 14 digits, the GTIN check digit must match. Typing errors
+  are caught before asking Open Food Facts (`400 invalid_barcode` with
+  `reason` `required` · `invalid` · `checksum`).
+- **Cache** (`pk_off_cache`, `FoodFacts\FoodFactsLookup`): one row per
+  barcode with the reduced answer (`OpenFoodFactsClient::compact()`) or
+  null for not found. Hits stay 7 days, not found 1 day; “Neu abrufen”
+  (`?refresh=1`) asks again unless the last fetch is younger than 10
+  minutes. Brake: at most 10 fetches per minute for everybody (Open Food
+  Facts allows 15 product reads per minute and IP); above, an older cache
+  row helps, otherwise `429 off_busy`. Unreachable (`503
+  off_unavailable`): an older row helps, except on refresh.
+- **Hit** (`FoodFacts\FoodFactsProduct`): name `product_name_de` ·
+  `_en` · `product_name` (names are often language neutral, at most 120
+  characters); brand `brands` without duplicates; package size from
+  `product_quantity` + unit (“1000 ml” → “1 l”), otherwise the cleaned
+  `quantity` text (`PackageSize`); ingredients only German or English;
+  nutrition (`Nutrition`): the EU label rows energy kJ/kcal, fat, saturated
+  fat, carbohydrates, sugars, fibre, protein, salt, each `per100` and
+  `perServing` from `_100g`/`_serving`, `per` `ml` when Open Food Facts says
+  `100ml` or the product is filled in ml, otherwise `g`, `servingSize` only
+  with serving values; nothing is computed or estimated
+  (`nutriments_estimated` is ignored); image: selected front image (de · en
+  · main language · first), 400 px for the preview, `full` for taking over.
+  Missing data is null.
+- **Taking over** (`POST /products/{id}/openfoodfacts` with `{ barcode,
+  fields }`): the right to edit first, then the fields
+  (`Product::FOOD_FACTS_FIELDS`), the values always from the server cache,
+  never from the app. Chosen fields with a value replace, chosen fields
+  without a value and unchosen fields stay as they are; the description is
+  never touched. The barcode and fetch date are always stored (the source of
+  the data). `DELETE …/openfoodfacts` unlinks: barcode, ingredients and
+  nutrition go, taken over name, brand, size and image stay.
+- **Image:** the app loads the full image through
+  `GET /openfoodfacts/{barcode}/image?size=full` (only the cached front
+  image on images.openfoodfacts.org, no free URLs), places it centred on a
+  white square (`padToSquare`, tall packages stay whole), the user crops it
+  in the normal crop dialog and it is uploaded like an own photo with
+  `source=openfoodfacts` (`image_source`). Recropping keeps the source, an
+  own photo or removing clears it.
+- **Sheet:** offline a clear message instead of the input; input with
+  numeric keyboard and check digit hint; scan; hit with preview, then one
+  checkbox per available field with what it does (neu · schon gleich ·
+  ersetzt „…“). Preselected only what is empty or equal, plus ingredients
+  and nutrition; the name never (a product always has one), an own photo
+  never. Fields Open Food Facts lacks are named and stay empty.
+- **Scanner:** the browser's `BarcodeDetector` when it reads EAN/UPC
+  (Chrome on Android, macOS); otherwise (Safari, iPhone) `barcode-detector`
+  with the zxing-wasm reader. Both are loaded only when scanning
+  (`import('@/utils/barcodeScanner.js')`); the WebAssembly file
+  (`zxing_reader.wasm`, 0.95 MB, gzip 0.41 MB; JS chunk 43 KB, gzip
+  15 KB) comes from `bin/app/assets/`, never from a CDN (`locateFile`
+  override), and is not precached (`globIgnores` for the scanner chunks).
+  Rear camera, a code counts after two equal reads with a valid check digit.
+- **Detail:** brand next to the package size; ingredients and nutrition in
+  `<details>` (closed), nutrition as a table with “je 100 g/ml” and, with
+  serving values, “je Portion (…)”, energy in one row (“267 kJ / 64 kcal”),
+  “–” for missing values. Source line with fetch date, link to the product
+  at Open Food Facts, ODbL for data and CC BY-SA for an image taken over;
+  editors get “Neu abrufen” and “Verknüpfung lösen”. The data travels with
+  the catalog into the local store, so the detail shows it offline.
+- **Tests:** PHPUnit with stored Open Food Facts answers in
+  `tests/fixtures/openfoodfacts/` (complete milk, sparse product, product
+  with serving values, not found), no live requests.
 
 ## Fallback icons and category colours
 
@@ -1399,8 +1490,12 @@ picture of SmartPicker.
 | `POST` | `/products` | create with the browser's UUID: `201` `{status: 'created', product}`, again `200` `unchanged` |
 | `PATCH` | `/products/{id}` | change the sent fields (creator or maintainer) |
 | `POST` | `/products/{id}/hide`, `/unhide` | hide or show again (maintainers only) |
-| `POST` | `/products/{id}/image` | multipart `image` (crop, JPEG 1600 px) and optional `original`; `400 invalid_image` / `413 too_large` with `field` and `reason` |
+| `POST` | `/products/{id}/image` | multipart `image` (crop, JPEG 1600 px), optional `original` and `source` (`openfoodfacts`); `400 invalid_image` / `413 too_large` with `field` and `reason` |
 | `DELETE` | `/products/{id}/image` | remove the image (fallback icon again) |
+| `GET` | `/openfoodfacts/{barcode}?refresh=1` | `{ result }`: hit at Open Food Facts from the server cache, see [Open Food Facts](#open-food-facts); `400 invalid_barcode`, `404 off_not_found`, `429 off_busy`, `503 off_unavailable` |
+| `GET` | `/openfoodfacts/{barcode}/image?size=full` | front image of the cached hit (400 px or full size); `404 off_no_image` |
+| `POST` | `/products/{id}/openfoodfacts` | `{ barcode, fields }`: take over chosen fields (right to edit) |
+| `DELETE` | `/products/{id}/openfoodfacts` | unlink (barcode, ingredients, nutrition) |
 
 - Every route in the group requires a QUIQQER session
   (`Rest\SessionAuthentication`), without: `401 unauthorized`. Public routes

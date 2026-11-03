@@ -127,7 +127,17 @@ under `design/piklis-designpaket/`.
   `GET /products/search`, `GET /products/suggestions`, `GET|PATCH /products/{id}`,
   `POST /products/{id}/hide|unhide`, `POST|DELETE /products/{id}/image`,
   `GET|POST /templates`, `GET|PUT|DELETE /templates/{id}`,
-  `POST /templates/{id}/move|copy`)
+  `POST /templates/{id}/move|copy`, `GET /openfoodfacts/{barcode}`,
+  `GET /openfoodfacts/{barcode}/image`, `POST|DELETE /products/{id}/openfoodfacts`)
+- Open Food Facts: “Mit Open Food Facts ergänzen” in the product detail;
+  enter or scan a barcode (camera scanner loaded only when scanning), check
+  the hit and take over name, brand, package size, image, ingredients and
+  nutrition one by one; own name, photo and notes are never replaced
+  unasked, missing data stays empty. Looked up by the server only (API
+  v3.4, app user agent, cache 7 days, brake below the rate limit). Detail
+  with brand, collapsible ingredients and nutrition per 100 g/ml and per
+  serving, source, date and licence (ODbL, image CC BY-SA), refresh and
+  unlink
 - PHPStan level 8, PHPCS, PHPUnit; JS tests with `node --test`
 
 ## Quick start
@@ -143,7 +153,8 @@ npm test        # JS tests (node --test, shared fixtures with PHPUnit)
 ## Documentation
 
 - [Architecture](docs/architecture.md): structure, design, components,
-  data model, sync and conflict rules, product catalog, product images,
+  data model, sync and conflict rules, product catalog, Open Food Facts,
+  product images,
   PWA, REST, login, texts
 - [Development](docs/development.md): instance, mock backend, Vite, tools
 
@@ -151,3 +162,13 @@ npm test        # JS tests (node --test, shared fixtures with PHPUnit)
 
 The fallback icon sprite contains icons from [Lucide](https://lucide.dev)
 (ISC licence, see `LICENSE-lucide.txt`).
+
+The barcode scanner uses [barcode-detector](https://github.com/Sec-ant/barcode-detector)
+and [zxing-wasm](https://github.com/Sec-ant/zxing-wasm) (both MIT, ZXing-C++
+under Apache 2.0), bundled into `bin/app/` and loaded only when scanning.
+
+Product data and images from [Open Food Facts](https://world.openfoodfacts.org)
+are available under the [Open Database License](https://opendatacommons.org/licenses/odbl/1-0/)
+(contents: Database Contents License) and product images under
+[CC BY-SA](https://creativecommons.org/licenses/by-sa/3.0/); the app shows
+source, fetch date and licence at every product that uses them.

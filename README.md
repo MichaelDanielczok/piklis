@@ -12,7 +12,9 @@ under `design/piklis-designpaket/`.
 
 ## What is included
 
-- Login with QUIQQER users (core login, own form), session check, 401 handling
+- Login with QUIQQER users (core login, own form), session check, 401 handling;
+  a login lasts 90 days (package setup sets `max_life_time`, `GET /me` renews
+  the cookie)
 - Navigation Listen · Produkte · Vorlagen: floating glass bar on phones,
   sidebar on desktop
 - User menu at the avatar: Profil, Haushalt, Einstellungen, Darstellung

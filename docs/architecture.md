@@ -99,6 +99,17 @@ committed because the server does not build (no Node there).
   except public routes requires a session; `meta.manageProducts`
   additionally requires `piklis.products.manage`. A `401` from the API
   returns to login with `?redirect=`.
+- Login lifetime: 90 days (`Users\SessionLifetime`). The package setup raises
+  `session.max_life_time` in `etc/conf.ini.php`. The core renews the cookie
+  only after a long pause, which live polling never reaches, so `GET /me`
+  renews it at app start, at most once a day (`Session::refresh()`; the old
+  ID stays valid for requests in flight).
+- On-screen keyboard: iOS does not shrink the page and Safari ignores
+  `interactive-widget`. `utils/keyboardInset.js` turns Ionic's
+  `ionKeyboardDidShow` / `ionKeyboardDidHide` (from `visualViewport` in the
+  PWA, from the Keyboard plugin in a native app) into `--keyboard-height` and
+  `data-keyboard="open"` on `<html>`. `AppPage` keeps that space free at the
+  bottom, `MobileNav` is hidden.
 - Language: German only, no language setting. Theme: `auto | light | dark`
   (default `auto`, follows the system) via `data-theme` on `<html>`, chosen
   in the user menu or in Einstellungen; `applyTheme()` also sets both

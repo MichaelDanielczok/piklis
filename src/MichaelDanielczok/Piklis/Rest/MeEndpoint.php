@@ -5,16 +5,19 @@ namespace MichaelDanielczok\Piklis\Rest;
 use Doctrine\DBAL\Exception as DBALException;
 use MichaelDanielczok\Piklis\Users\InvalidSettingException;
 use MichaelDanielczok\Piklis\Users\Profile;
+use MichaelDanielczok\Piklis\Users\SessionLifetime;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use QUI;
 
 use function is_array;
+use function time;
 
 /**
  * `GET /me` und `PATCH /me/settings`. Beide liefern auch den Haushalt als
  * Kurzform (`household: { id, name, role } | null`): Er ist der Standard für
- * neue Listen.
+ * neue Listen. `GET /me` läuft beim App-Start und erneuert dabei das
+ * Session-Cookie (`SessionLifetime`).
  */
 class MeEndpoint
 {
@@ -26,6 +29,12 @@ class MeEndpoint
         ResponseInterface $Response,
         array $args
     ): ResponseInterface {
+        $Session = QUI::getSession();
+
+        if ($Session instanceof QUI\Session) {
+            SessionLifetime::renewCookieIfDue($Session, time());
+        }
+
         $Profile = new Profile(QUI::getUserBySession());
 
         return $this->respond($Response, $Profile);

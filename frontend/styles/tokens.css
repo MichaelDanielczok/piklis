@@ -220,6 +220,7 @@
        8 px in den Schutzbereich hinein, wie die schwebenden Leisten von iOS */
     --mobile-nav-bottom: max(var(--mobile-nav-offset), calc(env(safe-area-inset-bottom, 0px) - var(--space-2)));
     --mobile-nav-max-width: 26rem;
+    --keyboard-height: 0px; /* offene Bildschirmtastatur, setzt utils/keyboardInset.js */
     --menu-min-width: 17.5rem; /* 280, Platz für „Automatisch“ in der Motivwahl */
     --narrow-content-width: 40rem; /* Profil, Formulare */
     --list-content-width: 45rem; /* Einkaufslisten */

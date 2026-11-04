@@ -2,7 +2,8 @@
 /**
  * Schwebende Glas-Navigation unten (Mobil und Tablet) im iPhone-Stil, in
  * Leinen-Farben: aktives Ziel mit grünem Pill hinter dem Symbol und grüner
- * Beschriftung (Form und Farbe, nicht nur Farbe).
+ * Beschriftung (Form und Farbe, nicht nur Farbe). Bei offener
+ * Bildschirmtastatur ausgeblendet.
  */
 import { t } from '@/i18n/index.js';
 import NavLink from './NavLink.vue';
@@ -38,6 +39,10 @@ import { navItems } from './navItems.js';
     box-shadow: var(--shadow-float);
     backdrop-filter: var(--glass-blur) saturate(1.4);
     -webkit-backdrop-filter: var(--glass-blur) saturate(1.4);
+}
+
+:root[data-keyboard='open'] .mobile-nav {
+    visibility: hidden;
 }
 
 .mobile-nav__list {

@@ -2,7 +2,7 @@
 /**
  * Rahmen jeder Ansicht: Ionic-Seite mit scrollendem Inhalt, oben der Kopf
  * (AppHeader: Titel, Zurück, Benutzermenü), unten Platz für die schwebende
- * Navigation (Mobil) und den Home-Indikator.
+ * Navigation (Mobil), den Home-Indikator und die offene Bildschirmtastatur.
  * Hinter der Statusleiste liegt ein Glasstreifen: In der installierten App
  * (black-translucent) liefe der Inhalt sonst sichtbar unter Uhrzeit und Akku
  * durch. Im Browser ist der Sicherheitsabstand 0, der Streifen also auch.
@@ -70,11 +70,15 @@ defineProps({
     --background: var(--color-bg);
     --color: var(--color-text-1);
     --padding-top: env(safe-area-inset-top, 0px);
-    --padding-bottom: calc(var(--mobile-nav-height) + var(--mobile-nav-bottom) + var(--mobile-nav-offset));
+    --_keyboard-space: calc(var(--keyboard-height) + var(--space-4));
+    --padding-bottom: max(
+        calc(var(--mobile-nav-height) + var(--mobile-nav-bottom) + var(--mobile-nav-offset)),
+        var(--_keyboard-space)
+    );
 }
 
 .app-page--bare {
-    --padding-bottom: env(safe-area-inset-bottom, 0px);
+    --padding-bottom: max(env(safe-area-inset-bottom, 0px), var(--_keyboard-space));
 }
 
 .app-page__statusbar {
@@ -105,7 +109,7 @@ defineProps({
 
 @media (min-width: 64em) {
     .app-page:not(.app-page--bare) {
-        --padding-bottom: var(--space-14);
+        --padding-bottom: max(var(--space-14), var(--_keyboard-space));
     }
 
     .app-page__inner {

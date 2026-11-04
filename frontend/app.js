@@ -13,10 +13,12 @@ import { onUnauthorized } from './api/index.js';
 import { applyStoredTheme, markLoggedOut } from './composables/useSession.js';
 import { registerServiceWorker } from './pwa.js';
 import { installIconSprite } from './icons/sprite.js';
+import { installKeyboardInset } from './utils/keyboardInset.js';
 
 applyDocumentLanguage();
 applyStoredTheme();
 installIconSprite();
+installKeyboardInset(window, document.documentElement);
 
 // Session abgelaufen: zurück zur Anmeldeseite, danach wieder hierher. Der
 // lokale Stand (auch nicht übertragene Änderungen) bleibt für die Anmeldung.

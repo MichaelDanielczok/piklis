@@ -1,23 +1,22 @@
 /**
- * Zeile nach links wischen, um eine Aktion dahinter freizulegen (Designpaket
- * 06: „Nach links wischen → Nicht bekommen“). Pointer Events, ohne
- * Bibliothek; die Zeile hat `touch-action: pan-y`, senkrecht scrollt die
- * Seite wie immer.
+ * Zeile nach links wischen, um die Aktionen dahinter freizulegen (Konzept
+ * „Abhaken und Nicht bekommen“). Pointer Events, ohne Bibliothek; die Zeile
+ * hat `touch-action: pan-y`, senkrecht scrollt die Seite wie immer.
  *
  * - Erst ab 8 px und überwiegend waagrecht gilt es als Wischen; dann folgt
- *   die Zeile dem Finger (nur nach links).
- * - Loslassen über die halbe Aktionsbreite: Aktion bleibt sichtbar zum
- *   Antippen. Weit gewischt (über 60 % der Zeile): Aktion sofort.
+ *   die Zeile dem Finger, nur nach links und höchstens so weit, wie die
+ *   Aktionen breit sind. Wischen nach rechts ist nicht belegt (Zurück-Geste).
+ * - Loslassen über die halbe Aktionsbreite: Aktionen bleiben sichtbar zum
+ *   Antippen. Wischen selbst löst nie etwas aus, auch nicht weites Wischen.
  * - Es ist immer höchstens eine Zeile offen; Tippen auf die Zeile schließt
  *   sie wieder, ohne das Produkt zu öffnen.
  *
- * Die Aktion ist nur ein Kurzweg: dieselbe Funktion steht im Produkt im
- * Listenkontext als Knopf (Tastatur, Bildschirmleser).
+ * Die Aktionen sind nur ein Kurzweg: dieselben Funktionen stehen im Produkt
+ * im Listenkontext als Knöpfe (Tastatur, Bildschirmleser).
  */
-import { onBeforeUnmount, ref, watch } from 'vue';
+import { onScopeDispose, ref, watch } from 'vue';
 
 const THRESHOLD = 8;
-const FULL_SWIPE = 0.6;
 
 /** ID der gerade offenen Zeile (app-weit nur eine). */
 const openRow = ref(null);
@@ -27,12 +26,11 @@ let nextId = 0;
 /**
  * @param {{
  *   root: import('vue').Ref<HTMLElement|null>,
- *   action: import('vue').Ref<HTMLElement|null>,
- *   enabled: () => boolean,
- *   onAction: () => void
- * }} options
+ *   actions: import('vue').Ref<HTMLElement|null>,
+ *   enabled: () => boolean
+ * }} options `actions`: Element mit allen Aktionen, seine Breite ist der Wischweg
  */
-export function useRowSwipe({ root, action, enabled, onAction }) {
+export function useRowSwipe({ root, actions, enabled }) {
     const id = ++nextId;
     const offset = ref(0);
     const dragging = ref(false);
@@ -40,8 +38,8 @@ export function useRowSwipe({ root, action, enabled, onAction }) {
     let start = null;
     let suppressClick = false;
 
-    function actionWidth() {
-        return action.value?.offsetWidth ?? 88;
+    function actionsWidth() {
+        return actions.value?.offsetWidth ?? 0;
     }
 
     function close() {
@@ -90,9 +88,7 @@ export function useRowSwipe({ root, action, enabled, onAction }) {
             root.value?.setPointerCapture?.(event.pointerId);
         }
 
-        const width = root.value?.offsetWidth ?? 320;
-
-        offset.value = Math.max(-width * 0.9, Math.min(0, start.base + dx));
+        offset.value = Math.max(-actionsWidth(), Math.min(0, start.base + dx));
     }
 
     function onPointerUp(event) {
@@ -110,17 +106,12 @@ export function useRowSwipe({ root, action, enabled, onAction }) {
 
         dragging.value = false;
         suppressClick = true;
-        window.setTimeout(() => {
+        setTimeout(() => {
             suppressClick = false;
         }, 60);
 
-        const width = root.value?.offsetWidth ?? 320;
-
-        if (-offset.value > width * FULL_SWIPE) {
-            close();
-            onAction();
-        } else if (-offset.value > actionWidth() / 2) {
-            offset.value = -actionWidth();
+        if (-offset.value > actionsWidth() / 2) {
+            offset.value = -actionsWidth();
         } else {
             close();
         }
@@ -129,7 +120,7 @@ export function useRowSwipe({ root, action, enabled, onAction }) {
     function onPointerCancel() {
         if (start?.active) {
             dragging.value = false;
-            offset.value = offset.value < -actionWidth() / 2 ? -actionWidth() : 0;
+            offset.value = offset.value < -actionsWidth() / 2 ? -actionsWidth() : 0;
         }
 
         start = null;
@@ -164,12 +155,7 @@ export function useRowSwipe({ root, action, enabled, onAction }) {
         }
     }
 
-    function runAction() {
-        close();
-        onAction();
-    }
-
-    onBeforeUnmount(() => {
+    onScopeDispose(() => {
         if (openRow.value === id) {
             openRow.value = null;
         }
@@ -179,7 +165,6 @@ export function useRowSwipe({ root, action, enabled, onAction }) {
         offset,
         dragging,
         close,
-        runAction,
         listeners: {
             pointerdown: onPointerDown,
             pointermove: onPointerMove,

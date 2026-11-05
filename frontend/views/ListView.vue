@@ -22,9 +22,10 @@
  *   der Zahl wartender Änderungen, je Eintrag „noch nicht übertragen“.
  *   Abhaken, Mengen, Hinzufügen, Sortieren und Abschließen gehen über die
  *   Warteschlange; Verschieben, Kopieren und Teilen nur mit Verbindung.
- * - Nach links wischen: „Nicht bekommen“ (eigener Abschnitt, mit
- *   „Rückgängig“ im Toast); dort wischen: „Wieder offen“. Der Pfeil in der
- *   Zeile oder „Alle übernehmen …“ übernimmt in eine andere Liste
+ * - Nach links wischen: Knöpfe „Nicht bekommen“ (eigener Abschnitt, mit
+ *   „Rückgängig“ im Toast) und „Entfernen“ (ebenso mit „Rückgängig“); im
+ *   Abschnitt „Nicht bekommen“ stattdessen „Wieder offen“ und „Entfernen“.
+ *   Der Pfeil in der Zeile oder „Alle übernehmen …“ übernimmt in eine andere Liste
  *   (`TransferSheet`), im Ursprung steht dann „übernommen nach …“.
  * - „Einkauf abschließen“ unten: Angebot, Offenes und Nicht bekommenes zu
  *   übernehmen; danach liegt die Liste im Archiv.
@@ -97,7 +98,9 @@ import {
     moveOpenEntry,
     moveOpenEntryFrom,
     refreshList,
+    removeEntry,
     reopenList,
+    restoreEntry,
     uncheckEntry,
     updateList,
     useLists
@@ -233,6 +236,7 @@ function rowOf(entry) {
     return {
         entry,
         name: product?.name ?? t('entry.unknownProduct'),
+        packageSize: product?.packageSize ?? null,
         imageUrl: product?.imageUrl ?? null,
         icon: product ? iconOf(product) : undefined,
         category: categoryOf(product),
@@ -240,8 +244,9 @@ function rowOf(entry) {
     };
 }
 
-const swipeNotGot = { label: t('list.swipeNotGot'), variant: 'notgot' };
-const swipeReopen = { label: t('list.swipeReopen'), variant: 'accent' };
+const swipeRemove = { action: 'remove', label: t('list.swipeRemove'), variant: 'danger' };
+const swipeOpenRow = [{ action: 'notGot', label: t('list.swipeNotGot'), variant: 'neutral' }, swipeRemove];
+const swipeNotGotRow = [{ action: 'reopen', label: t('list.swipeReopen'), variant: 'accent' }, swipeRemove];
 
 const openRows = computed(() => view.value.open.map(rowOf));
 const notGotRows = computed(() => view.value.notGot.map(rowOf));
@@ -563,6 +568,35 @@ async function backToOpen(entry) {
     }
 }
 
+/**
+ * Wischen „Entfernen“: Die Zeile schließt sich beim Verschwinden (`onRowLeave`)
+ * und öffnet sich bei „Rückgängig“ wieder an ihrer Stelle (`onRowEnter`), der
+ * Sortierschlüssel bleibt.
+ */
+async function remove(entry) {
+    const { name } = rowOf(entry);
+
+    await removeEntry(entry);
+
+    showToast(t('entry.removedToast', { name }), {
+        icon: 'info',
+        action: {
+            text: t('common.undo'),
+            handler: () => {
+                const removed = findEntry(listId, entry.id);
+
+                if (removed?.removed) {
+                    restoreEntry(removed);
+                }
+            }
+        }
+    });
+}
+
+function onSwipeAction(entry, action) {
+    ({ notGot, reopen: backToOpen, remove })[action](entry);
+}
+
 function openTransfer(entries, mode = 'transfer') {
     transferEntries.value = entries;
     transferMode.value = mode;
@@ -833,6 +867,7 @@ async function onDelete() {
                                 v-for="row in openRows"
                                 :key="row.entry.id"
                                 :name="row.name"
+                                :package-size="row.packageSize"
                                 :note="row.entry.note"
                                 :amount="row.entry.quantity.amount"
                                 :unit="row.entry.quantity.unit"
@@ -853,6 +888,7 @@ async function onDelete() {
                                 v-for="row in notGotRows"
                                 :key="row.entry.id"
                                 :name="row.name"
+                                :package-size="row.packageSize"
                                 :note="row.entry.note"
                                 :amount="row.entry.quantity.amount"
                                 :unit="row.entry.quantity.unit"
@@ -874,6 +910,7 @@ async function onDelete() {
                                 v-for="row in doneRows"
                                 :key="row.entry.id"
                                 :name="row.name"
+                                :package-size="row.packageSize"
                                 :note="row.entry.note"
                                 :amount="row.entry.quantity.amount"
                                 :unit="row.entry.quantity.unit"
@@ -906,6 +943,7 @@ async function onDelete() {
                                 :key="row.entry.id"
                                 :data-entry-id="row.entry.id"
                                 :name="row.name"
+                                :package-size="row.packageSize"
                                 :note="row.entry.note"
                                 :amount="row.entry.quantity.amount"
                                 :unit="row.entry.quantity.unit"
@@ -914,9 +952,9 @@ async function onDelete() {
                                 :category="row.category"
                                 status="open"
                                 :unsynced="isEntryUnsynced(row.entry.id)"
-                                :swipe="swipeNotGot"
+                                :swipe="swipeOpenRow"
                                 @details="openEntry(row.entry)"
-                                @swipe-action="notGot(row.entry)"
+                                @swipe-action="onSwipeAction(row.entry, $event)"
                                 @toggle="check(row.entry)"
                                 @handle-pointerdown="startDrag($event, row.entry.id)"
                                 @move="moveByKey(row.entry, index, $event)"
@@ -961,6 +999,7 @@ async function onDelete() {
                                 :key="row.entry.id"
                                 :data-entry-id="row.entry.id"
                                 :name="row.name"
+                                :package-size="row.packageSize"
                                 :note="row.entry.note"
                                 :amount="row.entry.quantity.amount"
                                 :unit="row.entry.quantity.unit"
@@ -970,9 +1009,9 @@ async function onDelete() {
                                 status="notGot"
                                 :transferred-to="row.transferredTo"
                                 :unsynced="isEntryUnsynced(row.entry.id)"
-                                :swipe="swipeReopen"
+                                :swipe="swipeNotGotRow"
                                 @details="openEntry(row.entry)"
-                                @swipe-action="backToOpen(row.entry)"
+                                @swipe-action="onSwipeAction(row.entry, $event)"
                                 @transfer="openTransfer([row.entry])"
                             />
                         </TransitionGroup>
@@ -1010,6 +1049,7 @@ async function onDelete() {
                                 :key="row.entry.id"
                                 :data-entry-id="row.entry.id"
                                 :name="row.name"
+                                :package-size="row.packageSize"
                                 :note="row.entry.note"
                                 :amount="row.entry.quantity.amount"
                                 :unit="row.entry.quantity.unit"

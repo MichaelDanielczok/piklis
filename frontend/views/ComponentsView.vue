@@ -31,14 +31,14 @@ const SAMPLE_ICONS = ['apfel', 'karotte', 'brot', 'milch', 'kaese', 'fleisch', '
 
 const rows = reactive([
     { id: 1, name: 'Tomaten Rispe', amount: 500, unit: 'g', imageUrl: tomatoes, status: 'open' },
-    { id: 2, name: 'Milch 1,5 %', amount: 2, unit: 'pack', imageUrl: milk, note: t('components.sampleNote'), status: 'open' },
+    { id: 2, name: 'Milch 1,5 %', packageSize: '1 l', amount: 2, unit: 'pack', imageUrl: milk, note: t('components.sampleNote'), status: 'open' },
     { id: 3, name: 'Butter', amount: 1, unit: 'piece', icon: 'butter', status: 'open' },
-    { id: 4, name: 'Freilandeier Gr. M', amount: 10, unit: 'piece', icon: 'eier', status: 'open' },
+    { id: 4, name: 'Freilandeier aus der Region Gr. M', packageSize: '10 Stück', amount: 10, unit: 'piece', icon: 'eier', status: 'open' },
     { id: 5, name: 'Frischkäse', amount: 2, unit: 'pack', imageUrl: creamCheese, note: t('components.sampleNote2'), status: 'open', unsynced: true },
     { id: 6, name: 'Fusilli', amount: 2, unit: 'pack', icon: 'nudeln', status: 'open', unsynced: true },
     { id: 7, name: 'Gouda jung am Stück', amount: 400, unit: 'g', icon: 'kaese', status: 'notGot' },
     { id: 8, name: 'Bananen', amount: 6, unit: 'piece', imageUrl: bananas, status: 'done' },
-    { id: 9, name: 'Toilettenpapier', amount: 1, unit: null, icon: 'toilettenpapier', status: 'done' }
+    { id: 9, name: 'Toilettenpapier', packageSize: '8 Rollen', amount: 1, unit: null, icon: 'toilettenpapier', status: 'done' }
 ]);
 
 const tiles = reactive([

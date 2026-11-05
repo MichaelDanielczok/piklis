@@ -897,18 +897,32 @@ screens 01–07 and 10.
   (remembered per device in `localStorage`, `pk.listDoneOpen`); at the
   bottom “Einkauf abschließen”. Without the user menu in the header (room
   for the actions).
-- **Not got** (design screens 04, 06, 07): swiping an open row to the left
-  (`useRowSwipe.js`, Pointer Events, `touch-action: pan-y`) reveals the
-  orange action “Nicht bekommen” (88 px); tapping it or swiping past 60 %
-  of the row runs it. Only one row is open at a time; tapping another row
-  only closes it. The row closes like checking and moves into “Nicht
-  bekommen” (cross and text, sort key unchanged), toast with “Rückgängig”.
-  There, swiping gives “Wieder offen”; the round arrow button opens the
-  transfer sheet. The swipe action is a shortcut for the finger
-  (`aria-hidden`, not focusable): the same actions are buttons in the
-  product in the list context (`EntryContextCard.vue`: “Nicht bekommen”,
-  “In andere Liste übernehmen”, “Wieder offen”), for keyboard and screen
-  readers.
+- **Swiping a row** (`useRowSwipe.js`, Pointer Events, `touch-action:
+  pan-y`): swiping to the left reveals two buttons of 88 px each, “Nicht
+  bekommen” in grey and “Entfernen” in red; in the section “Nicht bekommen”
+  “Wieder offen” in green and “Entfernen”. The row stops at the buttons:
+  swiping never runs anything, however far, only tapping a button does.
+  Swiping to the right stays free for the back gesture. Done rows have no
+  swipe. Only one row is open at a time; tapping another row only closes
+  it. `ListRow` takes the buttons as `swipe` (`{ action, label, variant }`)
+  and reports `swipe-action` with `action`.
+- **Not got** (design screens 04, 06, 07): the row closes like checking and
+  moves into “Nicht bekommen” (cross and text, sort key unchanged), toast
+  with “Rückgängig”. There, the round arrow button opens the transfer sheet.
+- **Removing by swipe**: `entry.remove`, the row closes through the
+  `TransitionGroup` like a removal by someone else, toast with “Rückgängig”
+  (`entry.restore`, same as in the product); the entry comes back at its
+  place and in its state, because sort key and status stay.
+- The swipe buttons are a shortcut for the finger (`aria-hidden`, not
+  focusable): the same actions are buttons in the product in the list
+  context (`EntryContextCard.vue`: “Nicht bekommen”, “In andere Liste
+  übernehmen”, “Wieder offen”; `ListEntryView.vue`: “Von der Liste
+  entfernen”), for keyboard and screen readers.
+- **Package size in the row** (`ListRow` `packageSize`, also in templates):
+  small and grey behind the name. With a size the name stays on one line
+  and is shortened (ellipsis), so the row does not grow and the size stays
+  visible; a very long size is cut at 40 % of the text width. Without a size
+  the name may still take two lines.
 - **Taking over** (`TransferSheet.vue`, design screen 07): products to
   take over (all preselected, deselectable), target list (other active
   lists with date and number of products, or “Neue Liste …” with a name,

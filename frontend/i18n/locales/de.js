@@ -355,6 +355,7 @@ export default {
         leftOpen: 'Nicht abgehakt',
         swipeNotGot: 'Nicht bekommen',
         swipeReopen: 'Wieder offen',
+        swipeRemove: 'Entfernen',
         notGotToast: '„{name}“ nicht bekommen'
     },
     entry: {

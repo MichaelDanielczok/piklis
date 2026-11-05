@@ -97,8 +97,10 @@ under `design/piklis-designpaket/`.
   becomes “− n +” with the plus at the same place, no duplicate entries,
   filter “Nur nicht ausgewählte”, search with “„Begriff“ neu anlegen”
   (product and entry as operations), image or name open the product
-- Not got, completion and archive: swipe a row to the left for “Nicht
-  bekommen” (own section, symbol and text, undo in the toast); take not-got
+- Not got, completion and archive: swipe a row to the left for the buttons
+  “Nicht bekommen” (own section, symbol and text, undo in the toast) and
+  “Entfernen” (undo in the toast), swiping itself runs nothing; rows show the
+  package size small and grey behind the name; take not-got
   entries over into another active or a new list, one by one or “Alle
   übernehmen …” (`entry.takeOver`: same unit adds up, another unit asks
   keep · replace · both), the origin keeps them as “nicht bekommen · nach

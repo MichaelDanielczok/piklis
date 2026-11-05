@@ -6,7 +6,10 @@
  *    Zeilenhöhe (Designpaket 28 × 48; breiter und höher, weil es so am Handy
  *    sicherer zu treffen ist und auf dem 4-px-Raster liegt).
  * 2. Details: Bild, Name (max. 2 Zeilen), Notiz bzw. Status, Menge rechts.
- *    Tippen öffnet das Produktdetail (`details`).
+ *    Mit `packageSize` steht die Packungsgröße klein und grau hinter dem
+ *    Namen; der Name bleibt dann einzeilig und wird gekürzt, damit die Zeile
+ *    nicht höher wird und die Größe sichtbar bleibt. Tippen öffnet das
+ *    Produktdetail (`details`).
  * 3. Abhaken-Zone 60 px breit über die ganze Zeilenhöhe hinter einer
  *    Trennlinie, Ring 28 px (`toggle`). Bei „nicht bekommen“ steht dort der
  *    Knopf zum Übernehmen in eine andere Liste (`transfer`).
@@ -22,9 +25,10 @@
  * (`useDragSort`): Der Griff meldet `handle-pointerdown`, mit der Tastatur
  * (Pfeil hoch/runter am Griff) `move` mit -1 bzw. 1.
  *
- * Wischen nach links (`swipe`: `{ label, variant }`, `useRowSwipe`) legt eine
- * Aktion frei, z. B. „Nicht bekommen“; Antippen oder weites Wischen meldet
- * `swipe-action`. Dieselbe Aktion gibt es im Produkt im Listenkontext.
+ * Wischen nach links (`swipe`: Liste aus `{ action, label, variant }`,
+ * `useRowSwipe`) legt Knöpfe frei, z. B. „Nicht bekommen“ und „Entfernen“;
+ * Antippen meldet `swipe-action` mit `action`, das Wischen selbst löst nichts
+ * aus. Dieselben Aktionen gibt es im Produkt im Listenkontext.
  * `transferredTo`: Name der Liste, in die ein nicht bekommenes Produkt
  * übernommen wurde. `readonly` (abgeschlossene Liste): Zustand nur als
  * Symbol, ohne Griff und ohne Abhaken.
@@ -40,10 +44,17 @@ import QuantityLabel from './QuantityLabel.vue';
 import { useRowSwipe } from '@/composables/useRowSwipe.js';
 import { t } from '@/i18n/index.js';
 
+// Symbol je Wisch-Aktion, Status nie nur über Farbe
+const SWIPE_ICONS = { neutral: X, danger: Trash2, accent: RotateCcw };
+
 const props = defineProps({
     name: {
         type: String,
         required: true
+    },
+    packageSize: {
+        type: String,
+        default: null
     },
     note: {
         type: String,
@@ -87,7 +98,7 @@ const props = defineProps({
         default: false
     },
     swipe: {
-        type: Object,
+        type: Array,
         default: null
     },
     trailing: {
@@ -113,13 +124,22 @@ const notGotText = computed(() => {
 });
 
 const rootRef = useTemplateRef('root');
-const actionRef = useTemplateRef('action');
-const { offset, dragging, runAction, listeners, onClickCapture } = useRowSwipe({
+const actionsRef = useTemplateRef('actions');
+const { offset, dragging, close, listeners, onClickCapture } = useRowSwipe({
     root: rootRef,
-    action: actionRef,
-    enabled: () => props.swipe !== null && !props.readonly,
-    onAction: () => emit('swipe-action')
+    actions: actionsRef,
+    enabled: () => props.swipe !== null && !props.readonly
 });
+
+/** Geschlossene Zeile: zweites Tippen beim Zuschieben löst nicht noch einmal aus. */
+function runSwipeAction(action) {
+    if (offset.value === 0) {
+        return;
+    }
+
+    close();
+    emit('swipe-action', action);
+}
 </script>
 
 <template>
@@ -136,21 +156,25 @@ const { offset, dragging, runAction, listeners, onClickCapture } = useRowSwipe({
         v-on="listeners"
         @click.capture="onClickCapture"
     >
-        <!-- Kurzweg für den Finger; Tastatur und Bildschirmleser nutzen das Produkt im Listenkontext -->
+        <!-- Kurzweg für den Finger; Tastatur und Bildschirmleser nutzen das Produkt im Listenkontext.
+             mousedown.prevent: Mausklick gibt keinen Fokus in den aria-hidden-Bereich -->
         <div v-if="swipe && !readonly" class="list-row__swipe-zone" aria-hidden="true">
-            <button
-                ref="action"
-                type="button"
-                tabindex="-1"
-                class="list-row__swipe-action"
-                :class="'list-row__swipe-action--' + (swipe.variant ?? 'notgot')"
-                data-name="swipe-action"
-                @click="runAction"
-            >
-                <RotateCcw v-if="swipe.variant === 'accent'" class="list-row__swipe-icon" />
-                <X v-else class="list-row__swipe-icon" />
-                <span>{{ swipe.label }}</span>
-            </button>
+            <div ref="actions" class="list-row__swipe-actions">
+                <button
+                    v-for="item in swipe"
+                    :key="item.action"
+                    type="button"
+                    tabindex="-1"
+                    class="list-row__swipe-action"
+                    :class="'list-row__swipe-action--' + item.variant"
+                    data-name="swipe-action"
+                    @mousedown.prevent
+                    @click="runSwipeAction(item.action)"
+                >
+                    <component :is="SWIPE_ICONS[item.variant]" class="list-row__swipe-icon" />
+                    <span>{{ item.label }}</span>
+                </button>
+            </div>
         </div>
 
         <div
@@ -179,7 +203,13 @@ const { offset, dragging, runAction, listeners, onClickCapture } = useRowSwipe({
                 <ProductImage :image-url="imageUrl" :icon="icon" :category="category" :muted="isDone" />
 
                 <span class="list-row__text">
-                    <span class="list-row__name">{{ name }}</span>
+                    <span class="list-row__title">
+                        <span class="list-row__name" :class="{ 'list-row__name--single': packageSize }">{{ name }}</span>
+                        <span v-if="packageSize" class="list-row__size">
+                            <span class="visually-hidden">{{ t('products.packageSize') }}:</span>
+                            {{ packageSize }}
+                        </span>
+                    </span>
 
                     <span v-if="isDone" class="list-row__meta list-row__meta--done">
                         <Check class="list-row__meta-icon" aria-hidden="true" />
@@ -284,36 +314,49 @@ const { offset, dragging, runAction, listeners, onClickCapture } = useRowSwipe({
     background: var(--color-surface-done);
 }
 
-/* Wisch-Aktion hinter der Zeile, rechts */
+/* Wisch-Aktionen hinter der Zeile, rechts; bleiben stehen, bis die Zeile zu ist */
 .list-row__swipe-zone {
     position: absolute;
     inset: 0;
     display: flex;
     justify-content: flex-end;
     visibility: hidden;
+    transition: visibility 0s linear var(--duration-medium);
 }
 
 .list-row--swiped .list-row__swipe-zone {
     visibility: visible;
+    transition: none;
+}
+
+.list-row__swipe-actions {
+    display: flex;
+    flex: none;
 }
 
 .list-row__swipe-action {
     display: flex;
+    flex: none;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: var(--space-1);
     width: var(--swipe-action-width);
-    padding: var(--space-2);
+    padding: 0 var(--space-2);
     font-size: var(--font-size-note);
     font-weight: var(--font-weight-semibold);
     line-height: var(--line-height-note);
     text-align: center;
 }
 
-.list-row__swipe-action--notgot {
-    background: var(--color-notgot);
-    color: var(--color-on-notgot);
+.list-row__swipe-action--neutral {
+    background: var(--color-swipe-neutral);
+    color: var(--color-on-swipe-neutral);
+}
+
+.list-row__swipe-action--danger {
+    background: var(--color-danger);
+    color: var(--color-on-danger);
 }
 
 .list-row__swipe-action--accent {
@@ -329,7 +372,8 @@ const { offset, dragging, runAction, listeners, onClickCapture } = useRowSwipe({
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .list-row__content {
+    .list-row__content,
+    .list-row__swipe-zone {
         transition: none;
     }
 }
@@ -375,8 +419,16 @@ const { offset, dragging, runAction, listeners, onClickCapture } = useRowSwipe({
     min-width: 0;
 }
 
+.list-row__title {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    min-width: 0;
+}
+
 .list-row__name {
     display: -webkit-box;
+    min-width: 0;
     overflow: hidden;
     color: var(--color-text-1);
     font-size: var(--font-size-name);
@@ -389,9 +441,27 @@ const { offset, dragging, runAction, listeners, onClickCapture } = useRowSwipe({
     line-clamp: 2;
 }
 
+.list-row__name--single {
+    display: block;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .list-row--done .list-row__name {
     color: var(--color-text-2);
     text-decoration: line-through;
+}
+
+/* flex: none, damit zuerst der Name gekürzt wird; sehr lange Angaben kürzt max-width */
+.list-row__size {
+    flex: none;
+    max-width: 40%;
+    overflow: hidden;
+    color: var(--color-text-2);
+    font-size: var(--font-size-note);
+    line-height: var(--line-height-note);
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .list-row__meta {

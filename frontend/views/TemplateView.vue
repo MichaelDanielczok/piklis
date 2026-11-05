@@ -131,6 +131,7 @@ const rows = computed(() => items.value.map((item) => {
         key: item.productId,
         item,
         name: product?.name ?? t('entry.unknownProduct'),
+        packageSize: product?.packageSize ?? null,
         imageUrl: product?.imageUrl ?? null,
         icon: product ? iconOf(product) : undefined,
         category: categoryOf(product)
@@ -527,6 +528,7 @@ async function onCreateList(fields) {
                             :key="row.key"
                             :data-entry-id="row.key"
                             :name="row.name"
+                            :package-size="row.packageSize"
                             :note="row.item.note"
                             :amount="row.item.quantity.amount"
                             :unit="row.item.quantity.unit"
@@ -595,6 +597,7 @@ async function onCreateList(fields) {
                             v-for="row in rows"
                             :key="row.key"
                             :name="row.name"
+                            :package-size="row.packageSize"
                             :note="row.item.note"
                             :amount="row.item.quantity.amount"
                             :unit="row.item.quantity.unit"

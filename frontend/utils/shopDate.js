@@ -38,6 +38,20 @@ export function shopDateFromToday(days = 0, now = new Date()) {
 }
 
 /**
+ * Wochentag mit Datum für Namen, die man später wiederfinden soll: „Do, 05.11.“.
+ *
+ * @param {string|null} value `YYYY-MM-DD`, ohne Datum heute
+ * @param {Date} [now]
+ */
+export function formatNameDate(value, now = new Date()) {
+    const date = parseShopDate(value) ?? now;
+    const weekday = new Intl.DateTimeFormat(locale.value, { weekday: 'short' }).format(date).replace(/\.$/, '');
+    const day = new Intl.DateTimeFormat(locale.value, { day: '2-digit', month: '2-digit' }).format(date);
+
+    return `${weekday}, ${day}`;
+}
+
+/**
  * @param {string|null} value
  * @param {Date} [now]
  * @returns {string} leer ohne Datum

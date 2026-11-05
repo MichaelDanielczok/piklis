@@ -5,6 +5,11 @@
  * Schließen-Knopf (44 px), Scrim aus den Tokens. Schließt auch über Wischen
  * nach unten, Tippen daneben und Escape. Ab Tablet mittig und rundum gerundet.
  *
+ * Kopf und Knöpfe bleiben stehen, nur der Inhalt scrollt, und zwar ohne
+ * sichtbaren Balken; die Klasse `ion-content-scroll-host` sagt Ionics
+ * Wisch-Geste, dass sie dort erst bei Scrollstand 0 greifen darf. Über die
+ * Tastatur hebt iOS das Sheet selbst, indem es die ganze Seite verschiebt.
+ *
  * v-model:open · Slots: default (Inhalt), footer (Knöpfe unten)
  * Emits: presented (Sheet steht, z. B. um ein Feld zu fokussieren)
  */
@@ -50,7 +55,7 @@ const titleId = useId();
                 </button>
             </header>
 
-            <div class="app-sheet__content">
+            <div class="app-sheet__content ion-content-scroll-host">
                 <slot />
             </div>
 
@@ -70,6 +75,12 @@ const titleId = useId();
     --backdrop-opacity: 1;
 }
 
+/* ohne Flex hätte der Inhalt keine Höhengrenze und liefe unten aus dem Sheet */
+.app-sheet::part(content) {
+    display: flex;
+    flex-direction: column;
+}
+
 .app-sheet::part(handle) {
     width: var(--sheet-handle-width);
     background: var(--color-border-strong);
@@ -77,19 +88,22 @@ const titleId = useId();
 
 .app-sheet__body {
     display: flex;
+    flex: 0 1 auto;
     flex-direction: column;
     gap: var(--space-4);
-    max-height: inherit;
-    overflow-y: auto;
-    padding: var(--space-6) var(--page-gutter) calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+    min-width: 0;
+    min-height: 0;
+    padding: var(--space-6) 0 calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
     color: var(--color-text-1);
 }
 
 .app-sheet__head {
     display: flex;
+    flex: none;
     align-items: flex-start;
     justify-content: space-between;
     gap: var(--space-3);
+    padding: 0 var(--page-gutter);
 }
 
 .app-sheet__titles {
@@ -142,18 +156,30 @@ const titleId = useId();
     height: var(--icon-size-md);
 }
 
+/* Abstand innen statt am Sheet: sonst schnitte das Scrollen Fokusrahmen ab */
 .app-sheet__content {
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow: hidden auto;
+    overscroll-behavior: contain;
+    padding: var(--space-1) var(--page-gutter);
     color: var(--color-text-1);
     font-size: var(--font-size-text);
     line-height: var(--line-height-text);
+    scrollbar-width: none;
+}
+
+.app-sheet__content::-webkit-scrollbar {
+    display: none;
 }
 
 .app-sheet__footer {
     display: grid;
+    flex: none;
     grid-auto-columns: minmax(0, 1fr);
     grid-auto-flow: column;
     gap: var(--space-3);
-    padding-top: var(--space-2);
+    padding: var(--space-2) var(--page-gutter) 0;
 }
 
 @media (min-width: 45em) {

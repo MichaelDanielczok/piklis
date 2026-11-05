@@ -3,7 +3,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { formatShopDate, parseShopDate, shopDateFromToday, toShopDate } from '@/utils/shopDate.js';
+import { formatNameDate, formatShopDate, parseShopDate, shopDateFromToday, toShopDate } from '@/utils/shopDate.js';
 
 // Dienstag, 27. Oktober 2026, mittags
 const NOW = new Date(2026, 9, 27, 12, 0);
@@ -35,4 +35,13 @@ test('Umwandlung hin und zurück', () => {
     assert.equal(toShopDate(new Date(2026, 0, 5)), '2026-01-05');
     assert.equal(shopDateFromToday(0, NOW), '2026-10-27');
     assert.equal(shopDateFromToday(5, NOW), '2026-11-01');
+});
+
+test('Datum im Namen: Wochentag ohne Punkt, Tag und Monat zweistellig', () => {
+    assert.equal(formatNameDate('2026-11-05', NOW), 'Do, 05.11.');
+    assert.equal(formatNameDate('2026-12-24', NOW), 'Do, 24.12.');
+});
+
+test('Datum im Namen: ohne Datum der heutige Tag', () => {
+    assert.equal(formatNameDate(null, NOW), 'Di, 27.10.');
 });

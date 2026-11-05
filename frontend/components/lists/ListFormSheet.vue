@@ -1,9 +1,15 @@
 <script setup>
 /**
- * Sheet „Neue Liste“ bzw. „Liste bearbeiten“: frei gewählter Name (Pflicht,
- * höchstens 100 Zeichen) und ein freiwilliges Datum (Ohne Datum · Heute ·
- * Morgen · anderes Datum). Beim Bearbeiten darunter „Liste löschen“ mit
- * Rückfrage im selben Sheet.
+ * Sheet „Neue Liste“ bzw. „Liste bearbeiten“: frei gewählter Name (höchstens
+ * 100 Zeichen) und ein freiwilliges Datum (Ohne Datum · Heute · Morgen ·
+ * anderes Datum). Beim Bearbeiten darunter „Liste löschen“ mit Rückfrage im
+ * selben Sheet.
+ *
+ * Neue Liste: Zu sehen sind nur Name und „Anlegen“, Datum, „Für wen?“ und „Wie
+ * möchtest du starten?“ stehen eingeklappt unter „Erweitert“ und behalten ihre
+ * Standardwerte. Der Name ist hier freiwillig: Leer heißt die Liste
+ * „Einkaufsliste – Do, 05.11.“ (Datum der Liste, sonst heute), der Platzhalter
+ * zeigt diesen Namen. Beim Bearbeiten ist er Pflicht.
  *
  * Neue Liste (Designpaket 02): „Wie möchtest du starten?“ – leer oder aus
  * einem früheren Einkauf (die letzten abgeschlossenen). Mit einem früheren
@@ -34,7 +40,7 @@
  */
 import { logError } from '@/api/index.js';
 import { computed, ref, useId, watch } from 'vue';
-import { CircleAlert, Copy, Files, House, Share2, Trash2, User } from '@lucide/vue';
+import { ChevronDown, CircleAlert, Copy, Files, House, Share2, Trash2, User } from '@lucide/vue';
 import AppButton from '@/components/ui/AppButton.vue';
 import AppSheet from '@/components/ui/AppSheet.vue';
 import EntryChecklist from './EntryChecklist.vue';
@@ -43,7 +49,7 @@ import { useProducts } from '@/composables/useProducts.js';
 import { useSession } from '@/composables/useSession.js';
 import { ensureTemplateLoaded, loadTemplates, templateDetail, useTemplates } from '@/composables/useTemplates.js';
 import { categoryOf, iconOf } from '@/products/catalog.js';
-import { formatDay, shopDateFromToday } from '@/utils/shopDate.js';
+import { formatDay, formatNameDate, shopDateFromToday } from '@/utils/shopDate.js';
 import { copyPlan } from '@/utils/takeOver.js';
 import { t } from '@/i18n/index.js';
 
@@ -79,6 +85,7 @@ const ids = {
     nameError: useId(),
     date: useId(),
     dateLabel: useId(),
+    advanced: useId(),
     start: useId(),
     owner: useId(),
     ownerHeading: useId(),
@@ -104,6 +111,9 @@ const start = ref('empty');
 const selected = ref([]);
 const selectError = ref('');
 const sourceError = ref(false);
+const advanced = ref(false);
+// beim Öffnen gesetzt: Die App bleibt über Nacht offen, „heute“ muss stimmen
+const openedAt = ref(new Date());
 
 // Einkauf, dessen Produkte schon vorgewählt wurden
 let selectedFor = null;
@@ -237,8 +247,9 @@ const submitLabel = computed(() => {
 
     return source.value && step.value === 'form' ? t('common.next') : t('listForm.create');
 });
-const today = computed(() => shopDateFromToday(0));
-const tomorrow = computed(() => shopDateFromToday(1));
+const today = computed(() => shopDateFromToday(0, openedAt.value));
+const tomorrow = computed(() => shopDateFromToday(1, openedAt.value));
+const defaultName = computed(() => t('listForm.defaultName', { date: formatNameDate(shopDate.value, openedAt.value) }));
 
 const dateChoice = computed(() => {
     if (!shopDate.value) {
@@ -259,7 +270,7 @@ const nameError = computed(() => {
 
     const trimmed = name.value.trim();
 
-    if (trimmed === '') {
+    if (trimmed === '' && !isNew.value) {
         return t('listForm.nameRequired');
     }
 
@@ -279,6 +290,8 @@ watch(open, (isOpen) => {
         owner.value = household.value ? 'household' : 'personal';
         start.value = givenTemplate ? TEMPLATE_PREFIX + givenTemplate.id : (given ? given.id : 'empty');
         step.value = given || givenTemplate ? 'products' : 'form';
+        advanced.value = Boolean(given || givenTemplate);
+        openedAt.value = new Date();
         selectError.value = '';
         selectedFor = null;
 
@@ -391,7 +404,7 @@ function submit() {
 
     const householdId = isNew.value && household.value && owner.value === 'household' ? household.value.id : null;
 
-    emit('submit', { name: name.value.trim(), shopDate: shopDate.value, householdId, items });
+    emit('submit', { name: name.value.trim() || defaultName.value, shopDate: shopDate.value, householdId, items });
     open.value = false;
 }
 
@@ -495,7 +508,10 @@ function remove() {
 
         <form v-else :id="ids.name + '-form'" class="list-form" novalidate @submit.prevent="submit">
             <label class="form-field" :for="ids.name">
-                <span class="form-field__label">{{ t('listForm.name') }}</span>
+                <span class="form-field__label">
+                    {{ t('listForm.name') }}
+                    <span v-if="isNew" class="form-field__label-hint">· {{ t('listForm.nameHint') }}</span>
+                </span>
                 <input
                     :id="ids.name"
                     ref="nameInput"
@@ -503,7 +519,7 @@ function remove() {
                     class="form-field__input"
                     type="text"
                     :maxlength="NAME_MAX"
-                    :placeholder="t('listForm.namePlaceholder')"
+                    :placeholder="isNew ? defaultName : t('listForm.namePlaceholder')"
                     autocomplete="off"
                     enterkeyhint="done"
                     :aria-invalid="nameError ? 'true' : 'false'"
@@ -515,170 +531,184 @@ function remove() {
                 </span>
             </label>
 
-            <fieldset class="list-form__dates">
-                <legend class="form-field__label">
-                    {{ t('listForm.date') }} <span class="form-field__label-hint">· {{ t('listForm.dateHint') }}</span>
-                </legend>
-                <div class="list-form__chips">
-                    <button
-                        type="button"
-                        class="list-form__chip"
-                        :aria-pressed="dateChoice === 'none' ? 'true' : 'false'"
-                        @click="choose(null)"
-                    >
-                        {{ t('listForm.noDate') }}
-                    </button>
-                    <button
-                        type="button"
-                        class="list-form__chip"
-                        :aria-pressed="dateChoice === 'today' ? 'true' : 'false'"
-                        @click="choose(today)"
-                    >
-                        {{ t('listForm.today') }}
-                    </button>
-                    <button
-                        type="button"
-                        class="list-form__chip"
-                        :aria-pressed="dateChoice === 'tomorrow' ? 'true' : 'false'"
-                        @click="choose(tomorrow)"
-                    >
-                        {{ t('listForm.tomorrow') }}
-                    </button>
-                </div>
-                <label class="form-field list-form__other" :for="ids.date">
-                    <span class="visually-hidden">{{ t('listForm.dateChoice') }}</span>
-                    <input
-                        :id="ids.date"
-                        class="form-field__input list-form__date"
-                        :class="{ 'list-form__date--chosen': dateChoice === 'other' }"
-                        type="date"
-                        :value="shopDate ?? ''"
-                        :aria-label="t('listForm.otherDate')"
-                        @change="onDateInput"
-                    >
-                </label>
-            </fieldset>
-
-            <fieldset v-if="isNew && household" class="choice-list">
-                <legend class="form-field__label list-form__legend">{{ t('listForm.owner') }}</legend>
-                <label class="choice">
-                    <input v-model="owner" class="choice__radio" type="radio" :name="ids.owner" value="household">
-                    <House class="list-form__owner-icon" aria-hidden="true" />
-                    <span class="choice__text">
-                        <span class="choice__title">{{ t('listForm.ownerHousehold', { name: household.name }) }}</span>
-                        <span class="choice__hint">{{ t('listForm.ownerHouseholdHint') }}</span>
-                    </span>
-                </label>
-                <label class="choice">
-                    <input v-model="owner" class="choice__radio" type="radio" :name="ids.owner" value="personal">
-                    <User class="list-form__owner-icon" aria-hidden="true" />
-                    <span class="choice__text">
-                        <span class="choice__title">{{ t('listForm.ownerPersonal') }}</span>
-                        <span class="choice__hint">{{ t('listForm.ownerPersonalHint') }}</span>
-                    </span>
-                </label>
-            </fieldset>
-
-            <section v-if="!isNew" class="list-form__owner" :aria-labelledby="ids.ownerHeading">
-                <h3 :id="ids.ownerHeading" class="form-field__label">{{ t('listForm.owner') }}</h3>
-                <p class="list-form__owner-text">
-                    <component :is="isHouseholdList ? House : User" class="list-form__owner-icon" aria-hidden="true" />
-                    <span>
-                        {{ isHouseholdList
-                            ? t('listForm.ownedByHousehold', { name: household?.name ?? t('lists.originHousehold') })
-                            : t('listForm.ownedByMe') }}
-                    </span>
-                </p>
-                <div v-if="canMoveToHousehold" class="list-form__owner-actions">
-                    <AppButton variant="secondary" @click="confirmMove = true">
-                        <House aria-hidden="true" />
-                        {{ t('listForm.move') }}
-                    </AppButton>
-                    <AppButton variant="secondary" @click="copy">
-                        <Copy aria-hidden="true" />
-                        {{ t('listForm.copy') }}
-                    </AppButton>
-                    <p class="list-form__hint">{{ t('listForm.moveCopyHint') }}</p>
-                </div>
-            </section>
-
-            <section v-if="canShareList" class="list-form__owner" :aria-labelledby="ids.shareHeading">
-                <h3 :id="ids.shareHeading" class="form-field__label">{{ t('listForm.shareLabel') }}</h3>
-                <p class="list-form__hint">
-                    {{ list?.local ? t('listForm.shareLocal') : (isHouseholdList ? t('listForm.shareHint') : t('listForm.shareHintPersonal')) }}
-                </p>
-                <div class="list-form__owner-actions">
-                    <AppButton variant="secondary" :disabled="Boolean(list?.local)" @click="share">
-                        <Share2 aria-hidden="true" />
-                        {{ t('listForm.share') }}
-                    </AppButton>
-                </div>
-            </section>
-
-            <section v-if="!isNew" class="list-form__owner" :aria-labelledby="ids.templateHeading">
-                <h3 :id="ids.templateHeading" class="form-field__label">{{ t('listForm.templateLabel') }}</h3>
-                <p class="list-form__hint">{{ t('listForm.templateHint') }}</p>
-                <div class="list-form__owner-actions">
-                    <AppButton variant="secondary" @click="saveTemplate">
-                        <Files aria-hidden="true" />
-                        {{ t('listForm.saveTemplate') }}
-                    </AppButton>
-                </div>
-            </section>
-
-            <fieldset v-if="isNew && (previous.length > 0 || templates.length > 0)" class="choice-list">
-                <legend class="form-field__label list-form__legend">{{ t('listForm.start') }}</legend>
-                <label class="choice">
-                    <input v-model="start" class="choice__radio" type="radio" :name="ids.start" value="empty">
-                    <span class="choice__text">
-                        <span class="choice__title">{{ t('listForm.startEmpty') }}</span>
-                        <span class="choice__hint">{{ t('listForm.startEmptyHint') }}</span>
-                    </span>
-                </label>
-                <template v-if="templates.length > 0">
-                    <p class="list-form__group-hint">
-                        <strong>{{ t('listForm.startTemplate') }}</strong> · {{ t('listForm.startTemplateHint') }}
-                    </p>
-                    <label v-for="item in templates" :key="item.id" class="choice">
-                        <input
-                            v-model="start"
-                            class="choice__radio"
-                            type="radio"
-                            :name="ids.start"
-                            :value="TEMPLATE_PREFIX + item.id"
-                        >
-                        <span class="choice__text">
-                            <span class="choice__title">{{ item.name }}</span>
-                            <span class="choice__hint">
-                                {{ t('listForm.previousCount', { count: item.count ?? 0 }) }}
-                                · {{ item.householdId ? t('lists.originHousehold') : t('lists.originPersonal') }}
-                            </span>
-                        </span>
-                    </label>
-                </template>
-                <template v-if="previous.length > 0">
-                    <p class="list-form__group-hint">
-                        <strong>{{ t('listForm.startPrevious') }}</strong> · {{ t('listForm.startPreviousHint') }}
-                    </p>
-                    <label v-for="item in previous" :key="item.id" class="choice">
-                        <input v-model="start" class="choice__radio" type="radio" :name="ids.start" :value="item.id">
-                        <span class="choice__text">
-                            <span class="choice__title">{{ previousTitle(item) }}</span>
-                            <span class="choice__hint">{{ t('listForm.previousCount', { count: item.counts?.total ?? 0 }) }}</span>
-                        </span>
-                    </label>
-                </template>
-            </fieldset>
-
-            <AppButton
-                v-if="!isNew"
-                variant="danger"
-                class="list-form__delete"
-                @click="confirmDelete = true"
+            <button
+                v-if="isNew"
+                type="button"
+                class="list-form__advanced"
+                :aria-expanded="advanced ? 'true' : 'false'"
+                :aria-controls="ids.advanced"
+                @click="advanced = !advanced"
             >
-                <Trash2 aria-hidden="true" />
-                {{ t('listForm.delete') }}
-            </AppButton>
+                {{ t('listForm.advanced') }}
+                <ChevronDown class="list-form__advanced-icon" :class="{ 'list-form__advanced-icon--open': advanced }" aria-hidden="true" />
+            </button>
+
+            <div v-show="!isNew || advanced" :id="ids.advanced" class="list-form">
+                <fieldset class="list-form__dates">
+                    <legend class="form-field__label">
+                        {{ t('listForm.date') }} <span class="form-field__label-hint">· {{ t('listForm.dateHint') }}</span>
+                    </legend>
+                    <div class="list-form__chips">
+                        <button
+                            type="button"
+                            class="list-form__chip"
+                            :aria-pressed="dateChoice === 'none' ? 'true' : 'false'"
+                            @click="choose(null)"
+                        >
+                            {{ t('listForm.noDate') }}
+                        </button>
+                        <button
+                            type="button"
+                            class="list-form__chip"
+                            :aria-pressed="dateChoice === 'today' ? 'true' : 'false'"
+                            @click="choose(today)"
+                        >
+                            {{ t('listForm.today') }}
+                        </button>
+                        <button
+                            type="button"
+                            class="list-form__chip"
+                            :aria-pressed="dateChoice === 'tomorrow' ? 'true' : 'false'"
+                            @click="choose(tomorrow)"
+                        >
+                            {{ t('listForm.tomorrow') }}
+                        </button>
+                    </div>
+                    <label class="form-field list-form__other" :for="ids.date">
+                        <span class="visually-hidden">{{ t('listForm.dateChoice') }}</span>
+                        <input
+                            :id="ids.date"
+                            class="form-field__input list-form__date"
+                            :class="{ 'list-form__date--chosen': dateChoice === 'other' }"
+                            type="date"
+                            :value="shopDate ?? ''"
+                            :aria-label="t('listForm.otherDate')"
+                            @change="onDateInput"
+                        >
+                    </label>
+                </fieldset>
+
+                <fieldset v-if="isNew && household" class="choice-list">
+                    <legend class="form-field__label list-form__legend">{{ t('listForm.owner') }}</legend>
+                    <label class="choice">
+                        <input v-model="owner" class="choice__radio" type="radio" :name="ids.owner" value="household">
+                        <House class="list-form__owner-icon" aria-hidden="true" />
+                        <span class="choice__text">
+                            <span class="choice__title">{{ t('listForm.ownerHousehold', { name: household.name }) }}</span>
+                            <span class="choice__hint">{{ t('listForm.ownerHouseholdHint') }}</span>
+                        </span>
+                    </label>
+                    <label class="choice">
+                        <input v-model="owner" class="choice__radio" type="radio" :name="ids.owner" value="personal">
+                        <User class="list-form__owner-icon" aria-hidden="true" />
+                        <span class="choice__text">
+                            <span class="choice__title">{{ t('listForm.ownerPersonal') }}</span>
+                            <span class="choice__hint">{{ t('listForm.ownerPersonalHint') }}</span>
+                        </span>
+                    </label>
+                </fieldset>
+
+                <section v-if="!isNew" class="list-form__owner" :aria-labelledby="ids.ownerHeading">
+                    <h3 :id="ids.ownerHeading" class="form-field__label">{{ t('listForm.owner') }}</h3>
+                    <p class="list-form__owner-text">
+                        <component :is="isHouseholdList ? House : User" class="list-form__owner-icon" aria-hidden="true" />
+                        <span>
+                            {{ isHouseholdList
+                                ? t('listForm.ownedByHousehold', { name: household?.name ?? t('lists.originHousehold') })
+                                : t('listForm.ownedByMe') }}
+                        </span>
+                    </p>
+                    <div v-if="canMoveToHousehold" class="list-form__owner-actions">
+                        <AppButton variant="secondary" @click="confirmMove = true">
+                            <House aria-hidden="true" />
+                            {{ t('listForm.move') }}
+                        </AppButton>
+                        <AppButton variant="secondary" @click="copy">
+                            <Copy aria-hidden="true" />
+                            {{ t('listForm.copy') }}
+                        </AppButton>
+                        <p class="list-form__hint">{{ t('listForm.moveCopyHint') }}</p>
+                    </div>
+                </section>
+
+                <section v-if="canShareList" class="list-form__owner" :aria-labelledby="ids.shareHeading">
+                    <h3 :id="ids.shareHeading" class="form-field__label">{{ t('listForm.shareLabel') }}</h3>
+                    <p class="list-form__hint">
+                        {{ list?.local ? t('listForm.shareLocal') : (isHouseholdList ? t('listForm.shareHint') : t('listForm.shareHintPersonal')) }}
+                    </p>
+                    <div class="list-form__owner-actions">
+                        <AppButton variant="secondary" :disabled="Boolean(list?.local)" @click="share">
+                            <Share2 aria-hidden="true" />
+                            {{ t('listForm.share') }}
+                        </AppButton>
+                    </div>
+                </section>
+
+                <section v-if="!isNew" class="list-form__owner" :aria-labelledby="ids.templateHeading">
+                    <h3 :id="ids.templateHeading" class="form-field__label">{{ t('listForm.templateLabel') }}</h3>
+                    <p class="list-form__hint">{{ t('listForm.templateHint') }}</p>
+                    <div class="list-form__owner-actions">
+                        <AppButton variant="secondary" @click="saveTemplate">
+                            <Files aria-hidden="true" />
+                            {{ t('listForm.saveTemplate') }}
+                        </AppButton>
+                    </div>
+                </section>
+
+                <fieldset v-if="isNew && (previous.length > 0 || templates.length > 0)" class="choice-list">
+                    <legend class="form-field__label list-form__legend">{{ t('listForm.start') }}</legend>
+                    <label class="choice">
+                        <input v-model="start" class="choice__radio" type="radio" :name="ids.start" value="empty">
+                        <span class="choice__text">
+                            <span class="choice__title">{{ t('listForm.startEmpty') }}</span>
+                            <span class="choice__hint">{{ t('listForm.startEmptyHint') }}</span>
+                        </span>
+                    </label>
+                    <template v-if="templates.length > 0">
+                        <p class="list-form__group-hint">
+                            <strong>{{ t('listForm.startTemplate') }}</strong> · {{ t('listForm.startTemplateHint') }}
+                        </p>
+                        <label v-for="item in templates" :key="item.id" class="choice">
+                            <input
+                                v-model="start"
+                                class="choice__radio"
+                                type="radio"
+                                :name="ids.start"
+                                :value="TEMPLATE_PREFIX + item.id"
+                            >
+                            <span class="choice__text">
+                                <span class="choice__title">{{ item.name }}</span>
+                                <span class="choice__hint">
+                                    {{ t('listForm.previousCount', { count: item.count ?? 0 }) }}
+                                    · {{ item.householdId ? t('lists.originHousehold') : t('lists.originPersonal') }}
+                                </span>
+                            </span>
+                        </label>
+                    </template>
+                    <template v-if="previous.length > 0">
+                        <p class="list-form__group-hint">
+                            <strong>{{ t('listForm.startPrevious') }}</strong> · {{ t('listForm.startPreviousHint') }}
+                        </p>
+                        <label v-for="item in previous" :key="item.id" class="choice">
+                            <input v-model="start" class="choice__radio" type="radio" :name="ids.start" :value="item.id">
+                            <span class="choice__text">
+                                <span class="choice__title">{{ previousTitle(item) }}</span>
+                                <span class="choice__hint">{{ t('listForm.previousCount', { count: item.counts?.total ?? 0 }) }}</span>
+                            </span>
+                        </label>
+                    </template>
+                </fieldset>
+
+                <AppButton
+                    v-if="!isNew"
+                    variant="danger"
+                    class="list-form__delete"
+                    @click="confirmDelete = true"
+                >
+                    <Trash2 aria-hidden="true" />
+                    {{ t('listForm.delete') }}
+                </AppButton>
+            </div>
         </form>
 
         <template #footer>
@@ -757,8 +787,44 @@ function remove() {
     }
 }
 
+.list-form__advanced {
+    display: flex;
+    align-items: center;
+    align-self: flex-start;
+    gap: var(--space-1);
+    min-height: var(--tap-size);
+    margin-top: calc(-1 * var(--space-3));
+    color: var(--color-text-1);
+    font-size: var(--font-size-text);
+    font-weight: var(--font-weight-semibold);
+}
+
+.list-form__advanced-icon {
+    width: var(--icon-size-md);
+    height: var(--icon-size-md);
+    color: var(--color-text-2);
+    transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.list-form__advanced-icon--open {
+    transform: rotate(180deg);
+}
+
+/* iOS gibt dem Datumsfeld eine Eigenbreite, die sonst über das Sheet hinausläuft */
 .list-form__date {
+    display: block;
     min-width: 0;
+    max-width: 100%;
+    height: var(--input-height);
+    line-height: calc(var(--input-height) - 2px);
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.list-form__date::-webkit-date-and-time-value {
+    min-width: 0;
+    line-height: inherit;
+    text-align: left;
 }
 
 .list-form__date--chosen {

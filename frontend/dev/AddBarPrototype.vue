@@ -1,10 +1,11 @@
 <script setup>
 /**
- * Prototyp der Eingabeleiste (Schritt 15), nur im Entwicklungsserver: Die
- * Komponente wird hinter `import.meta.env.DEV` geladen und fehlt im Build.
- * Sie prüft nur, wie sich die Leiste am iPhone verhält. Vorschläge sind eine
- * feste Liste, angetippt wird nur hier im Speicher gezählt, nichts geht an
- * Liste oder Server.
+ * Prototyp der Eingabeleiste (Schritt 15). Er steckt auch im Build, weil sich
+ * das Verhalten in der installierten App nur dort prüfen lässt; dort startet er
+ * ausgeschaltet, damit niemand aus Versehen in eine Leiste tippt, die nichts
+ * speichert. Er prüft nur, wie sich die Leiste am iPhone verhält. Vorschläge
+ * sind eine feste Liste, angetippt wird nur hier im Speicher gezählt, nichts
+ * geht an Liste oder Server.
  *
  * - Variante B: Leiste unten, beim Fokus direkt über der Tastatur
  *   (`--keyboard-height`), die Vorschläge darüber. Ein Knopf liegt in Ruhe über
@@ -27,6 +28,7 @@ import { LayoutGrid, Plus, ScanBarcode, X } from '@lucide/vue';
 const MODE_KEY = 'pk.addBarPrototype';
 const MODES = ['b', 'c', 'off'];
 const MODE_LABELS = { b: 'Leiste B', c: 'Leiste C', off: 'Leiste aus' };
+const DEFAULT_MODE = import.meta.env.DEV ? 'b' : 'off';
 
 // Beispiele in der Länge echter Treffer; „auf der Liste“ zeigt die längste Zeile
 const SUGGESTIONS = [
@@ -58,9 +60,9 @@ function readMode() {
     try {
         const stored = localStorage.getItem(MODE_KEY);
 
-        return MODES.includes(stored) ? stored : 'b';
+        return MODES.includes(stored) ? stored : DEFAULT_MODE;
     } catch {
-        return 'b';
+        return DEFAULT_MODE;
     }
 }
 

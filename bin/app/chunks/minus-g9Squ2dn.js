@@ -1,0 +1,1 @@
+import{n as e}from"./_plugin-vue_export-helper-DQDpAnvj.js";var t=e({name:`minus`,size:24,node:[[`path`,{d:`M5 12h14`,key:`1ays0h`}]]});export{t};

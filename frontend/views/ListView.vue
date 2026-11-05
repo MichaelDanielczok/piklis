@@ -113,8 +113,9 @@ import { formatQuantity } from '@/utils/quantity.js';
 import { mergeTakeOver } from '@/utils/takeOver.js';
 import { t } from '@/i18n/index.js';
 
-// Schritt 15: Prototyp der Eingabeleiste, nur im Entwicklungsserver; im Build fehlt er
-const AddBarPrototype = import.meta.env.DEV ? defineAsyncComponent(() => import('@/dev/AddBarPrototype.vue')) : null;
+// Schritt 15: Prototyp der Eingabeleiste, auch im Build, damit er in der installierten
+// App geprüft werden kann; Schritt 19 ersetzt ihn
+const AddBarPrototype = defineAsyncComponent(() => import('@/dev/AddBarPrototype.vue'));
 
 const SKELETON_WIDTHS = [0.55, 0.35, 0.3, 0.6, 0.45, 0.3, 0.4, 0.65, 0.5, 0.45];
 const ROW_ANIMATION_MS = 200;
@@ -1064,7 +1065,7 @@ async function onDelete() {
             @finished="onTransferFinished"
         />
 
-        <AddBarPrototype v-if="AddBarPrototype && list && !isCompleted" />
+        <AddBarPrototype v-if="list && !isCompleted" />
     </AppPage>
 </template>
 

@@ -110,8 +110,9 @@ committed because the server does not build (no Node there).
   PWA, from the Keyboard plugin in a native app) into `--keyboard-height` and
   `data-keyboard="open"` on `<html>`. `AppPage` keeps that space free at the
   bottom, `MobileNav` is hidden.
-- Input bar prototype (`frontend/dev/AddBarPrototype.vue`): dev server only,
-  loaded behind `import.meta.env.DEV` in `ListView` and absent from the build;
+- Input bar prototype (`frontend/dev/AddBarPrototype.vue`): loaded by
+  `ListView` in active lists, also in the build so it can be tested in the
+  installed app. It starts as B on the dev server and off in the build;
   sample suggestions, nothing is saved. A switch above the bar cycles variant
   B, variant C and off. Tapping an input near the bottom makes iOS pan the whole
   page by the keyboard height, and fixed elements then no longer take taps

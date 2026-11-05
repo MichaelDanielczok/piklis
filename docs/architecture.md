@@ -112,9 +112,14 @@ committed because the server does not build (no Node there).
   bottom, `MobileNav` is hidden.
 - Input bar prototype (`frontend/dev/AddBarPrototype.vue`): loaded by
   `ListView` in active lists, also in the build so it can be tested in the
-  installed app. It starts as B on the dev server and off in the build;
-  sample suggestions, nothing is saved. A switch above the bar cycles variant
-  B, variant C and off. Tapping an input near the bottom makes iOS pan the whole
+  installed app. It starts as B on the dev server and off in the build.
+  Suggestions come from the real catalog: on focus the most frequent products
+  (`topProductIds()`, same weighting as the tiles), while typing the hits of
+  the catalog search; taps are only counted in memory, nothing is saved. A
+  switch above the bar cycles variant B, variant C and off (`dev/addBarMode.js`).
+  While the bar is on, `App.vue` also hides `MobileNav` in the sub-views of an
+  active list (`list-add`, `list-entry`), so it does not flash in and out when
+  going there and back. Tapping an input near the bottom makes iOS pan the whole
   page by the keyboard height, and fixed elements then no longer take taps
   where they are drawn. Variant B therefore opens through a button that calls
   `focus({ preventScroll: true })`; `@mousedown.prevent` on the suggestions
@@ -150,7 +155,10 @@ wins.
   (28 px) with optional subtitle, back button on sub pages (`back`), actions
   slot, avatar with user menu on phones. It scrolls with the content; the
   glass strip in `AppPage.vue` covers the status bar of the installed app.
-  `AppPage` `width`: `wide` · `list` · `narrow`.
+  `AppPage` `width`: `wide` · `list` · `narrow`; `stickyHead` keeps the
+  header and the `head` slot at the top; the `dock` slot holds a main action
+  that sticks above the navigation (`slot="fixed"` of `IonContent`, because
+  Ionic's page transition only moves the content).
 - **Navigation:** Listen · Produkte · Vorlagen (`navItems.js`).
   `MobileNav.vue`: the starter's floating glass bar in Leinen colours, active
   item with a green pill behind the icon and green label. `SideNav.vue`: app
@@ -164,7 +172,11 @@ wins.
   above the floating bar.
 - **Sheets** (`AppSheet.vue`): Ionic modal as sheet with automatic height,
   radius 22 px at the top, handle, title and subtitle, round close button,
-  scrim from the tokens; centred from `45em`.
+  scrim from the tokens; centred from `45em`. Head and buttons stay, only the
+  content scrolls, without a visible scrollbar; the class
+  `ion-content-scroll-host` tells Ionic's swipe gesture to start there only at
+  scroll position 0. iOS lifts the sheet above the keyboard itself by moving
+  the whole page, so it needs no `--keyboard-height`.
 - **App icon:** “Zettelstapel” from the design package. `build/icon.svg`
   (rounded, manifest `any`), `build/icon-maskable.svg` (full bleed, maskable
   and Apple touch icon), `build/favicon.svg` (reduced, browser tab); render
@@ -864,12 +876,18 @@ screens 01–07 and 10.
   (`ListCardSkeleton.vue`) the same heights. The device remembers the last
   loaded number of active lists per user (`localStorage`,
   `pk.activeListCount.<user>`, at most 8) and shows that many skeleton
-  cards; with 0 an invisible empty state keeps the height, so “Neue Liste”
-  does not move when the lists arrive (only if the number changed on
-  another device). “Neue Liste” at the bottom
-  opens `ListFormSheet.vue` (name required, at most 100 characters; date
-  optional: Ohne Datum · Heute · Morgen · date field); the new list opens
-  at once, also before the server answered.
+  cards; with 0 an invisible empty state keeps the height, so the cards do
+  not move when the lists arrive (only if the number changed on another
+  device). “Neue Liste” sticks above the navigation (`dock` slot of
+  `AppPage`, also “Neue Vorlage” and, on phones, “Neues Produkt”; the
+  content gets that much more room at the end). It opens `ListFormSheet.vue`:
+  only the name and “Anlegen” show, “Erweitert” folds out date (Ohne Datum ·
+  Heute · Morgen · date field), “Für wen?” and “Wie möchtest du starten?”,
+  which keep their defaults. The name is optional for a new list (at most 100
+  characters): empty gives “Einkaufsliste – Do, 05.11.” with the date of the
+  list, otherwise today, and the placeholder shows that name. Editing a list
+  shows everything and requires a name. The new list opens at once, also
+  before the server answered.
 - **List** (`ListView.vue`): title with origin and date, plus button
   (add) and “…” (edit: name, date, delete with confirmation in the same
   sheet). Progress “8 von 30 erledigt · 22 offen”, open entries in sort-key
@@ -983,6 +1001,10 @@ decisions “Produktauswahl und Übernahme”; design package screens 08 and 09.
 
 - **Opens without keyboard:** nothing is focused; the search field only
   gets the focus (and the keyboard) when tapped.
+- **Sticky head:** back, title and search field stay at the top while
+  scrolling and with the keyboard open (`stickyHead` and the `head` slot of
+  `AppPage`), also when editing a template. Changing the search scrolls back
+  to the top, where the hits are.
 - **Tiles** (`AddTile.vue`, two columns on phones, three from 48 em):
   fixed height 124 px, image and name are one button that opens the
   product (on the list: `/lists/:id/entries/:entryId` with quantity and

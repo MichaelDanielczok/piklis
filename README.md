@@ -65,8 +65,8 @@ under `design/piklis-designpaket/`.
   WebP in 128/640/1600 px from the media cache (`quiqqer/cache`); replace,
   re-crop from the original, remove; large view with zoom from the detail
 - Shopping lists: overview of the active lists (name, date, origin “nur
-  ich” or “Haushalt”, progress, first products), create with a free name and optional
-  date, rename, delete; the list in the shop with quantity, unit and note
+  ich” or “Haushalt”, progress, first products), create with an optional name
+  (empty: “Einkaufsliste – Do, 05.11.”) and date, rename, delete; the list in the shop with quantity, unit and note
   per entry (edited in a sheet), new entries in the order they were added,
   sorting only by the drag handle (finger, mouse, arrow keys), checking on
   its own area (the row closes without jumping, toast with “Rückgängig”),

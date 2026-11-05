@@ -1,1 +1,0 @@
-import{n as e}from"./_plugin-vue_export-helper-DQDpAnvj.js";var t=e({name:`chevron-down`,size:24,node:[[`path`,{d:`m6 9 6 6 6-6`,key:`qrunsl`}]]});export{t};

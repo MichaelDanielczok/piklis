@@ -3,9 +3,10 @@
  * Prototyp der Eingabeleiste (Schritt 15). Er steckt auch im Build, weil sich
  * das Verhalten in der installierten App nur dort prüfen lässt; dort startet er
  * ausgeschaltet, damit niemand aus Versehen in eine Leiste tippt, die nichts
- * speichert. Er prüft nur, wie sich die Leiste am iPhone verhält. Vorschläge
- * sind eine feste Liste, angetippt wird nur hier im Speicher gezählt, nichts
- * geht an Liste oder Server.
+ * speichert. Er prüft nur, wie sich die Leiste am iPhone verhält. Die Vorschläge
+ * kommen aus dem echten Katalog: beim Fokus die häufigsten Produkte (wie in der
+ * Kachelansicht), beim Tippen die Treffer der Katalogsuche. Angetippt wird nur
+ * hier im Speicher gezählt, nichts geht an Liste oder Server.
  *
  * - Variante B: Leiste unten, beim Fokus direkt über der Tastatur
  *   (`--keyboard-height`), die Vorschläge darüber. Ein Knopf liegt in Ruhe über
@@ -17,72 +18,69 @@
  * `@mousedown.prevent` auf den Knöpfen hält den Fokus im Feld, die Tastatur
  * bleibt offen.
  *
- * Der Knopf rechts über der Leiste schaltet B → C → aus; gemerkt in
- * `localStorage`. „Aus“ zeigt wieder die Glas-Navigation. Schritt 19 baut die
- * gewählte Variante fertig und entfernt diese Datei.
+ * Der Knopf rechts über der Leiste schaltet B → C → aus (`addBarMode.js`). „Aus“
+ * zeigt wieder die Glas-Navigation; solange die Leiste an ist, blendet `App.vue`
+ * sie auch in den Unteransichten der Liste aus. Schritt 19 baut die gewählte
+ * Variante fertig und entfernt diese Datei.
  */
-import { computed, onBeforeUnmount, reactive, ref, useTemplateRef, watchEffect } from 'vue';
-import { useRouter } from 'vue-router';
+import { computed, reactive, ref, useTemplateRef } from 'vue';
 import { LayoutGrid, Plus, ScanBarcode, X } from '@lucide/vue';
+import { listView } from '@/composables/useLists.js';
+import { useProducts } from '@/composables/useProducts.js';
+import { addBarMode as mode, nextAddBarMode } from '@/dev/addBarMode.js';
+import { topProductIds } from '@/utils/pickerOrder.js';
+import { formatQuantity } from '@/utils/quantity.js';
 
-const MODE_KEY = 'pk.addBarPrototype';
-const MODES = ['b', 'c', 'off'];
 const MODE_LABELS = { b: 'Leiste B', c: 'Leiste C', off: 'Leiste aus' };
-const DEFAULT_MODE = import.meta.env.DEV ? 'b' : 'off';
+const SUGGESTION_LIMIT = 20;
 
-// Beispiele in der Länge echter Treffer; „auf der Liste“ zeigt die längste Zeile
-const SUGGESTIONS = [
-    { name: 'Milch 3,5 %', onList: 1 },
-    { name: 'Milch 1,5 %' },
-    { name: 'Hafermilch' },
-    { name: 'Buttermilch' },
-    { name: 'Kondensmilch 7,5 %' },
-    { name: 'Milchreis' },
-    { name: 'Milchbrötchen' },
-    { name: 'Kokosmilch' }
-];
+const props = defineProps({
+    listId: {
+        type: String,
+        required: true
+    }
+});
 
-const router = useRouter();
+const { catalog, findProduct, search, suggestions } = useProducts();
+const listState = listView(props.listId);
 
-const mode = ref(readMode());
 const open = ref(false);
 const text = ref('');
 // nur für die Anzeige, geht nirgends hin
-const counts = reactive(Object.fromEntries(SUGGESTIONS.map((item) => [item.name, item.onList ?? 0])));
+const taps = reactive({});
 
 const inputB = useTemplateRef('inputB');
 const inputC = useTemplateRef('inputC');
 
-// Ionic hält die Seite im Verlauf: nur solange die Liste vorn liegt
-const active = computed(() => router.currentRoute.value.name === 'list');
+const shown = computed(() => {
+    const query = text.value.trim();
 
-function readMode() {
-    try {
-        const stored = localStorage.getItem(MODE_KEY);
-
-        return MODES.includes(stored) ? stored : DEFAULT_MODE;
-    } catch {
-        return DEFAULT_MODE;
+    if (query !== '') {
+        return search(query, { limit: SUGGESTION_LIMIT });
     }
-}
+
+    return topProductIds(catalog.value, suggestions.value, SUGGESTION_LIMIT).map(findProduct);
+});
 
 function nextMode() {
     close();
-    mode.value = MODES[(MODES.indexOf(mode.value) + 1) % MODES.length];
+    nextAddBarMode();
+}
 
-    try {
-        localStorage.setItem(MODE_KEY, mode.value);
-    } catch {
-        // nur Bequemlichkeit
+/** Stand der Liste, dazu die hier gezählten Tipps. */
+function metaOf(productId) {
+    const entry = listState.value.open.find((item) => item.productId === productId);
+    const tapped = taps[productId] ?? 0;
+
+    if (!entry && tapped === 0) {
+        return '';
     }
+
+    return 'auf der Liste · ' + formatQuantity((entry?.quantity.amount ?? 0) + tapped, entry?.quantity.unit ?? null);
 }
 
-function metaOf(name) {
-    return counts[name] > 0 ? `auf der Liste · ${counts[name]} ×` : '';
-}
-
-function add(name) {
-    counts[name] += 1;
+function add(productId) {
+    taps[productId] = (taps[productId] ?? 0) + 1;
     text.value = '';
 }
 
@@ -109,18 +107,6 @@ function close() {
     inputC.value?.blur();
 }
 
-// die Leiste steht anstelle der Glas-Navigation
-watchEffect(() => {
-    if (active.value && mode.value !== 'off') {
-        document.documentElement.dataset.addbar = mode.value;
-    } else {
-        delete document.documentElement.dataset.addbar;
-    }
-});
-
-onBeforeUnmount(() => {
-    delete document.documentElement.dataset.addbar;
-});
 </script>
 
 <template>
@@ -130,13 +116,14 @@ onBeforeUnmount(() => {
         <div v-if="open" class="addbar-backdrop" aria-hidden="true" @click="close"></div>
         <div class="addbar-dock" :class="{ 'addbar-dock--open': open }">
             <ul v-if="open" class="addbar-suggestions addbar-suggestions--above" aria-label="Vorschläge">
-                <li v-for="item in SUGGESTIONS" :key="item.name">
-                    <button type="button" class="addbar-suggestion" @mousedown.prevent @click="add(item.name)">
-                        <span class="addbar-suggestion__name">{{ item.name }}</span>
-                        <span v-if="metaOf(item.name)" class="addbar-suggestion__meta">{{ metaOf(item.name) }}</span>
+                <li v-for="product in shown" :key="product.id">
+                    <button type="button" class="addbar-suggestion" @mousedown.prevent @click="add(product.id)">
+                        <span class="addbar-suggestion__name">{{ product.name }}</span>
+                        <span v-if="metaOf(product.id)" class="addbar-suggestion__meta">{{ metaOf(product.id) }}</span>
                         <Plus class="addbar-suggestion__icon" aria-hidden="true" />
                     </button>
                 </li>
+                <li v-if="shown.length === 0" class="addbar-suggestions__empty">Nichts im Katalog gefunden</li>
             </ul>
             <form class="addbar-bar" @submit.prevent="submit">
                 <input
@@ -181,23 +168,18 @@ onBeforeUnmount(() => {
                 <button type="button" class="addbar-bar__button" aria-label="Schließen" @mousedown.prevent @click="close"><X aria-hidden="true" /></button>
             </form>
             <ul class="addbar-suggestions addbar-suggestions--below" aria-label="Vorschläge">
-                <li v-for="item in SUGGESTIONS" :key="item.name">
-                    <button type="button" class="addbar-suggestion" @mousedown.prevent @click="add(item.name)">
-                        <span class="addbar-suggestion__name">{{ item.name }}</span>
-                        <span v-if="metaOf(item.name)" class="addbar-suggestion__meta">{{ metaOf(item.name) }}</span>
+                <li v-for="product in shown" :key="product.id">
+                    <button type="button" class="addbar-suggestion" @mousedown.prevent @click="add(product.id)">
+                        <span class="addbar-suggestion__name">{{ product.name }}</span>
+                        <span v-if="metaOf(product.id)" class="addbar-suggestion__meta">{{ metaOf(product.id) }}</span>
                         <Plus class="addbar-suggestion__icon" aria-hidden="true" />
                     </button>
                 </li>
+                <li v-if="shown.length === 0" class="addbar-suggestions__empty">Nichts im Katalog gefunden</li>
             </ul>
         </div>
     </template>
 </template>
-
-<style>
-:root[data-addbar] .mobile-nav {
-    visibility: hidden;
-}
-</style>
 
 <style scoped>
 .addbar-switch {
@@ -340,12 +322,21 @@ onBeforeUnmount(() => {
     align-items: center;
     gap: var(--space-2);
     width: 100%;
-    min-height: var(--stepper-button-size);
+    min-height: var(--space-14);
     padding: 0 var(--space-3) 0 var(--space-4);
     border-top: 1px solid var(--color-border-subtle);
     color: var(--color-text-1);
     font-size: var(--font-size-text);
     text-align: left;
+}
+
+.addbar-suggestions__empty {
+    display: flex;
+    align-items: center;
+    min-height: var(--space-14);
+    padding: 0 var(--space-4);
+    color: var(--color-text-2);
+    font-size: var(--font-size-text);
 }
 
 .addbar-suggestion__name {

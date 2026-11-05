@@ -1065,7 +1065,7 @@ async function onDelete() {
             @finished="onTransferFinished"
         />
 
-        <AddBarPrototype v-if="list && !isCompleted" />
+        <AddBarPrototype v-if="list && !isCompleted" :list-id="listId" />
     </AppPage>
 </template>
 

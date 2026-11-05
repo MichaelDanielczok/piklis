@@ -6,8 +6,13 @@ import { setLucideProps } from '@lucide/vue';
 import SideNav from '@/components/layout/SideNav.vue';
 import MobileNav from '@/components/layout/MobileNav.vue';
 import ConflictSheet from '@/components/lists/ConflictSheet.vue';
+import { isListCompleted } from '@/composables/useLists.js';
 import { useSession } from '@/composables/useSession.js';
 import { pageTransitionAnimated } from '@/composables/usePageTransition.js';
+import { addBarMode } from '@/dev/addBarMode.js';
+
+// Liste und ihre Unteransichten: dort steht die Eingabeleiste statt der Navigation
+const ADD_BAR_ROUTES = ['list', 'list-add', 'list-entry'];
 
 const route = useRoute();
 const { isAuthenticated } = useSession();
@@ -17,6 +22,11 @@ setLucideProps({ strokeWidth: 1.75 });
 
 // Anmeldeseite ohne Navigation
 const showNavigation = computed(() => isAuthenticated.value && !route.meta.public);
+
+// Unteransichten zählen mit, sonst taucht die Navigation beim Hin- und Zurückgehen auf
+const addBarReplacesNav = computed(() => addBarMode.value !== 'off'
+    && ADD_BAR_ROUTES.includes(route.name)
+    && !isListCompleted(String(route.params.id)));
 </script>
 
 <template>
@@ -26,7 +36,7 @@ const showNavigation = computed(() => isAuthenticated.value && !route.meta.publi
             <div class="app-shell__main">
                 <IonRouterOutlet :animated="pageTransitionAnimated" />
             </div>
-            <MobileNav v-if="showNavigation" class="app-shell__bottom" />
+            <MobileNav v-if="showNavigation && !addBarReplacesNav" class="app-shell__bottom" />
         </div>
         <!-- Konflikte beim gemeinsamen Bearbeiten kommen auf jeder Seite an -->
         <ConflictSheet v-if="isAuthenticated" />

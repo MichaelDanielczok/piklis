@@ -837,6 +837,11 @@ export function listView(listId) {
     });
 }
 
+/** Abgeschlossen (Archiv)? Unbekannte Listen gelten als offen. */
+export function isListCompleted(listId) {
+    return viewOf(listId).state.list?.status === 'completed';
+}
+
 /**
  * Einträge, deren Änderung noch nicht beim Server ist, solange Senden
  * scheitert oder keine Verbindung besteht.

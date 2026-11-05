@@ -10,7 +10,8 @@ import {
     freezeOrder,
     nextLimit,
     NEXT_PAGE,
-    sliceOrder
+    sliceOrder,
+    topProductIds
 } from '@/utils/pickerOrder.js';
 
 const catalog = [
@@ -93,4 +94,11 @@ test('slicing fills the sections in order', () => {
     assert.deepEqual(sliceOrder(order, 3), { created: ['n1'], suggested: ['s1', 's2'], rest: [] });
     assert.deepEqual(sliceOrder(order, 5), { created: ['n1'], suggested: ['s1', 's2', 's3'], rest: ['r1'] });
     assert.deepEqual(sliceOrder(order, 99), order);
+});
+
+test('die häufigsten Produkte: Vorschläge zuerst, dann der Katalog, begrenzt', () => {
+    const suggestions = [{ productId: 'butter' }, { productId: 'gouda' }];
+
+    assert.deepEqual(topProductIds(catalog, suggestions, 2), ['butter', 'apfel']);
+    assert.deepEqual(topProductIds(catalog, null, 1), ['apfel']);
 });

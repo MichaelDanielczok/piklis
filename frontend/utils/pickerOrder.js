@@ -56,6 +56,21 @@ export function freezeOrder(catalog, suggestions) {
 }
 
 /**
+ * Die häufigsten Produkte in der Reihenfolge der Kachelansicht: Vorschläge,
+ * dann der übrige Katalog.
+ *
+ * @param {{ id: string, hidden?: boolean }[]} catalog
+ * @param {{ productId: string }[]|null} suggestions
+ * @param {number} limit
+ * @returns {string[]}
+ */
+export function topProductIds(catalog, suggestions, limit) {
+    const { suggested, rest } = freezeOrder(catalog, suggestions);
+
+    return [...suggested, ...rest].slice(0, limit);
+}
+
+/**
  * Festgehaltene Reihenfolge mit dem aktuellen Katalog, in drei Abschnitten:
  * hier angelegt (neueste zuerst) · Vorschläge · übriger Katalog.
  *

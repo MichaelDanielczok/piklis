@@ -2,8 +2,8 @@
 /**
  * Listen: Startansicht (Designpaket 01) mit den aktiven Einkäufen als
  * Karten (Name, Datum, Herkunft, Fortschritt, erste Produkte) und „Neue
- * Liste“ unten im Daumenbereich. Eine neue Liste erscheint sofort und öffnet
- * sich direkt.
+ * Liste“, das immer sichtbar über der Navigation klebt. Eine neue Liste
+ * erscheint sofort und öffnet sich direkt.
  *
  * Herkunft als Chip: „nur ich“ oder „Haushalt“; geteilte Listen folgen
  * mit Schritt 11. Unter den Karten führt „Archiv“ zu
@@ -13,7 +13,6 @@
  * Ladezustand in Endhöhe: Das Gerät merkt sich die zuletzt geladene Anzahl
  * aktiver Listen (je Benutzer, `localStorage`) und zeigt so viele
  * Skeleton-Karten; bei 0 hält ein unsichtbarer leerer Zustand die Höhe.
- * So steht „Neue Liste“ schon beim Laden an seinem Platz.
  *
  * Live-Abgleich: alle 30 s `GET /lists` (ETag, nur bei sichtbarer App);
  * Listen anderer, Fortschritt und Haushalt kommen so ohne Neuladen an.
@@ -246,12 +245,14 @@ function onDiscardOrphan(orphan) {
                 </span>
                 <ChevronRight class="lists__archive-chevron" aria-hidden="true" />
             </button>
+        </div>
 
-            <AppButton class="lists__new" block @click="formOpen = true">
+        <template #dock>
+            <AppButton block @click="formOpen = true">
                 <Plus aria-hidden="true" />
                 {{ t('lists.new') }}
             </AppButton>
-        </div>
+        </template>
 
         <ListFormSheet v-model:open="formOpen" @submit="onCreate" />
     </AppPage>
@@ -274,10 +275,6 @@ function onDiscardOrphan(orphan) {
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
-}
-
-.lists__new {
-    margin-top: var(--space-3);
 }
 
 .lists__placeholder {

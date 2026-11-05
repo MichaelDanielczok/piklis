@@ -165,12 +165,15 @@ async function onCreate(fields) {
                 </ul>
             </template>
 
-            <AppButton class="templates__new" block @click="openForm">
+            <p v-if="overview.templates.length > 0" class="templates__hint">{{ t('templates.fromListHint') }}</p>
+        </div>
+
+        <template #dock>
+            <AppButton block @click="openForm">
                 <Plus aria-hidden="true" />
                 {{ t('templates.new') }}
             </AppButton>
-            <p v-if="overview.templates.length > 0" class="templates__hint">{{ t('templates.fromListHint') }}</p>
-        </div>
+        </template>
 
         <TemplateFormSheet v-model:open="formOpen" :pending="pending" :error="formError" @submit="onCreate" />
     </AppPage>
@@ -193,10 +196,6 @@ async function onCreate(fields) {
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
-}
-
-.templates__new {
-    margin-top: var(--space-3);
 }
 
 .templates__placeholder {

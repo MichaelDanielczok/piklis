@@ -15,8 +15,11 @@
  *   die Kachel zeigt „erledigt“ bzw. „nicht bekommen“.
  * - „Nur nicht ausgewählte“ blendet aus, was beim Einschalten ausgewählt
  *   war; was danach dazukommt, bleibt stehen (Kacheln springen nicht).
+ * - Kopf und Suchfeld kleben oben: Eingabe und Rückweg bleiben beim Scrollen
+ *   und bei offener Tastatur sichtbar.
  * - Suche erst beim Antippen; Treffer als Kacheln, am Ende immer
- *   „„Begriff“ neu anlegen“ (Produkt und Eintrag als Operationen).
+ *   „„Begriff“ neu anlegen“ (Produkt und Eintrag als Operationen). Die Suche
+ *   beginnt oben, auch wenn weiter unten gescrollt war.
  * - Bild oder Name öffnen das Produkt: auf der Liste mit Menge und Notiz,
  *   sonst die Produktseite. „Fertig“ führt zur Liste.
  *
@@ -91,6 +94,7 @@ const view = computed(() => {
 });
 const { catalog, status: productStatus, search, findProduct } = useProducts();
 
+const page = ref(null);
 const query = ref('');
 const searchField = ref(null);
 const onlyUnselected = ref(false);
@@ -114,6 +118,11 @@ const failed = computed(() => !frozen.value && (view.value.status === 'error' ||
 
 const searchText = computed(() => query.value.trim());
 const searching = computed(() => searchText.value !== '');
+
+// das Feld klebt oben: tippen geht auch von weiter unten, Treffer stehen aber oben
+watch(searchText, () => {
+    page.value?.scrollToTop();
+});
 
 /** Offener Eintrag je Produkt, und Produkte mit erledigtem bzw. nicht bekommenem Eintrag. */
 const onList = computed(() => {
@@ -381,14 +390,28 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <AppPage class="add-page" :title="t('addProducts.shortTitle')" :subtitle="subtitle" back :back-to="backTo" width="list" :user-menu="false">
+    <AppPage
+        ref="page"
+        class="add-page"
+        :title="t('addProducts.shortTitle')"
+        :subtitle="subtitle"
+        back
+        :back-to="backTo"
+        width="list"
+        :user-menu="false"
+        sticky-head
+    >
         <template #actions>
             <button type="button" class="picker__done" @click="done">{{ t('common.done') }}</button>
         </template>
 
-        <div class="picker">
-            <SearchField ref="searchField" v-model="query" :label="t('addProducts.searchLabel')" :placeholder="t('addProducts.searchPlaceholder')" />
+        <template #head>
+            <div class="picker__search">
+                <SearchField ref="searchField" v-model="query" :label="t('addProducts.searchLabel')" :placeholder="t('addProducts.searchPlaceholder')" />
+            </div>
+        </template>
 
+        <div class="picker">
             <div class="picker__bar">
                 <label class="picker__filter" :class="{ 'picker__filter--on': onlyUnselected }">
                     <input v-model="onlyUnselected" type="checkbox" class="picker__filter-input">
@@ -493,11 +516,15 @@ onBeforeUnmount(() => {
     white-space: nowrap;
 }
 
+.picker__search {
+    padding: var(--space-2) var(--page-gutter) var(--space-3);
+}
+
 .picker {
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
-    padding: var(--space-2) var(--page-gutter) 0;
+    padding: var(--space-3) var(--page-gutter) 0;
 }
 
 .picker__done {

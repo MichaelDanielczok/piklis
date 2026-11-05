@@ -149,11 +149,18 @@ function onCancel() {
 
 <template>
     <AppPage :title="t('products.title')" :subtitle="subtitle">
-        <template #actions>
-            <button type="button" class="products__new" @click="startNew()">
-                <Plus class="products__new-icon" aria-hidden="true" />
-                <span class="products__new-label">{{ t('products.new') }}</span>
-            </button>
+        <template v-if="isDesktop" #actions>
+            <AppButton @click="startNew()">
+                <Plus aria-hidden="true" />
+                {{ t('products.new') }}
+            </AppButton>
+        </template>
+
+        <template v-else #dock>
+            <AppButton block @click="startNew()">
+                <Plus aria-hidden="true" />
+                {{ t('products.new') }}
+            </AppButton>
         </template>
 
         <div class="products">
@@ -278,49 +285,6 @@ function onCancel() {
     min-width: 0;
 }
 
-.products__new {
-    display: inline-flex;
-    flex: none;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-2);
-    width: var(--tap-size);
-    height: var(--tap-size);
-    border-radius: 50%;
-    background: var(--color-accent);
-    color: var(--color-on-accent);
-    font-size: var(--font-size-title);
-    font-weight: var(--font-weight-semibold);
-    transition:
-        background-color var(--duration-fast) var(--ease-out),
-        transform var(--duration-fast) var(--ease-out);
-}
-
-@media (hover: hover) {
-    .products__new:hover {
-        background: var(--color-accent-hover);
-    }
-}
-
-.products__new:active {
-    transform: scale(var(--press-scale));
-}
-
-.products__new-icon {
-    width: var(--icon-size-md);
-    height: var(--icon-size-md);
-}
-
-/* auf dem Handy nur das Plus, der Text bleibt für Screenreader */
-.products__new-label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-}
-
 .products__filters {
     display: flex;
     flex-wrap: wrap;
@@ -431,21 +395,6 @@ function onCancel() {
         grid-template-columns: var(--product-list-width) minmax(0, 1fr);
         align-items: start;
         gap: var(--space-6);
-    }
-
-    .products__new {
-        width: auto;
-        height: var(--tap-size-main);
-        padding: 0 var(--space-5);
-        border-radius: var(--radius-md);
-    }
-
-    .products__new-label {
-        position: static;
-        width: auto;
-        height: auto;
-        overflow: visible;
-        clip-path: none;
     }
 
     .products__panel {

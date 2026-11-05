@@ -44,7 +44,7 @@
  * Ablegen, und der gezogene Eintrag landet hinter demselben Nachbarn.
  */
 import { logError } from '@/api/index.js';
-import { computed, nextTick, ref, shallowRef, useTemplateRef, watch } from 'vue';
+import { computed, defineAsyncComponent, nextTick, ref, shallowRef, useTemplateRef, watch } from 'vue';
 import { onIonViewWillEnter, useIonRouter } from '@ionic/vue';
 import {
     Archive,
@@ -112,6 +112,9 @@ import { formatDay, formatShopDate } from '@/utils/shopDate.js';
 import { formatQuantity } from '@/utils/quantity.js';
 import { mergeTakeOver } from '@/utils/takeOver.js';
 import { t } from '@/i18n/index.js';
+
+// Schritt 15: Prototyp der Eingabeleiste, nur im Entwicklungsserver; im Build fehlt er
+const AddBarPrototype = import.meta.env.DEV ? defineAsyncComponent(() => import('@/dev/AddBarPrototype.vue')) : null;
 
 const SKELETON_WIDTHS = [0.55, 0.35, 0.3, 0.6, 0.45, 0.3, 0.4, 0.65, 0.5, 0.45];
 const ROW_ANIMATION_MS = 200;
@@ -1060,6 +1063,8 @@ async function onDelete() {
             :mode="transferMode"
             @finished="onTransferFinished"
         />
+
+        <AddBarPrototype v-if="AddBarPrototype && list && !isCompleted" />
     </AppPage>
 </template>
 

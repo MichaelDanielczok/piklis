@@ -110,6 +110,14 @@ committed because the server does not build (no Node there).
   PWA, from the Keyboard plugin in a native app) into `--keyboard-height` and
   `data-keyboard="open"` on `<html>`. `AppPage` keeps that space free at the
   bottom, `MobileNav` is hidden.
+- Input bar prototype (`frontend/dev/AddBarPrototype.vue`): dev server only,
+  loaded behind `import.meta.env.DEV` in `ListView` and absent from the build;
+  sample suggestions, nothing is saved. A switch above the bar cycles variant
+  B, variant C and off. Tapping an input near the bottom makes iOS pan the whole
+  page by the keyboard height, and fixed elements then no longer take taps
+  where they are drawn. Variant B therefore opens through a button that calls
+  `focus({ preventScroll: true })`; `@mousedown.prevent` on the suggestions
+  keeps the keyboard open.
 - Language: German only, no language setting. Theme: `auto | light | dark`
   (default `auto`, follows the system) via `data-theme` on `<html>`, chosen
   in the user menu or in Einstellungen; `applyTheme()` also sets both

@@ -118,7 +118,7 @@ defineExpose({ scrollToTop });
 }
 
 .app-page--docked {
-    --_dock-space: calc(var(--button-height) + var(--space-2));
+    --_dock-space: var(--dock-space);
 }
 
 /* der Sicherheitsabstand gehört dann zum klebenden Kopf, sonst liefe Inhalt darüber */

@@ -167,6 +167,11 @@ ion-toast.app-toast--top::part(wrapper) {
     margin-bottom: 0;
 }
 
+/* über dem klebenden Hauptknopf (`dock` in AppPage): Er bleibt immer sichtbar */
+ion-app:has(.ion-page:not(.ion-page-hidden) .app-page__dock) ion-toast.app-toast:not(.app-toast--top)::part(wrapper) {
+    margin-bottom: calc(var(--mobile-nav-height) + var(--mobile-nav-bottom) + var(--space-2) + var(--dock-space));
+}
+
 @media (min-width: 64em) {
     ion-toast.app-toast::part(wrapper) {
         margin-bottom: var(--space-6);
@@ -174,6 +179,10 @@ ion-toast.app-toast--top::part(wrapper) {
 
     ion-toast.app-toast--top::part(wrapper) {
         margin-bottom: 0;
+    }
+
+    ion-app:has(.ion-page:not(.ion-page-hidden) .app-page__dock) ion-toast.app-toast:not(.app-toast--top)::part(wrapper) {
+        margin-bottom: calc(var(--space-4) + var(--dock-space));
     }
 }
 

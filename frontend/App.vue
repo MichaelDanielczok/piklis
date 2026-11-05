@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { IonApp, IonRouterOutlet } from '@ionic/vue';
 import { setLucideProps } from '@lucide/vue';
@@ -13,6 +13,8 @@ import { addBarMode } from '@/dev/addBarMode.js';
 
 // Liste und ihre Unteransichten: dort steht die Eingabeleiste statt der Navigation
 const ADD_BAR_ROUTES = ['list', 'list-add', 'list-entry'];
+// aus „Produkte hinzufügen“ erreichbar, gehören dann noch zur Liste
+const PRODUCT_ROUTES = ['product', 'product-edit'];
 
 const route = useRoute();
 const { isAuthenticated } = useSession();
@@ -23,10 +25,22 @@ setLucideProps({ strokeWidth: 1.75 });
 // Anmeldeseite ohne Navigation
 const showNavigation = computed(() => isAuthenticated.value && !route.meta.public);
 
+// Liste, zu der die aktuelle Ansicht gehört. Ein Produkt erbt sie nur, wenn man
+// aus der Liste kommt; über „Produkte“ geöffnet behält es die Navigation.
+const listContext = ref(null);
+
+watch(() => route.name, (name) => {
+    if (ADD_BAR_ROUTES.includes(name)) {
+        listContext.value = String(route.params.id);
+    } else if (!PRODUCT_ROUTES.includes(name)) {
+        listContext.value = null;
+    }
+}, { immediate: true });
+
 // Unteransichten zählen mit, sonst taucht die Navigation beim Hin- und Zurückgehen auf
 const addBarReplacesNav = computed(() => addBarMode.value !== 'off'
-    && ADD_BAR_ROUTES.includes(route.name)
-    && !isListCompleted(String(route.params.id)));
+    && listContext.value !== null
+    && !isListCompleted(listContext.value));
 </script>
 
 <template>

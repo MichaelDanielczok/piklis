@@ -118,8 +118,9 @@ committed because the server does not build (no Node there).
   the catalog search; taps are only counted in memory, nothing is saved. A
   switch above the bar cycles variant B, variant C and off (`dev/addBarMode.js`).
   While the bar is on, `App.vue` also hides `MobileNav` in the sub-views of an
-  active list (`list-add`, `list-entry`), so it does not flash in and out when
-  going there and back. Tapping an input near the bottom makes iOS pan the whole
+  active list (`list-add`, `list-entry`, and `product` or `product-edit` when
+  reached from there), so it does not flash in and out when going there and
+  back. Tapping an input near the bottom makes iOS pan the whole
   page by the keyboard height, and fixed elements then no longer take taps
   where they are drawn. Variant B therefore opens through a button that calls
   `focus({ preventScroll: true })`; `@mousedown.prevent` on the suggestions
@@ -169,7 +170,7 @@ wins.
   button keyboard pattern (arrows, Home/End, Escape).
 - **Toast** (`useToast.js`, style in `base.css`): dark surface, symbol on the
   left (`icon: 'done' | 'notgot' | 'info'`), green action (“Rückgängig”), 5 s,
-  above the floating bar.
+  above the floating bar and, on pages with a `dock`, above that button.
 - **Sheets** (`AppSheet.vue`): Ionic modal as sheet with automatic height,
   radius 22 px at the top, handle, title and subtitle, round close button,
   scrim from the tokens; centred from `45em`. Head and buttons stay, only the

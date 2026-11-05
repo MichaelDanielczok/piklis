@@ -221,6 +221,7 @@
     --mobile-nav-bottom: max(var(--mobile-nav-offset), calc(env(safe-area-inset-bottom, 0px) - var(--space-2)));
     --mobile-nav-max-width: 26rem;
     --keyboard-height: 0px; /* offene Bildschirmtastatur, setzt utils/keyboardInset.js */
+    --dock-space: calc(var(--button-height) + var(--space-2)); /* klebender Hauptknopf samt Abstand */
     --menu-min-width: 17.5rem; /* 280, Platz für „Automatisch“ in der Motivwahl */
     --narrow-content-width: 40rem; /* Profil, Formulare */
     --list-content-width: 45rem; /* Einkaufslisten */

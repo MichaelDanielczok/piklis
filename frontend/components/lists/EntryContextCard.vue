@@ -8,6 +8,7 @@
  * - nicht bekommen: „In andere Liste übernehmen“ und „Wieder offen“;
  * - abgeschlossene Liste (`readonly`): nur lesen, mit Hinweis.
  *
+ * `listItem`: Das Sheet ändert dann auch Foto und Beschreibung.
  * Emits: edit · not-got · reopen · transfer
  */
 import { Check, Pencil, RotateCcw, ArrowRight, X } from '@lucide/vue';
@@ -29,6 +30,10 @@ defineProps({
         default: null
     },
     readonly: {
+        type: Boolean,
+        default: false
+    },
+    listItem: {
         type: Boolean,
         default: false
     }
@@ -72,7 +77,7 @@ defineEmits(['edit', 'not-got', 'reopen', 'transfer']);
         <div v-else class="entry-card__actions">
             <AppButton variant="secondary" block @click="$emit('edit')">
                 <Pencil aria-hidden="true" />
-                {{ t('entry.edit') }}
+                {{ t(listItem ? 'entry.editListItem' : 'entry.edit') }}
             </AppButton>
             <AppButton v-if="entry.status === 'open'" variant="secondary" block @click="$emit('not-got')">
                 <X aria-hidden="true" />

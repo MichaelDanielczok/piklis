@@ -9,7 +9,6 @@ import ConflictSheet from '@/components/lists/ConflictSheet.vue';
 import { isListCompleted } from '@/composables/useLists.js';
 import { useSession } from '@/composables/useSession.js';
 import { pageTransitionAnimated } from '@/composables/usePageTransition.js';
-import { addBarMode } from '@/dev/addBarMode.js';
 
 // Liste und ihre Unteransichten: dort steht die Eingabeleiste statt der Navigation
 const ADD_BAR_ROUTES = ['list', 'list-add', 'list-entry'];
@@ -38,9 +37,7 @@ watch(() => route.name, (name) => {
 }, { immediate: true });
 
 // Unteransichten zählen mit, sonst taucht die Navigation beim Hin- und Zurückgehen auf
-const addBarReplacesNav = computed(() => addBarMode.value !== 'off'
-    && listContext.value !== null
-    && !isListCompleted(listContext.value));
+const addBarReplacesNav = computed(() => listContext.value !== null && !isListCompleted(listContext.value));
 </script>
 
 <template>

@@ -366,6 +366,8 @@ export default {
         notePlaceholder: 'z. B. diesmal für den Kuchen',
         noNote: 'Keine Notiz',
         edit: 'Menge oder Notiz ändern',
+        editListItem: 'Menge, Notiz oder Foto ändern',
+        productFieldsOffline: 'Foto und Beschreibung gehen nur mit Verbindung.',
         remove: 'Von der Liste entfernen',
         removedToast: '„{name}“ entfernt',
         unknownProduct: 'Unbekanntes Produkt',
@@ -404,6 +406,19 @@ export default {
             unknown_unit: 'Unbekannte Einheit.',
             noteTooLong: 'Höchstens {count} Zeichen.'
         }
+    },
+    addBar: {
+        placeholder: 'Produkt hinzufügen',
+        suggestions: 'Vorschläge',
+        onList: 'auf der Liste · {quantity}',
+        noMatch: 'Nicht im Katalog. Die Eingabetaste trägt „{name}“ nur auf dieser Liste ein.',
+        noProducts: 'Noch keine Produkte im Katalog.',
+        scan: 'Scannen',
+        tiles: 'Kachelansicht',
+        switchMode: 'Variante der Leiste wechseln, jetzt {mode}',
+        scanTitle: 'Barcode scannen',
+        scanUnknown: 'Der Barcode {barcode} steht nicht im Katalog.',
+        scanAgain: 'Noch einmal scannen'
     },
     addProducts: {
         title: 'Produkte hinzufügen',

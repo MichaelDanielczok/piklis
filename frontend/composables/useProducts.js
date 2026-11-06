@@ -336,6 +336,13 @@ export async function removeProductImage(productId) {
     return upsert(product);
 }
 
+/** Änderung aus `ProductImageField` hochladen oder das Bild entfernen. */
+export function applyImageChange(productId, change) {
+    return change.type === 'remove'
+        ? removeProductImage(productId)
+        : setProductImage(productId, { image: change.image, original: change.original });
+}
+
 /**
  * Gewählte Angaben aus Open Food Facts übernehmen (Werte aus dem Cache des
  * Servers). @param {{ barcode: string, fields: string[] }} choice

@@ -10,6 +10,10 @@
  * v-model:open · entry (angezeigter Stand) · productName · listName
  * · `product`: zeigt „In den Katalog aufnehmen“ oder „Schon im Katalog“
  * · `subtitle` und `noteHint` ersetzen die Texte für Listen (Vorlage bearbeiten)
+ * · `listItemFields`: Ein Listenartikel zeigt auch Foto und Beschreibung. Sie
+ *   gehören zum Produkt und gehen direkt an den Server, also nur online; aus dem
+ *   Vorlagen-Entwurf nicht, der speichert erst am Ende. Katalogprodukte behalten
+ *   beides unter „Bearbeiten“, dort gelten die Pflegerechte.
  * Emits: save({ quantity?, note? }) nur mit geänderten Feldern
  */
 import { computed, ref, useId, watch } from 'vue';
@@ -17,10 +21,15 @@ import { CircleAlert, Minus, Plus } from '@lucide/vue';
 import AppButton from '@/components/ui/AppButton.vue';
 import AppSheet from '@/components/ui/AppSheet.vue';
 import EntryCatalog from '@/components/lists/EntryCatalog.vue';
+import ProductImageField from '@/components/products/ProductImageField.vue';
+import { useConnection } from '@/composables/useConnection.js';
+import { applyImageChange, updateProduct } from '@/composables/useProducts.js';
+import { categoryOf, iconOf } from '@/products/catalog.js';
 import { allowsDecimals, formatAmount, parseQuantity, quantityStep, sameQuantity, UNITS, unitName } from '@/utils/quantity.js';
 import { t } from '@/i18n/index.js';
 
 const NOTE_MAX = 500;
+const DESCRIPTION_MAX = 2000;
 
 const props = defineProps({
     entry: {
@@ -46,6 +55,10 @@ const props = defineProps({
     noteHint: {
         type: String,
         default: ''
+    },
+    listItemFields: {
+        type: Boolean,
+        default: false
     }
 });
 
@@ -58,19 +71,33 @@ const ids = {
     amountError: useId(),
     unit: useId(),
     note: useId(),
-    noteHint: useId()
+    noteHint: useId(),
+    description: useId()
 };
+
+const { online } = useConnection();
 
 const amountText = ref('');
 const unit = ref(null);
 const note = ref('');
 const submitted = ref(false);
+const description = ref('');
+const imageChange = ref(null);
+const saving = ref(false);
+const productError = ref('');
+
+const showsProduct = computed(() => props.listItemFields && Boolean(props.product?.listItem));
+// noch nicht übertragen kennt der Server den Artikel nicht
+const canEditProduct = computed(() => showsProduct.value && online.value && !props.product.local);
 
 watch(open, (isOpen) => {
     if (isOpen && props.entry) {
         amountText.value = formatAmount(props.entry.quantity.amount);
         unit.value = props.entry.quantity.unit ?? null;
         note.value = props.entry.note ?? '';
+        description.value = props.product?.description ?? '';
+        imageChange.value = null;
+        productError.value = '';
         submitted.value = false;
     }
 });
@@ -111,10 +138,43 @@ function onUnitChange(event) {
     }
 }
 
-function submit() {
+/** Sheet bleibt bei einem Fehler offen, die Eingaben gingen sonst verloren. */
+async function saveProduct() {
+    const text = description.value.trim() || null;
+    const changed = text !== (props.product.description ?? null);
+
+    if (!changed && !imageChange.value) {
+        return true;
+    }
+
+    saving.value = true;
+    productError.value = '';
+
+    try {
+        if (changed) {
+            await updateProduct(props.product.id, { description: text });
+        }
+
+        if (imageChange.value) {
+            await applyImageChange(props.product.id, imageChange.value);
+            imageChange.value = null;
+        }
+
+        return true;
+    } catch (failure) {
+        console.warn('Listenartikel nicht gespeichert', failure);
+        productError.value = t(failure?.status === 0 ? 'common.onlineOnly' : 'products.saveError');
+
+        return false;
+    } finally {
+        saving.value = false;
+    }
+}
+
+async function submit() {
     submitted.value = true;
 
-    if (parsed.value.error || !props.entry) {
+    if (parsed.value.error || !props.entry || saving.value) {
         return;
     }
 
@@ -133,6 +193,10 @@ function submit() {
 
     if (Object.keys(changes).length > 0) {
         emit('save', changes);
+    }
+
+    if (canEditProduct.value && !await saveProduct()) {
+        return;
     }
 
     open.value = false;
@@ -209,12 +273,36 @@ function submit() {
                 <span :id="ids.noteHint" class="form-field__hint">{{ noteHint || t('entry.noteHint') }}</span>
             </label>
 
+            <template v-if="canEditProduct">
+                <ProductImageField v-model="imageChange" :product="product" :icon="iconOf(product)" :category="categoryOf(product)" />
+
+                <div class="form-field">
+                    <label :for="ids.description" class="form-field__label">
+                        {{ t('productForm.description') }}
+                        <span class="form-field__label-hint">· {{ t('productForm.descriptionHint') }}</span>
+                    </label>
+                    <textarea
+                        :id="ids.description"
+                        v-model="description"
+                        class="form-field__input"
+                        rows="3"
+                        :maxlength="DESCRIPTION_MAX"
+                    ></textarea>
+                </div>
+
+                <p v-if="productError" class="form-field__error" role="alert">
+                    <CircleAlert aria-hidden="true" />
+                    {{ productError }}
+                </p>
+            </template>
+            <p v-else-if="showsProduct" class="form-field__hint">{{ t('entry.productFieldsOffline') }}</p>
+
             <EntryCatalog :product="product" />
         </form>
 
         <template #footer>
             <AppButton variant="secondary" @click="open = false">{{ t('common.cancel') }}</AppButton>
-            <AppButton type="submit" :form="ids.form">{{ t('common.save') }}</AppButton>
+            <AppButton type="submit" :form="ids.form" :disabled="saving">{{ t('common.save') }}</AppButton>
         </template>
     </AppSheet>
 </template>

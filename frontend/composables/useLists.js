@@ -955,6 +955,13 @@ export function setProductQuantity(listId, productId, amount) {
     return existing.id;
 }
 
+/** Produkt noch einmal auf die Liste: offen +1, sonst ein neuer offener Eintrag. */
+export function increaseProduct(listId, productId) {
+    const amount = activeEntryOf(currentEntries(listId) ?? new Map(), productId)?.quantity.amount ?? 0;
+
+    return setProductQuantity(listId, productId, amount + 1);
+}
+
 /**
  * Unbekannten Namen als Listenartikel anlegen und gleich mit Menge 1 auf die
  * Liste setzen. Beides als Operation (`product.create` vor `entry.add`), der
@@ -969,7 +976,7 @@ export function createProductOnList(listId, name) {
     const known = listItemNamed([...entries.values()].filter(isVisible), name, findProduct);
 
     if (known) {
-        setProductQuantity(listId, known.id, (activeEntryOf(entries, known.id)?.quantity.amount ?? 0) + 1);
+        increaseProduct(listId, known.id);
 
         return known.id;
     }

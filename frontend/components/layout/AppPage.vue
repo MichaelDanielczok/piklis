@@ -15,6 +15,9 @@
  * `stickyHead`: Der Kopf samt Slot `head` (z. B. Suchfeld) klebt oben, auch
  * beim Scrollen und bei offener Tastatur.
  *
+ * `addBar`: Unten steht die Eingabeleiste; sie schwebt wie die Navigation, auch
+ * auf breiten Bildschirmen, und braucht dort denselben Platz.
+ *
  * Slot `dock`: Hauptaktion, die immer sichtbar über der Navigation klebt
  * (`slot="fixed"` statt neben `IonContent`: Ionics Seitenwechsel bewegt nur
  * den Inhalt). Der Inhalt bekommt unten entsprechend mehr Platz.
@@ -54,6 +57,10 @@ defineProps({
         type: Boolean,
         default: false
     },
+    addBar: {
+        type: Boolean,
+        default: false
+    },
     width: {
         type: String,
         default: 'wide',
@@ -79,6 +86,7 @@ defineExpose({ scrollToTop });
             :class="{
                 'app-page--bare': bare,
                 'app-page--sticky-head': stickyHead,
+                'app-page--add-bar': addBar,
                 'app-page--docked': $slots.dock
             }"
         >
@@ -189,7 +197,7 @@ defineExpose({ scrollToTop });
 }
 
 @media (min-width: 64em) {
-    .app-page:not(.app-page--bare) {
+    .app-page:not(.app-page--bare, .app-page--add-bar) {
         --padding-bottom: max(calc(var(--space-14) + var(--_dock-space)), var(--_keyboard-space));
     }
 

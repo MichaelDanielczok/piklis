@@ -23,6 +23,10 @@ const ICONS = {
 
 let current = null;
 
+export function dismissToast() {
+    current?.dismiss();
+}
+
 /**
  * @param {string} message
  * @param {{

@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { normalizeSearchText, rankName, RANK, searchProducts, searchTokens } from '@/utils/productSearch.js';
+import { exactProduct, normalizeSearchText, rankName, RANK, searchProducts, searchTokens } from '@/utils/productSearch.js';
 import { CATEGORIES } from '@/products/categories.js';
 
 const fixture = JSON.parse(readFileSync(new URL('../fixtures/product-search.json', import.meta.url), 'utf8'));
@@ -46,4 +46,27 @@ test('tokens and ranks', () => {
 
 test('categories match the shared fixture', () => {
     assert.deepEqual([...CATEGORIES], categories.categories);
+});
+
+test('exactProduct nimmt nur den gleichen Namen, nie einen Teiltreffer', () => {
+    const products = [
+        { id: 'a', name: 'Vollmilch' },
+        { id: 'b', name: 'Milch' },
+        { id: 'c', name: 'Salz', hidden: true }
+    ];
+
+    assert.equal(exactProduct('Milch', products)?.id, 'b');
+    assert.equal(exactProduct('  mILCH ', products)?.id, 'b');
+    assert.equal(exactProduct('Mil', products), null);
+    assert.equal(exactProduct('Zucker 1kg', products), null);
+    assert.equal(exactProduct('Salz', products), null);
+    assert.equal(exactProduct('   ', products), null);
+});
+
+test('exactProduct zieht unter gleichen Namen die gleiche Schreibweise vor', () => {
+    const products = [{ id: 'a', name: 'Apfel' }, { id: 'b', name: 'Äpfel' }];
+
+    assert.equal(exactProduct('Äpfel', products)?.id, 'b');
+    assert.equal(exactProduct('apfel', products)?.id, 'a');
+    assert.equal(exactProduct('APFEL!', products)?.id, 'a');
 });

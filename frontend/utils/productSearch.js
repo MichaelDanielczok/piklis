@@ -111,3 +111,26 @@ export function searchProducts(query, products, { limit = DEFAULT_LIMIT, include
 
     return hits.slice(0, limit).map((hit) => hit.product);
 }
+
+/**
+ * Produkt mit genau diesem Namen, Groß- und Kleinschreibung, Akzente und
+ * Satzzeichen zählen wie überall nicht. Gibt es mehrere, gewinnt die gleiche
+ * Schreibweise. Ein Teiltreffer ist nie gleich.
+ *
+ * @template {{ name: string, hidden?: boolean }} P
+ * @param {string} name
+ * @param {P[]} products
+ * @returns {P|null}
+ */
+export function exactProduct(name, products) {
+    const wanted = normalizeSearchText(name);
+
+    if (wanted === '') {
+        return null;
+    }
+
+    const same = products.filter((product) => !product.hidden && normalizeSearchText(product.name) === wanted);
+    const written = name.trim().toLowerCase();
+
+    return same.find((product) => product.name.toLowerCase() === written) ?? same[0] ?? null;
+}

@@ -91,6 +91,12 @@ under `design/piklis-designpaket/`.
   move the list; participants and open links can be removed or withdrawn,
   guests can leave; used or expired links say “Link nicht mehr gültig,
   bitte um einen neuen”
+- Input bar in active lists, instead of the glass navigation: on focus the most
+  frequent products, while typing the catalog hits; a suggestion adds the
+  product (open +1, done a new entry, “auf der Liste · 1 ×”), Enter takes only
+  the same name from the catalog, otherwise a list item; no toast, the keyboard
+  stays open, works offline. Buttons for the scanner (barcodes from the catalog)
+  and the tiles. Variants B and C stay switchable until one is chosen
 - Adding products: picker without keyboard on open, compact tiles in three
   columns (one token; frequently bought first, weighted over 90 days, then
   the catalog A–Z, 48 tiles and 24 more while scrolling, order fixed while
@@ -101,8 +107,8 @@ under `design/piklis-designpaket/`.
 - List items: what is typed in a list stays on the list and out of catalog,
   search and suggestions (“Lichterkette”). Everybody with access to the list
   edits it, also guests; it travels with the list, offline too, and with
-  taking over, earlier purchases and templates. “In den Katalog aufnehmen” in
-  the entry sheet, hint “Schon im Katalog”. A daily cron removes the image 90
+  taking over, earlier purchases and templates. Photo, description and
+  “In den Katalog aufnehmen” in the entry sheet, hint “Schon im Katalog”. A daily cron removes the image 90
   days after the last list was completed (unless a template uses it) and the
   row once nothing uses it.
 - Quantity control on tiles, list rows and when editing templates: hold for

@@ -25,9 +25,8 @@ import IconPicker from './IconPicker.vue';
 import ProductImage from './ProductImage.vue';
 import ProductImageField from './ProductImageField.vue';
 import {
+    applyImageChange,
     createProduct,
-    removeProductImage,
-    setProductImage,
     updateProduct,
     useProducts
 } from '@/composables/useProducts.js';
@@ -212,12 +211,7 @@ async function saveImage(product) {
     }
 
     try {
-        const saved = imageChangeValue.type === 'remove'
-            ? await removeProductImage(product.id)
-            : await setProductImage(product.id, {
-                image: imageChangeValue.image,
-                original: imageChangeValue.original
-            });
+        const saved = await applyImageChange(product.id, imageChangeValue);
 
         imageChange.value = null;
 

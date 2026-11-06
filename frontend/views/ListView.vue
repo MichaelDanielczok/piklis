@@ -12,6 +12,8 @@
  *   Haken in „Erledigt“) steht sie wieder an ihrer bisherigen Stelle, weil
  *   der Sortierschlüssel bleibt.
  * - Tippen auf Bild oder Name öffnet das Produkt im Listenkontext.
+ * - Hinzufügen über die Eingabeleiste unten (`AddBar`), sie steht in aktiven
+ *   Listen anstelle der Navigation (`App.vue`) und führt zu Scanner und Kacheln.
  * - „…“ öffnet „Liste bearbeiten“ (Name, Datum, Löschen, Teilen); bei einer
  *   mit einem geteilten Liste (Gast) stattdessen „Geteilte Liste“ mit
  *   „Liste verlassen“ (`ListShareSheet`).
@@ -48,8 +50,8 @@
  * Ablegen, und der gezogene Eintrag landet hinter demselben Nachbarn.
  */
 import { logError } from '@/api/index.js';
-import { computed, defineAsyncComponent, nextTick, ref, shallowRef, useTemplateRef, watch } from 'vue';
-import { onIonViewWillEnter, useIonRouter } from '@ionic/vue';
+import { computed, nextTick, ref, shallowRef, useTemplateRef, watch } from 'vue';
+import { onIonViewWillEnter, onIonViewWillLeave, useIonRouter } from '@ionic/vue';
 import {
     Archive,
     ChevronDown,
@@ -71,6 +73,7 @@ import AppPage from '@/components/layout/AppPage.vue';
 import AppButton from '@/components/ui/AppButton.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import SectionLabel from '@/components/ui/SectionLabel.vue';
+import AddBar from '@/components/list/AddBar.vue';
 import ListRow from '@/components/list/ListRow.vue';
 import SkeletonRow from '@/components/list/SkeletonRow.vue';
 import ListFormSheet from '@/components/lists/ListFormSheet.vue';
@@ -120,10 +123,6 @@ import { formatQuantity } from '@/utils/quantity.js';
 import { mergeTakeOver } from '@/utils/takeOver.js';
 import { t } from '@/i18n/index.js';
 
-// Schritt 15: Prototyp der Eingabeleiste, auch im Build, damit er in der installierten
-// App geprüft werden kann; Schritt 19 ersetzt ihn
-const AddBarPrototype = defineAsyncComponent(() => import('@/dev/AddBarPrototype.vue'));
-
 const SKELETON_WIDTHS = [0.55, 0.35, 0.3, 0.6, 0.45, 0.3, 0.4, 0.65, 0.5, 0.45];
 const ROW_ANIMATION_MS = 200;
 const DONE_OPEN_KEY = 'pk.listDoneOpen';
@@ -145,6 +144,7 @@ const { findProduct, status: productStatus } = useProducts();
 
 const openListRef = useTemplateRef('openList');
 const doneListRef = useTemplateRef('doneList');
+const addBar = useTemplateRef('addBar');
 
 const formOpen = ref(false);
 const shareOpen = ref(false);
@@ -164,6 +164,7 @@ const list = computed(() => view.value.list);
 const counts = computed(() => view.value.counts);
 const isCompleted = computed(() => list.value?.status === 'completed');
 const isGuest = computed(() => list.value?.role === 'guest');
+const showAddBar = computed(() => Boolean(list.value) && !isCompleted.value && view.value.status !== 'missing');
 
 /** Meldung, wenn die Liste nicht (mehr) da ist: Symbol, Titel, Text. */
 const missing = computed(() => {
@@ -282,6 +283,7 @@ function reload() {
 }
 
 onIonViewWillEnter(reload);
+onIonViewWillLeave(() => addBar.value?.close());
 
 useLivePoll(() => refreshList(listId), LIST_POLL_MS);
 
@@ -767,12 +769,9 @@ async function onDelete() {
 </script>
 
 <template>
-    <AppPage :title="list?.name ?? NBSP" :subtitle="subtitle || NBSP" back back-to="/" width="list" :user-menu="false">
+    <AppPage :title="list?.name ?? NBSP" :subtitle="subtitle || NBSP" back back-to="/" width="list" :user-menu="false" :add-bar="showAddBar">
         <!-- abgeschlossen: nur der Gast braucht „…“ (Liste verlassen), sonst stehen die Aktionen oben im Archiv-Hinweis -->
         <template v-if="list && view.status !== 'missing' && (!isCompleted || isGuest)" #actions>
-            <button v-if="!isCompleted" type="button" class="list__add" :aria-label="t('list.add')" @click="addProducts">
-                <Plus aria-hidden="true" />
-            </button>
             <button
                 type="button"
                 class="list__more"
@@ -978,13 +977,6 @@ async function onDelete() {
                         </p>
                     </div>
 
-                    <button type="button" class="list__add-row" @click="addProducts">
-                        <span class="list__add-row-icon">
-                            <Plus aria-hidden="true" />
-                        </span>
-                        {{ t('list.add') }}
-                    </button>
-
                     <section v-if="notGotRows.length > 0" class="list__section">
                         <div class="list__section-bar">
                             <SectionLabel class="list__section-bar-label" :label="t('list.notGot')" :count="notGotRows.length" />
@@ -1117,7 +1109,7 @@ async function onDelete() {
             @finished="onTransferFinished"
         />
 
-        <AddBarPrototype v-if="list && !isCompleted" :list-id="listId" />
+        <AddBar v-if="showAddBar" ref="addBar" :list-id="listId" @tiles="addProducts" />
     </AppPage>
 </template>
 
@@ -1129,7 +1121,6 @@ async function onDelete() {
     padding: 0 var(--list-gutter);
 }
 
-.list__add,
 .list__more {
     display: flex;
     flex: none;
@@ -1138,38 +1129,22 @@ async function onDelete() {
     width: var(--tap-size);
     height: var(--tap-size);
     border-radius: 50%;
+    color: var(--color-text-1);
     transition:
         background-color var(--duration-fast) var(--ease-out),
         transform var(--duration-fast) var(--ease-out);
 }
 
-.list__add {
-    width: var(--tap-size-main);
-    height: var(--tap-size-main);
-    background: var(--color-accent);
-    color: var(--color-on-accent);
-}
-
-.list__more {
-    color: var(--color-text-1);
-}
-
-.list__add:active,
 .list__more:active {
     transform: scale(var(--press-scale));
 }
 
 @media (hover: hover) {
-    .list__add:hover {
-        background: var(--color-accent-hover);
-    }
-
     .list__more:hover {
         background: var(--color-surface-2);
     }
 }
 
-.list__add :deep(svg),
 .list__more :deep(svg) {
     width: var(--icon-size-lg);
     height: var(--icon-size-lg);
@@ -1279,45 +1254,6 @@ async function onDelete() {
     font-size: var(--font-size-name);
     font-weight: var(--font-weight-semibold);
     line-height: var(--line-height-name);
-}
-
-.list__add-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    width: 100%;
-    min-height: var(--row-min-height);
-    padding: var(--space-2) var(--space-3) var(--space-2) var(--handle-width);
-    border: 1px dashed var(--color-border-strong);
-    border-radius: var(--radius-md);
-    color: var(--color-accent-text);
-    font-size: var(--font-size-name);
-    font-weight: var(--font-weight-semibold);
-    line-height: var(--line-height-name);
-    text-align: left;
-    transition: background-color var(--duration-fast) var(--ease-out);
-}
-
-@media (hover: hover) {
-    .list__add-row:hover {
-        background: var(--color-surface-1);
-    }
-}
-
-.list__add-row-icon {
-    display: flex;
-    flex: none;
-    align-items: center;
-    justify-content: center;
-    width: var(--thumb-size);
-    height: var(--thumb-size);
-    border-radius: var(--radius-sm);
-    background: var(--color-accent-soft);
-}
-
-.list__add-row-icon :deep(svg) {
-    width: var(--icon-size-md);
-    height: var(--icon-size-md);
 }
 
 .list__section {

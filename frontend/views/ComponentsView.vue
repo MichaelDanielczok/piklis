@@ -21,10 +21,10 @@ import SectionLabel from '@/components/ui/SectionLabel.vue';
 import { showToast } from '@/composables/useToast.js';
 import { FALLBACK_ICONS } from '@/icons/sprite.js';
 import { t } from '@/i18n/index.js';
-import milk from '@/dev/samples/milch.webp';
-import tomatoes from '@/dev/samples/tomaten.webp';
-import bananas from '@/dev/samples/bananen.webp';
-import creamCheese from '@/dev/samples/frischkaese.webp';
+import milk from '@/views/samples/milch.webp';
+import tomatoes from '@/views/samples/tomaten.webp';
+import bananas from '@/views/samples/bananen.webp';
+import creamCheese from '@/views/samples/frischkaese.webp';
 
 // Auswahl für die Musterseite; alle Icons zeigt /icons
 const SAMPLE_ICONS = ['apfel', 'karotte', 'brot', 'milch', 'kaese', 'fleisch', 'fisch', 'nudeln', 'dose', 'tiefkuehl', 'schokolade', 'flasche', 'kaffee', 'mehl', 'toilettenpapier', 'waschmittel'];

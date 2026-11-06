@@ -61,8 +61,8 @@ committed because the server does not build (no Node there).
 | `composables/` | shared state: session (with the household summary), household (`useHousehold.js`), templates with their drafts (`useTemplates.js`), toast, page transition, product catalog (`useProducts.js`), server settings (`useConfig.js`), media query, shopping lists (`useLists.js`), sorting by the drag handle (`useDragSort.js`), swiping a row (`useRowSwipe.js`), holding and sliding for the quantity control (`useQuantityHold.js`) |
 | `components/layout/` | page frame and header, sidebar, mobile navigation, nav items, user menu |
 | `components/ui/` | button, sheet, section label, theme switch, avatar, logo, empty state, search field |
-| `components/list/` | list row, row group, skeleton row, quantity, add tile |
-| `components/lists/` | overview card and its skeleton, sheet “Neue Liste / Liste bearbeiten” (with start from an earlier purchase), sheet for quantity and note of an entry, card “In der Liste …” (`EntryContextCard.vue`), transfer and completion sheet (`TransferSheet.vue`), product checklist (`EntryChecklist.vue`), sheet “Liste teilen” / “Geteilte Liste” (`ListShareSheet.vue`) |
+| `components/list/` | list row, row group, skeleton row, quantity, add tile, input bar with its suggestions, scan sheet and variant switch (`AddBar*.vue`, `addBarMode.js`) |
+| `components/lists/` | overview card and its skeleton, sheet “Neue Liste / Liste bearbeiten” (with start from an earlier purchase), sheet for quantity and note of an entry (for list items also photo and description), card “In der Liste …” (`EntryContextCard.vue`), transfer and completion sheet (`TransferSheet.vue`), product checklist (`EntryChecklist.vue`), sheet “Liste teilen” / “Geteilte Liste” (`ListShareSheet.vue`) |
 | `components/templates/` | sheet “Neue Vorlage / Vorlage verwalten” (`TemplateFormSheet.vue`), sheet “Als Vorlage speichern” with the product check (`TemplateSaveSheet.vue`) |
 | `components/household/` | member options (`MemberSheet.vue`), leaving, switching and dissolving with the offer of personal copies (`HouseholdLeaveSheet.vue`) |
 | `components/products/` | product image (photo or fallback icon), fallback icon, catalog row and its skeleton, detail, form, icon picker, photo field, crop dialog, large view |
@@ -83,7 +83,7 @@ committed because the server does not build (no Node there).
 | `styles/forms.css` | form fields (`form-field`, label, input, hint, error) |
 | `i18n/` | `t()`, texts in `locales/de.js`, `Intl` for numbers, dates and plurals |
 | `public/icons/` | PWA icons and favicons (from `build/*.svg`) |
-| `dev/samples/` | sample photos for the pattern page, dev server only |
+| `views/samples/` | sample photos for the pattern page, dev server only |
 
 - Routes (hash): `/login` (`meta.public`); navigation `/` (Listen),
   `/products` (Produkte), `/templates` (Vorlagen); archive `/archive`;
@@ -111,21 +111,11 @@ committed because the server does not build (no Node there).
   PWA, from the Keyboard plugin in a native app) into `--keyboard-height` and
   `data-keyboard="open"` on `<html>`. `AppPage` keeps that space free at the
   bottom, `MobileNav` is hidden.
-- Input bar prototype (`frontend/dev/AddBarPrototype.vue`): loaded by
-  `ListView` in active lists, also in the build so it can be tested in the
-  installed app. It starts as B on the dev server and off in the build.
-  Suggestions come from the real catalog: on focus the most frequent products
-  (`topProductIds()`, same weighting as the tiles), while typing the hits of
-  the catalog search; taps are only counted in memory, nothing is saved. A
-  switch above the bar cycles variant B, variant C and off (`dev/addBarMode.js`).
-  While the bar is on, `App.vue` also hides `MobileNav` in the sub-views of an
-  active list (`list-add`, `list-entry`, and `product` or `product-edit` when
-  reached from there), so it does not flash in and out when going there and
-  back. Tapping an input near the bottom makes iOS pan the whole
-  page by the keyboard height, and fixed elements then no longer take taps
-  where they are drawn. Variant B therefore opens through a button that calls
-  `focus({ preventScroll: true })`; `@mousedown.prevent` on the suggestions
-  keeps the keyboard open.
+- Input bar: `ListView` shows `AddBar` in active lists, see
+  [Input bar](#input-bar). `App.vue` hides `MobileNav` in an active list and
+  in its sub-views (`list-add`, `list-entry`, and `product` or `product-edit`
+  when reached from there), so it does not flash in and out when going there
+  and back; the way back is the arrow.
 - Language: German only, no language setting. Theme: `auto | light | dark`
   (default `auto`, follows the system) via `data-theme` on `<html>`, chosen
   in the user menu or in Einstellungen; `applyTheme()` also sets both
@@ -1057,6 +1047,57 @@ template: `QuantityControl.vue` shows it, `useQuantityHold.js` is the gesture
 - The control is teleported to `body` and closes on every route change,
   because Ionic keeps pages alive in the history.
 
+## Input bar
+
+Concept in Obsidian “Piklis Konzept” › “Neue Liste und Produktauswahl”,
+`components/list/AddBar.vue`. In active lists the bar replaces the glass
+navigation, the plus in the head and the dashed button; archived lists and
+templates do not have it. The button in the empty state stays and leads to
+the tiles. `AppPage` (`addBar`) keeps the space free on wide screens, too.
+
+- **Suggestions** (`AddBarSuggestions.vue`): up to 20 from the catalog, list
+  items never. Empty field: the most frequent products (`topProductIds()`, same
+  weighting as the tiles). While typing: the hits of the catalog search. A
+  product on the list shows “auf der Liste · 1 ×”, a done one “erledigt”.
+- **Adding:** a suggestion adds exactly this product (`increaseProduct()`: open
+  +1, otherwise a new open entry). Enter takes a catalog product only if the name
+  is the same (`exactProduct()`: case, accents and punctuation do not count, as
+  in `listItemNamed()`), otherwise `createProductOnList()` makes a list item; a
+  partial hit is never chosen, “Zucker 1kg” stays the name. Everything goes
+  through the queue, so it works offline. No toast, no question; a live region
+  tells screen readers. A toast that is still open is closed when the bar opens,
+  it would lie over the suggestions.
+- **Keyboard stays open:** `@mousedown.prevent` on suggestions and buttons keeps
+  the focus in the field, Enter does not leave it either.
+- **Field:** `autocorrect="off"`, otherwise iOS replaces unknown names when they
+  are entered; this also drops the row of word predictions, which gives the
+  suggestions more room. `autocapitalize="sentences"`: names start with a capital.
+  `:value` with `@input` instead of `v-model`, which waits for the end of a
+  composition, so suggestions would lag on Android.
+- **Variants B and C** (`addBarMode.js`), switchable with the button in the bar
+  until Michael has chosen, B by default, also in the build. To remove the
+  switch, leave only the chosen variant in `MODES`.
+  - B: suggestions above the bar, best hit next to it. With the keyboard open
+    the bar slides on top of it (`--keyboard-height`, `transform` over 250 ms).
+    Tapping an input near the bottom makes iOS pan the whole page by the
+    keyboard height, and fixed elements then no longer take taps where they are
+    drawn. So a button lies over the field at rest and calls
+    `focus({ preventScroll: true })`.
+  - C: field and suggestions in a layer over the page. The field is always in the
+    DOM: only an existing field gets the focus in the same tap, otherwise iOS
+    does not open the keyboard.
+- **Hardware keyboard:** nothing depends on the on-screen keyboard. On touch
+  screens the suggestions of B wait up to 400 ms for `data-keyboard="open"`,
+  because they would otherwise be too tall for a moment, and then appear anyway.
+  Without an on-screen keyboard the bar stays at the bottom. Tab reaches
+  suggestions and buttons, Escape closes.
+- **Scanner:** `AddBarScanSheet.vue` runs the existing `BarcodeScanner`. A barcode
+  from the catalog goes on the list, also offline; an unknown one is only a note
+  until step 20.
+- **Tiles:** the button opens `/lists/:id/add`.
+- `position: fixed` refers to the Ionic page here (`contain`), so the bar is
+  centred next to the sidebar without an offset.
+
 ## Adding products
 
 Concept in Obsidian “Piklis Konzept” › “Neue Liste und Produktauswahl”,
@@ -1416,6 +1457,12 @@ taking it into the catalog only clears the mark.
   `listItems` (`rememberListItems`), so `products`, `catalog` and `search` stay
   the catalog; `findProduct` finds both. A known list item that a list no longer
   sends was taken into the catalog: the app reloads the catalog and drops it.
+- **Entry sheet:** `EntrySheet.vue` shows photo and description of a list item
+  next to quantity and note (`listItemFields`, only in `ListEntryView`: a template
+  draft saves at the end, a product change would not wait for that). Both go to
+  the REST API on “Speichern”; offline, or while the server does not know the
+  item yet, a hint stands there instead. An error keeps the sheet open. Catalog
+  products keep both under “Bearbeiten”, where the maintenance rights apply.
 - **Offline:** stored with the list (`list:<id>`, `products`) and with
   orphaned changes (`orphan:<id>`), restored at start; a list item leaves the
   device with the last list that used it. Their images are fetched like those

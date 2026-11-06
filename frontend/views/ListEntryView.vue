@@ -2,7 +2,8 @@
 /**
  * Produkt im Kontext einer Einkaufsliste (Designpaket 10): großes Bild,
  * Name und Beschreibung wie im Katalog, darunter „In der Liste …“ mit
- * Menge und Einkaufsnotiz dieses Einkaufs. Ändern im Sheet (EntrySheet),
+ * Menge und Einkaufsnotiz dieses Einkaufs. Ändern im Sheet (EntrySheet), bei
+ * Listenartikeln dort auch Foto und Beschreibung,
  * „Von der Liste entfernen“ mit „Rückgängig“ im Toast.
  *
  * Fehlt das Produkt im Katalog (gelöscht), bleibt der Eintrag bedienbar und
@@ -192,6 +193,7 @@ async function remove() {
                             :list-name="listName"
                             :transferred-to="transferredTo"
                             :readonly="readonly"
+                            :list-item="Boolean(product.listItem)"
                             @edit="sheetOpen = true"
                             @not-got="notGot"
                             @reopen="reopenEntry"
@@ -225,6 +227,7 @@ async function remove() {
                     :product-name="productName"
                     :product="product"
                     :list-name="listName"
+                    list-item-fields
                     @save="save"
                 />
 

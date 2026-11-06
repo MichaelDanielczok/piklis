@@ -210,7 +210,7 @@
     --swipe-action-width: 5.5rem; /* 88, je Aktion hinter einer nach links gewischten Zeile */
     --progress-height: 0.375rem; /* 6, Fortschrittsbalken */
     --tile-columns: 3; /* Spalten der Kachelansicht, die einzige Stelle dafür */
-    --tile-height: 7.25rem; /* 116, Hinzufügen-Kachel */
+    --tile-min-height: 5rem; /* 80, Hinzufügen-Kachel mit einzeiligem Namen; sie wächst mit dem Inhalt */
     --tile-badge-size: 1.5rem; /* 24, Mengen-Badge */
     --quantity-control-width: 8.5rem; /* 136, Skala und Knöpfe des Mengen-Controls */
     --z-quantity-control: 30000; /* über Ionics Sheets */

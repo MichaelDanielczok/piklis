@@ -13,7 +13,7 @@
  *   der Liste mit Menge und Notiz, sonst die Produktseite). Kein Produkt
  *   doppelt: Tippen erhöht den offenen Eintrag. Erledigte und nicht bekommene
  *   Einträge zählen nicht („noch mal Milch“ legt einen zweiten, offenen an),
- *   die Kachel bleibt mit „erledigt“ bzw. „nicht bekommen“ sichtbar.
+ *   die Kachel bleibt sichtbar, erledigte mit dem Hinweis „erledigt“.
  * - Was beim Öffnen schon offen auf der Liste steht, ist ausgeblendet; was
  *   danach angetippt wird, bleibt stehen, bis man die Ansicht verlässt
  *   (Kacheln springen nicht). Die Suche findet auch Ausgeblendetes, sonst
@@ -28,7 +28,7 @@
  * Dieselbe Auswahl füllt beim Bearbeiten einer Vorlage deren Entwurf
  * (Route `/templates/:id/add`, Schritt 12): Kacheln und Mengen-Control ändern
  * nur den Entwurf, gespeichert wird erst in der Vorlage. Dort gibt es kein
- * „erledigt“ und kein „nicht bekommen“; „Details“ öffnet das Produkt.
+ * „erledigt“; „Details“ öffnet das Produkt.
  */
 import { logError } from '@/api/index.js';
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
@@ -126,11 +126,10 @@ watch(searchText, () => {
     page.value?.scrollToTop();
 });
 
-/** Offener Eintrag je Produkt, und Produkte mit erledigtem bzw. nicht bekommenem Eintrag. */
+/** Offener Eintrag je Produkt und Produkte mit erledigtem Eintrag; nicht Bekommenes zählt als nicht auf der Liste. */
 const onList = computed(() => {
     const active = new Map();
     const done = new Set();
-    const notGot = new Set();
 
     for (const entry of view.value.entries?.values() ?? []) {
         if (!isVisible(entry)) {
@@ -139,14 +138,12 @@ const onList = computed(() => {
 
         if (entry.status === 'done') {
             done.add(entry.productId);
-        } else if (entry.status === 'notGot') {
-            notGot.add(entry.productId);
-        } else if (!active.has(entry.productId)) {
+        } else if (entry.status !== 'notGot' && !active.has(entry.productId)) {
             active.set(entry.productId, entry);
         }
     }
 
-    return { active, done, notGot };
+    return { active, done };
 });
 
 const selectedCount = computed(() => onList.value.active.size);
@@ -278,10 +275,6 @@ function productName(productId) {
 function metaOf(product) {
     if (onList.value.active.has(product.id)) {
         return product.packageSize ?? '';
-    }
-
-    if (onList.value.notGot.has(product.id)) {
-        return t('addProducts.notGot');
     }
 
     if (onList.value.done.has(product.id)) {

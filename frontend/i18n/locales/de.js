@@ -417,7 +417,6 @@ export default {
         sectionAllFrom: 'Weitere Produkte',
         tiles: 'Produkte',
         done: 'erledigt',
-        notGot: 'nicht bekommen',
         create: '„{name}“ neu anlegen',
         createHint: 'als neues Produkt, direkt auf die Liste',
         createHintTemplate: 'als neues Produkt, direkt in die Vorlage',

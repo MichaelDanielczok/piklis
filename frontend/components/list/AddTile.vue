@@ -1,7 +1,8 @@
 <script setup>
 /**
- * Kachel in „Produkte hinzufügen“: feste Höhe (116 px), Bild 40 px, kleiner
- * Name in höchstens 2 Zeilen, darunter eine Zeile für `meta`.
+ * Kachel in „Produkte hinzufügen“: so hoch wie ihr Inhalt (ab 80 px), Bild
+ * 40 px, kleiner Name in höchstens 2 Zeilen, darunter nur bei Bedarf eine Zeile
+ * für `meta`. Kacheln einer Reihe sind gleich hoch.
  *
  * - Ein Tipp irgendwo auf die Kachel erhöht um 1 (aus 0 wird 1); die Kachel
  *   behält dabei ihre Größe, schnelle Tipps treffen immer dasselbe Produkt.
@@ -138,7 +139,7 @@ const { control, openMenu, close, listeners, onClickCapture } = useQuantityHold(
 /* Halten darf weder Text markieren noch das iOS-Menü für Bilder öffnen */
 .add-tile {
     position: relative;
-    height: var(--tile-height);
+    min-height: var(--tile-min-height);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     background: var(--color-surface-1);
@@ -207,6 +208,7 @@ const { control, openMenu, close, listeners, onClickCapture } = useQuantityHold(
 .add-tile__meta {
     width: 100%;
     margin-top: auto;
+    padding-top: var(--space-1);
     overflow: hidden;
     color: var(--color-text-2);
     font-size: var(--font-size-caption);

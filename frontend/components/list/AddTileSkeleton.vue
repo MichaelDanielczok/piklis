@@ -1,7 +1,7 @@
 <script setup>
 /**
- * Ladekachel für „Produkte hinzufügen“: genau so hoch wie `AddTile`
- * (116 px), flach ohne Schimmer; Bildfeld und zwei Namenszeilen.
+ * Ladekachel für „Produkte hinzufügen“: so hoch wie eine `AddTile` mit
+ * einzeiligem Namen (80 px), flach ohne Schimmer; Bildfeld und eine Namenszeile.
  */
 </script>
 
@@ -9,7 +9,6 @@
     <div class="add-tile-skeleton" aria-hidden="true">
         <span class="add-tile-skeleton__image"></span>
         <span class="add-tile-skeleton__line"></span>
-        <span class="add-tile-skeleton__line add-tile-skeleton__line--short"></span>
     </div>
 </template>
 
@@ -18,7 +17,7 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
-    height: var(--tile-height);
+    min-height: var(--tile-min-height);
     padding: var(--space-2);
     border: 1px solid var(--color-border-subtle);
     border-radius: var(--radius-md);
@@ -38,9 +37,5 @@
     height: var(--space-3);
     border-radius: var(--radius-xs);
     background: var(--color-skeleton-2);
-}
-
-.add-tile-skeleton__line--short {
-    width: 50%;
 }
 </style>

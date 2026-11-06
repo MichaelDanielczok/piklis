@@ -455,8 +455,8 @@ export const api = {
     },
 
     /**
-     * Ganzer Katalog inkl. ausgeblendeter Produkte (`hidden: true`):
-     * { products }. ETag: Der Browser fragt bedingt nach (304 aus dem Cache).
+     * Ganzer Katalog inkl. ausgeblendeter Produkte (`hidden: true`), ohne
+     * Listenartikel: { products }. ETag: Der Browser fragt bedingt nach (304 aus dem Cache).
      */
     getProducts({ signal } = {}) {
         return request('GET', '/products', undefined, { signal });
@@ -485,7 +485,7 @@ export const api = {
      * Produkt anlegen, ID aus dem Browser: { status: 'created'|'unchanged', product }.
      *
      * @param {{ id: string, name: string, category?: string|null, icon?: string|null,
-     *   description?: string|null, packageSize?: string|null }} product
+     *   description?: string|null, packageSize?: string|null, listItem?: boolean }} product
      */
     createProduct(product) {
         return request('POST', '/products', product);
@@ -494,6 +494,11 @@ export const api = {
     /** Geänderte Felder speichern: { product }. 403 forbidden ohne Recht. */
     updateProduct(productId, changes) {
         return request('PATCH', '/products/' + encodeURIComponent(productId), changes);
+    },
+
+    /** Listenartikel in den Katalog aufnehmen: { product } */
+    addProductToCatalog(productId) {
+        return request('POST', '/products/' + encodeURIComponent(productId) + '/catalog');
     },
 
     /** Nur Produktpfleger: { product } */

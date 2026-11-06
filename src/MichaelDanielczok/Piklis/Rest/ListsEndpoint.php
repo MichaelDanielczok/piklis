@@ -26,7 +26,7 @@ use function is_string;
  * Geschrieben wird über `POST /ops`; nur die Zugehörigkeit (in den Haushalt
  * verschieben, kopieren) läuft über eigene Routen (`Lists\ListOwnership`),
  * das Teilen über `SharesEndpoint`. Gäste bekommen `sharedBy` (wer geteilt
- * hat) an der Liste.
+ * hat) an der Liste. Listenartikel kommen mit der Liste (`products`).
  * Jede Route prüft die Rolle des Benutzers an der Liste.
  */
 class ListsEndpoint
@@ -83,6 +83,8 @@ class ListsEndpoint
      * `GET /lists/{id}?since=N`: ohne `since` (oder bei unbekannter Revision)
      * alle sichtbaren Einträge (`full: true`), sonst nur Einträge mit einer
      * Revision über N, auch entfernte und Verweise (`full: false`).
+     * `products`: immer alle Listenartikel der sichtbaren Einträge, weil sich
+     * ein Artikel ändern kann, ohne dass die Liste eine Revision zählt.
      *
      * @param array<string, string> $args
      */
@@ -143,7 +145,11 @@ class ListsEndpoint
             'list' => $data,
             'revision' => $List->revision,
             'full' => $since === null,
-            'entries' => array_map(static fn(EntryState $Entry): array => $Entry->toArray(), $entries)
+            'entries' => array_map(static fn(EntryState $Entry): array => $Entry->toArray(), $entries),
+            'products' => ListItems::present(array_map(
+                static fn(EntryState $Entry): string => $Entry->productId,
+                $List->visibleEntries()
+            ))
         ]);
     }
 

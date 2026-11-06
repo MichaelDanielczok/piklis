@@ -29,6 +29,12 @@
             <locale name="cron.hello.description">
                 <de><![CDATA[Schreibt eine Zeile ins Log. Vorlage für eigene Crons.]]></de>
             </locale>
+            <locale name="cron.listItems.title">
+                <de><![CDATA[Piklis: Listenartikel aufräumen]]></de>
+            </locale>
+            <locale name="cron.listItems.description">
+                <de><![CDATA[Löscht Bilder 90 Tage nach dem Abschluss der letzten Liste, außer eine Vorlage nutzt sie, und Listenartikel, die nichts mehr nutzt.]]></de>
+            </locale>
             <!-- endregion -->
         </groups>
     </locales>

@@ -177,7 +177,8 @@ const nameError = computed(() => {
 });
 
 const editedEntry = computed(() => draft.value?.items.find((item) => item.productId === editedProductId.value) ?? null);
-const editedName = computed(() => (editedEntry.value ? findProduct(editedEntry.value.productId)?.name ?? '' : ''));
+const editedProduct = computed(() => (editedEntry.value ? findProduct(editedEntry.value.productId) : null));
+const editedName = computed(() => editedProduct.value?.name ?? '');
 
 /** Neue Liste: Name, Zugehörigkeit und Produkte wie in der Vorlage. */
 const sourceTemplate = computed(() => (template.value
@@ -642,6 +643,7 @@ async function onCreateList(fields) {
             v-model:open="entryOpen"
             :entry="editedEntry"
             :product-name="editedName"
+            :product="editedProduct"
             :subtitle="t('template.entrySubtitle', { name: draft?.name ?? '' })"
             :note-hint="t('template.noteHint')"
             @save="onEntrySave"

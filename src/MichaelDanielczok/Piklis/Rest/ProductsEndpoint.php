@@ -42,15 +42,21 @@ use const UPLOAD_ERR_OK;
  * Rechte siehe `Products\ProductPermissions`. Produkte tragen ihre
  * Bildadressen (`image`, `imageUrl`, siehe `Images\ProductImageUrls`).
  *
+ * Listenartikel (`listItem: true`) fehlen in Katalog, Suche und Vorschlägen;
+ * sie kommen mit Listen und Vorlagen (`Rest\ListItems`). Die Routen unter
+ * `/products/{id}` kennen sie nur für Personen mit Zugriff, sonst
+ * `404 product_not_found`.
+ *
  * | Methode | Pfad | Antwort |
  * | --- | --- | --- |
- * | GET | /products | `{ products }`, ganzer Katalog inkl. ausgeblendeter (ETag) |
+ * | GET | /products | `{ products }`, ganzer Katalog inkl. ausgeblendeter, ohne Listenartikel (ETag) |
  * | GET | /products/search?q=&limit= | `{ products }`, Treffer ohne ausgeblendete |
  * | GET | /products/suggestions | `{ days, suggestions }`, Gewichtung für „Produkte hinzufügen“ |
  * | GET | /products/{id} | `{ product }` |
  * | POST | /products | `{ status, product }`, 201 angelegt, 200 schon vorhanden |
  * | PATCH | /products/{id} | `{ product }` |
  * | POST | /products/{id}/hide, /unhide | `{ product }` |
+ * | POST | /products/{id}/catalog | `{ product }`: Listenartikel in den Katalog aufnehmen |
  * | POST | /products/{id}/image | `{ product }`, multipart: `image` (Zuschnitt), `original` (optional), `source` (optional) |
  * | DELETE | /products/{id}/image | `{ product }` |
  * | POST | /products/{id}/openfoodfacts | `{ product }`, `{ barcode, fields }`: Angaben aus Open Food Facts übernehmen |
@@ -169,14 +175,14 @@ class ProductsEndpoint
     ): ResponseInterface {
         return self::run($Response, static function () use ($args): array {
             return [
-                'product' => self::presenter()->one(self::service()->load((string)($args['id'] ?? '')))
+                'product' => self::presenter()->one(self::service()->loadVisible((string)($args['id'] ?? ''), SessionUser::id()))
             ];
         });
     }
 
     /**
-     * Erwartet `{ id, name, category?, icon?, description?, packageSize? }`;
-     * die ID erzeugt der Browser (`crypto.randomUUID()`).
+     * Erwartet `{ id, name, category?, icon?, description?, packageSize?,
+     * listItem? }`; die ID erzeugt der Browser (`crypto.randomUUID()`).
      *
      * @param array<string, string> $args
      */
@@ -255,6 +261,26 @@ class ProductsEndpoint
         array $args
     ): ResponseInterface {
         return self::setHidden($Response, (string)($args['id'] ?? ''), false);
+    }
+
+    /**
+     * Listenartikel in den Katalog aufnehmen. Das dürfen alle mit Zugriff, auch
+     * Gäste; ein Katalogprodukt bleibt unverändert.
+     *
+     * @param array<string, string> $args
+     */
+    public function addToCatalog(
+        ServerRequestInterface $Request,
+        ResponseInterface $Response,
+        array $args
+    ): ResponseInterface {
+        return self::run($Response, static function () use ($args): array {
+            return [
+                'product' => self::presenter()->one(
+                    self::service()->addToCatalog((string)($args['id'] ?? ''), SessionUser::id())
+                )
+            ];
+        });
     }
 
     /**

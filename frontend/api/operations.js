@@ -158,10 +158,11 @@ export const operations = {
 
     /**
      * Offline angelegtes Produkt (ohne Liste): vor dem `entry.add` einreihen,
-     * das es benutzt. Idempotent über die Produkt-ID.
+     * das es benutzt. Idempotent über die Produkt-ID. `listItem: true` legt
+     * einen Listenartikel an (nicht im Katalog).
      *
      * @param {{ id?: string, name: string, category?: string|null, icon?: string|null,
-     *   description?: string|null, packageSize?: string|null }} product
+     *   description?: string|null, packageSize?: string|null, listItem?: boolean }} product
      */
     createProduct({ id = uuid(), ...fields }) {
         return { type: T.PRODUCT_CREATE, productId: id, product: fields };
@@ -459,8 +460,9 @@ export function createOperationQueue({
         },
 
         /**
-         * Abruf seit Revision: `{ list, revision, full, entries }`. Ohne
-         * `since` der ganze Stand.
+         * Abruf seit Revision: `{ list, revision, full, entries, products }`
+         * (`products`: alle Listenartikel der Liste). Ohne `since` der ganze
+         * Stand.
          */
         pull(listId, since = null) {
             return transport.getList(listId, since);

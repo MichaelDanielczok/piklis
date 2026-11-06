@@ -16,7 +16,8 @@ use function is_string;
  *
  * Form: `{ "id": "<op>", "type": "product.create", "productId": "<uuid>",
  * "product": { "name": "…", "category": …, "icon": …, "description": …,
- * "packageSize": … } }`. Ohne `listId`; idempotent über die Produkt-ID
+ * "packageSize": …, "listItem": true } }` (`listItem` optional: Listenartikel
+ * statt Katalogprodukt). Ohne `listId`; idempotent über die Produkt-ID
  * (nicht über das Änderungsprotokoll der Listen): dieselbe ID vom selben
  * Benutzer gibt `unchanged` mit dem vorhandenen Produkt.
  *

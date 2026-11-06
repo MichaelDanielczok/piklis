@@ -35,6 +35,8 @@ final class ProductService
      * Ein gleichnamiges Produkt verhindert nichts: ähnliche oder gleiche Namen
      * werden nie zusammengeführt.
      *
+     * `listItem: true` legt einen Listenartikel an (nicht im Katalog).
+     *
      * Fehlen `category` oder `icon` ganz, ergänzt der Vorschlag aus dem Namen
      * (`ProductSuggestion`) sie; ein gesendetes null bleibt null.
      *
@@ -71,7 +73,7 @@ final class ProductService
 
     /**
      * Ändert die gesendeten Felder. Eigene Produkte darf jeder bearbeiten,
-     * Produktpfleger alle.
+     * Produktpfleger alle; Listenartikel alle mit Zugriff.
      *
      * @param array<array-key, mixed> $input
      * @throws InvalidProductException
@@ -84,7 +86,7 @@ final class ProductService
         bool $isManager,
         ?DateTimeImmutable $now = null
     ): Product {
-        $Product = $this->load($id);
+        $Product = $this->loadVisible($id, $userId);
 
         if (!ProductPermissions::canEdit($Product, $userId, $isManager)) {
             throw ProductException::forbidden('Only the creator or a product maintainer may edit this product.');
@@ -101,7 +103,7 @@ final class ProductService
 
     /**
      * Blendet ein Produkt aus Katalog und Vorschlägen aus oder wieder ein.
-     * Nur Produktpfleger.
+     * Nur Produktpfleger, nur Katalogprodukte.
      *
      * @throws ProductException
      */
@@ -112,13 +114,31 @@ final class ProductService
         bool $isManager,
         ?DateTimeImmutable $now = null
     ): Product {
-        $Product = $this->load($id);
+        $Product = $this->loadVisible($id, $userId);
 
-        if (!ProductPermissions::canHide($isManager)) {
-            throw ProductException::forbidden('Only product maintainers may hide products.');
+        if (!ProductPermissions::canHide($Product, $isManager)) {
+            throw ProductException::forbidden('Only product maintainers may hide catalog products.');
         }
 
         if ($Product->setHidden($hidden, $userId, $now ?? new DateTimeImmutable())) {
+            $this->Store->update($Product);
+        }
+
+        return $Product;
+    }
+
+    /**
+     * Listenartikel in den Katalog aufnehmen: Das dürfen alle, die ihn sehen;
+     * danach gelten die normalen Pflegerechte. Ein Katalogprodukt bleibt, wie
+     * es ist („Schon im Katalog“).
+     *
+     * @throws ProductException
+     */
+    public function addToCatalog(string $id, string $userId, ?DateTimeImmutable $now = null): Product
+    {
+        $Product = $this->loadVisible($id, $userId);
+
+        if ($Product->addToCatalog($userId, $now ?? new DateTimeImmutable())) {
             $this->Store->update($Product);
         }
 
@@ -152,6 +172,24 @@ final class ProductService
         $Product = $this->Store->find(strtolower($id));
 
         if ($Product === null) {
+            throw ProductException::notFound();
+        }
+
+        return $Product;
+    }
+
+    /**
+     * Produkt, das dieser Benutzer sehen darf. Einen Listenartikel ohne
+     * Zugriff gibt es für ihn nicht (`product_not_found`, auch für
+     * Produktpfleger).
+     *
+     * @throws ProductException
+     */
+    public function loadVisible(string $id, string $userId): Product
+    {
+        $Product = $this->load($id);
+
+        if ($Product->listItem && !$this->Store->canAccessListItem($Product, $userId)) {
             throw ProductException::notFound();
         }
 

@@ -165,7 +165,7 @@ async function toggleHidden(hidden) {
                 <Pencil aria-hidden="true" />
                 {{ t('products.edit') }}
             </AppButton>
-            <template v-if="canManageProducts">
+            <template v-if="canManageProducts && !product.listItem">
                 <AppButton v-if="product.hidden" variant="secondary" :disabled="pending" @click="toggleHidden(false)">
                     <Eye aria-hidden="true" />
                     {{ t('products.unhide') }}
@@ -183,6 +183,7 @@ async function toggleHidden(hidden) {
         </AppButton>
 
         <p v-if="!canEdit" class="product-detail__note">{{ t('products.readOnly') }}</p>
+        <p v-else-if="product.listItem" class="product-detail__note">{{ t('products.listItem') }}</p>
         <p v-else-if="isOwn(product) && !canManageProducts" class="product-detail__note">{{ t('products.own') }}</p>
 
         <ImageViewer v-if="product.image" v-model:open="viewerOpen" :src="product.image.large" :alt="product.name" />

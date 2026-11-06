@@ -3,6 +3,7 @@
 namespace MichaelDanielczok\Piklis\Rest;
 
 use Doctrine\DBAL\Exception as DBALException;
+use MichaelDanielczok\Piklis\Templates\TemplateEntry;
 use MichaelDanielczok\Piklis\Templates\TemplateException;
 use MichaelDanielczok\Piklis\Templates\TemplateRepository;
 use MichaelDanielczok\Piklis\Templates\TemplateService;
@@ -12,6 +13,7 @@ use Psr\Http\Message\ServerRequestInterface;
 use QUI;
 
 use function array_map;
+use function array_merge;
 use function is_array;
 use function preg_match;
 use function trim;
@@ -27,7 +29,8 @@ class TemplatesEndpoint
 {
     /**
      * `GET /templates`: zugängliche Vorlagen ohne Einträge, mit Rolle, Anzahl
-     * und den ersten Produkten (`preview`). ETag.
+     * und den ersten Produkten (`preview`), dazu die Listenartikel unter diesen
+     * Produkten (`products`). ETag.
      *
      * @param array<string, string> $args
      */
@@ -56,7 +59,13 @@ class TemplatesEndpoint
             $templates
         );
 
-        return Json::respondWithEtag($Request, $Response, ['templates' => $data]);
+        return Json::respondWithEtag($Request, $Response, [
+            'templates' => $data,
+            'products' => ListItems::present(array_merge(...array_map(
+                static fn(array $item): array => $item['preview'],
+                $templates
+            )))
+        ]);
     }
 
     /**
@@ -270,7 +279,8 @@ class TemplatesEndpoint
     }
 
     /**
-     * Vorlage mit Einträgen, Rolle und Namen dessen, der zuletzt gespeichert hat.
+     * Vorlage mit Einträgen, Rolle, Namen dessen, der zuletzt gespeichert hat,
+     * und ihren Listenartikeln (`products`).
      *
      * @return array<string, mixed>
      * @throws DBALException
@@ -284,7 +294,11 @@ class TemplatesEndpoint
         return [
             ...$Template->toArrayWithEntries(),
             'role' => $Role?->value,
-            'updatedByName' => (string)$profile['name']
+            'updatedByName' => (string)$profile['name'],
+            'products' => ListItems::present(array_map(
+                static fn(TemplateEntry $Entry): string => $Entry->productId,
+                $Template->entries()
+            ))
         ];
     }
 

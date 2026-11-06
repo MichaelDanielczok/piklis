@@ -15,9 +15,12 @@
  *   das Produkt dazwischen ihn nicht verlieren; Abbrechen verwirft ihn.
  * - Neue Liste aus einer Vorlage legt `useLists` an (Operationen wie beim
  *   früheren Einkauf); die Liste ist unabhängig von der Vorlage.
+ * - Listenartikel kommen mit der Vorlage (`template.products`, in der Übersicht
+ *   die der Vorschau), weil `GET /products` sie nicht kennt.
  */
 import { reactive, shallowRef, watch } from 'vue';
 import { api, logError } from '@/api/index.js';
+import { rememberListItems } from './useProducts.js';
 import { onLogout, useSession } from './useSession.js';
 import { draftOf, isDraftChanged, moveItem, templateEntries, withQuantity } from '@/utils/templates.js';
 
@@ -78,6 +81,7 @@ function sortOverview(templates) {
 
 /** Vorlage in Übersicht und Detail übernehmen (Antwort des Servers). */
 function remember(template) {
+    rememberListItems(template.products ?? []);
     setDetail(template.id, { status: 'ready', template, reason: null });
 
     const summary = summaryOf(template);
@@ -116,6 +120,8 @@ export async function loadTemplates() {
     try {
         const data = await api.getTemplates();
         const templates = data.templates ?? [];
+
+        rememberListItems(data.products ?? []);
 
         if (JSON.stringify(templates) !== JSON.stringify(overview.templates)) {
             overview.templates = templates;

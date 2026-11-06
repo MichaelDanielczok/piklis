@@ -4,6 +4,7 @@ namespace MichaelDanielczok\Piklis\Products;
 
 use function array_key_exists;
 use function in_array;
+use function is_bool;
 use function is_string;
 use function mb_strlen;
 use function preg_match;
@@ -22,6 +23,9 @@ use function trim;
  * - `description`: höchstens 2000 Zeichen, leer = null.
  * - `packageSize`: höchstens 50 Zeichen („1,5 l“), leer = null.
  * - `brand`: höchstens 120 Zeichen, leer = null (Schritt 14).
+ * - `listItem`: nur beim Anlegen, true = Listenartikel (nicht im Katalog,
+ *   Schritt 18). Bearbeiten ändert die Markierung nie; aus einem Listenartikel
+ *   wird ein Katalogprodukt nur über `ProductService::addToCatalog`.
  */
 final class ProductInput
 {
@@ -51,6 +55,8 @@ final class ProductInput
 
     public ?string $brand = null;
 
+    public bool $listItem = false;
+
     /** @var list<string> */
     private array $present = [];
 
@@ -69,6 +75,14 @@ final class ProductInput
         if (!$Input->has('name')) {
             throw new InvalidProductException('name', 'required');
         }
+
+        $listItem = $input['listItem'] ?? false;
+
+        if (!is_bool($listItem)) {
+            throw new InvalidProductException('listItem', 'invalid');
+        }
+
+        $Input->listItem = $listItem;
 
         return $Input;
     }

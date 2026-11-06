@@ -41,6 +41,9 @@
                 <field type="boolean" default="0">hidden</field>
                 <field type="datetime" nullable="true" default="null">hidden_at</field>
                 <field type="string" length="50" nullable="true" default="null">hidden_by</field>
+                <!-- Listenartikel: nicht im Katalog, nur für Personen mit Zugriff auf
+                     eine Liste oder Vorlage, die ihn nutzt (Schritt 18) -->
+                <field type="boolean" default="0">list_item</field>
                 <!-- Benutzer-UUID; „catalog“ = Grundkatalog ohne Ersteller (Setup) -->
                 <field type="string" length="50">created_by</field>
                 <field type="datetime">created_at</field>
@@ -51,6 +54,7 @@
                 <index>barcode</index>
                 <index>created_by</index>
                 <index>updated_at</index>
+                <index>list_item</index>
             </table>
 
             <!-- Einkaufslisten: persönlich (owner_user) oder Haushalt (household_id) -->

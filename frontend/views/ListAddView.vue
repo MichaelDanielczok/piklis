@@ -21,7 +21,8 @@
  * - Kopf und Suchfeld kleben oben: Eingabe und Rückweg bleiben beim Scrollen
  *   und bei offener Tastatur sichtbar.
  * - Suche erst beim Antippen; Treffer als Kacheln, am Ende immer
- *   „„Begriff“ neu anlegen“ (Produkt und Eintrag als Operationen). Die Suche
+ *   „„Begriff“ neu anlegen“ (Produkt und Eintrag als Operationen): in einer
+ *   Liste ein Listenartikel, in einer Vorlage ein Katalogprodukt. Die Suche
  *   beginnt oben, auch wenn weiter unten gescrollt war.
  * - „Fertig“ führt zur Liste.
  *
@@ -178,7 +179,9 @@ const order = computed(() => {
         return { created: [], suggested: [], rest: [] };
     }
 
-    const current = currentOrder(frozen.value, catalog.value, createdHere.value);
+    // hier eingetippte Listenartikel stehen nicht im Katalog, ihre Kachel bleibt trotzdem
+    const created = createdHere.value.map((id) => findProduct(id)).filter((product) => product?.listItem);
+    const current = currentOrder(frozen.value, [...catalog.value, ...created], createdHere.value);
 
     return {
         created: withoutHidden(current.created),
@@ -232,7 +235,8 @@ watch(
     ([listOk, catalogOk, suggestionsOk]) => {
         if (!frozen.value && listOk && catalogOk && suggestionsOk) {
             frozen.value = freezeOrder(catalog.value, suggestions);
-            openOnArrival.value = new Set(onList.value.active.keys());
+            // Listenartikel haben keine Kachel, die sich ausblenden ließe
+            openOnArrival.value = new Set([...onList.value.active.keys()].filter((id) => !findProduct(id)?.listItem));
         }
     },
     { immediate: true }

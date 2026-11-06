@@ -4,5 +4,7 @@
     <console>
         <!-- Beispiel: ./console pk:hello; Vorlage für Hintergrundarbeit (Cron startet denselben Code) -->
         <tool exec="\MichaelDanielczok\Piklis\Console\Hello"/>
+        <!-- ./console pk:clean-list-items; derselbe Code wie der tägliche Cron -->
+        <tool exec="\MichaelDanielczok\Piklis\Console\CleanListItems"/>
     </console>
 </quiqqer>

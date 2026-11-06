@@ -35,6 +35,11 @@
  * (`onSessionStart`), das Netz aktualisiert danach. Die Bilder der Produkte
  * auf diesen Listen holt die App vorab in den Bild-Cache des Service
  * Workers (`utils/offlineImages.js`).
+ *
+ * Listenartikel stehen nicht im Katalog: Sie kommen mit jeder Antwort zur
+ * Liste (`products`) und liegen lokal mit ihrer Liste (`list:<id>`). Ändert
+ * jemand einen Artikel, zählt die Liste keine Revision; die nächste Abfrage
+ * bringt ihn trotzdem mit.
  */
 import { computed, reactive, ref, shallowRef, watch } from 'vue';
 import { api, logError } from '@/api/index.js';
@@ -43,7 +48,8 @@ import { createOperationQueue, operations, OPERATION_TYPES as T } from '@/api/op
 import { showToast } from './useToast.js';
 import { onLogout, onSessionStart, setSessionHousehold, useSession } from './useSession.js';
 import { useConnection } from './useConnection.js';
-import { addLocalProduct, confirmProduct, dropLocalProduct, useProducts } from './useProducts.js';
+import { addLocalProduct, confirmProduct, dropLocalProduct, rememberListItems, useProducts } from './useProducts.js';
+import { listItemNamed, listItemsOf } from '@/utils/listItems.js';
 import { warmImages } from '@/utils/offlineImages.js';
 import { suggestForName } from '@/products/suggest.js';
 import {
@@ -73,7 +79,7 @@ const PERSIST_DELAY = 300;
 const queue = createOperationQueue({ storage: localStore.queueStorage });
 
 const { online } = useConnection();
-const { findProduct, products: catalogProducts } = useProducts();
+const { findProduct, listItems, products: catalogProducts } = useProducts();
 
 /** Noch nicht bestätigte Operationen (alle Listen). */
 const pendingOps = shallowRef([]);
@@ -314,12 +320,14 @@ function keepOrphan(op, reason) {
             ? { list: detail.list, entries: detail.entries }
             : (detail?.last ?? null);
         const name = last?.list?.name ?? overview.lists.find((item) => item.id === listId)?.name ?? '';
+        const entries = last?.entries ? [...last.entries.values()] : [];
 
         orphans.value = {
             ...orphans.value,
             [listId]: Object.freeze({
                 list: last?.list ?? overview.lists.find((item) => item.id === listId) ?? null,
-                entries: last?.entries ? [...last.entries.values()] : [],
+                entries,
+                products: listItemsOf(entries, findProduct),
                 ops: [op],
                 reason
             })
@@ -402,6 +410,8 @@ async function hydrate() {
     for (const [key, value] of lists) {
         const listId = key.slice('list:'.length);
 
+        rememberListItems(value?.products ?? []);
+
         if (!next[listId] && value?.list) {
             next[listId] = Object.freeze({
                 status: 'ready',
@@ -420,6 +430,7 @@ async function hydrate() {
         for (const [key, value] of orphanRows) {
             const listId = key.slice('orphan:'.length);
 
+            rememberListItems(value?.products ?? []);
             restored[listId] ??= Object.freeze(value);
 
             if (!next[listId] || next[listId].status !== 'missing') {
@@ -486,7 +497,8 @@ function persistNow() {
         changes.push(['list:' + listId, {
             list: detail.list,
             revision: detail.revision,
-            entries: [...detail.entries.values()]
+            entries: [...detail.entries.values()],
+            products: listItemsOf(detail.entries.values(), findProduct)
         }]);
     }
 
@@ -541,7 +553,7 @@ function imageUrlsOf(keep) {
 watch([details, () => overview.lists, () => overview.status, orphans, pendingOps], schedulePersist);
 
 // Bilder nachholen, sobald Katalog oder Verbindung da sind
-watch([catalogProducts, online], () => {
+watch([catalogProducts, listItems, online], () => {
     if (online.value) {
         schedulePersist();
     }
@@ -706,6 +718,7 @@ async function pullList(listId, since) {
             });
         }
 
+        rememberListItems(response.products ?? [], visibleProductIds(details.value[listId].entries));
         upsertOverview(response.list);
     } catch (error) {
         if (error?.code === 'list_not_found' && hasPendingCreate(listId)) {
@@ -729,6 +742,10 @@ async function pullList(listId, since) {
 
         throw error;
     }
+}
+
+function visibleProductIds(entries) {
+    return [...entries.values()].filter(isVisible).map((entry) => entry.productId);
 }
 
 /**
@@ -939,14 +956,25 @@ export function setProductQuantity(listId, productId, amount) {
 }
 
 /**
- * Unbekannten Namen als neues Produkt anlegen und gleich mit Menge 1 auf die
- * Liste setzen. Beides als Operation (`product.create` vor `entry.add`), das
- * Produkt steht sofort im Katalog.
+ * Unbekannten Namen als Listenartikel anlegen und gleich mit Menge 1 auf die
+ * Liste setzen. Beides als Operation (`product.create` vor `entry.add`), der
+ * Artikel steht sofort auf der Liste, aber nicht im Katalog. Steht ein
+ * Listenartikel gleichen Namens schon drauf, gilt er: offen +1, abgehakt ein
+ * neuer offener Eintrag.
  *
- * @returns {string} ID des neuen Produkts
+ * @returns {string} ID des Produkts
  */
 export function createProductOnList(listId, name) {
-    const productId = createQuickProduct(name);
+    const entries = currentEntries(listId) ?? new Map();
+    const known = listItemNamed([...entries.values()].filter(isVisible), name, findProduct);
+
+    if (known) {
+        setProductQuantity(listId, known.id, (activeEntryOf(entries, known.id)?.quantity.amount ?? 0) + 1);
+
+        return known.id;
+    }
+
+    const productId = createQuickProduct(name, { listItem: true });
 
     setProductQuantity(listId, productId, 1);
 
@@ -955,17 +983,21 @@ export function createProductOnList(listId, name) {
 
 /**
  * Unbekannten Namen als Produkt anlegen (`product.create`), Kategorie und
- * Icon aus dem Namen vorgeschlagen wie im Formular; steht sofort im Katalog.
- * Auch für „Produkte hinzufügen“ einer Vorlage.
+ * Icon aus dem Namen vorgeschlagen wie im Formular; steht sofort im Katalog,
+ * mit `listItem` nur auf der Liste. Ohne auch für „Produkte hinzufügen“ einer
+ * Vorlage.
  *
+ * @param {string} name
+ * @param {{ listItem?: boolean }} [options]
  * @returns {string} ID des neuen Produkts
  */
-export function createQuickProduct(name) {
+export function createQuickProduct(name, { listItem = false } = {}) {
     const suggestion = suggestForName(name);
     const op = operations.createProduct({
         name: name.trim(),
         category: suggestion?.category ?? null,
-        icon: suggestion?.icon ?? null
+        icon: suggestion?.icon ?? null,
+        ...(listItem ? { listItem: true } : {})
     });
 
     addLocalProduct({ id: op.productId, ...op.product });

@@ -65,6 +65,7 @@ class Provider implements ProviderInterface
                 $Group->patch('/products/{id}', [ProductsEndpoint::class, 'update']);
                 $Group->post('/products/{id}/hide', [ProductsEndpoint::class, 'hide']);
                 $Group->post('/products/{id}/unhide', [ProductsEndpoint::class, 'unhide']);
+                $Group->post('/products/{id}/catalog', [ProductsEndpoint::class, 'addToCatalog']);
                 $Group->post('/products/{id}/image', [ProductsEndpoint::class, 'setImage']);
                 $Group->delete('/products/{id}/image', [ProductsEndpoint::class, 'removeImage']);
                 $Group->post('/products/{id}/openfoodfacts', [ProductsEndpoint::class, 'applyFoodFacts']);

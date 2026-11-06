@@ -18,6 +18,11 @@ use function serialize;
  * Open Food Facts (Schritt 14): `barcode` verknüpft das Produkt,
  * `foodFacts` hält Abrufdatum, Zutaten und Nährwerte, `imageSource`
  * `openfoodfacts` markiert ein von dort übernommenes Bild (Lizenzhinweis).
+ *
+ * Listenartikel (Schritt 18): `listItem` markiert ein Produkt, das nicht im
+ * Katalog steht. Es erscheint nie in Katalog, Suche und Vorschlägen und ist
+ * nur für Personen mit Zugriff auf eine Liste oder Vorlage sichtbar, die es
+ * nutzt (`ProductStore::canAccessListItem`).
  */
 final class Product
 {
@@ -45,7 +50,8 @@ final class Product
         public DateTimeImmutable $updatedAt,
         public ?string $brand = null,
         public ?FoodFactsData $foodFacts = null,
-        public ?string $imageSource = null
+        public ?string $imageSource = null,
+        public bool $listItem = false
     ) {
     }
 
@@ -72,7 +78,10 @@ final class Product
             $now,
             $userId,
             $now,
-            $Input->brand
+            $Input->brand,
+            null,
+            null,
+            $Input->listItem
         );
     }
 
@@ -242,6 +251,23 @@ final class Product
     }
 
     /**
+     * Listenartikel in den Katalog aufnehmen: nur die Markierung ändert sich,
+     * ab jetzt gelten die normalen Pflegerechte. Gibt zurück, ob sich etwas
+     * geändert hat.
+     */
+    public function addToCatalog(string $userId, DateTimeImmutable $now): bool
+    {
+        if (!$this->listItem) {
+            return false;
+        }
+
+        $this->listItem = false;
+        $this->touch($userId, $now);
+
+        return true;
+    }
+
+    /**
      * Form für die API (camelCase). `image` sind die Bildadressen aus
      * `Images\ProductImageUrls` (null ohne Bild), `imageUrl` die kleine Größe
      * für Listen und Kacheln.
@@ -264,6 +290,7 @@ final class Product
             'image' => $image,
             'imageSource' => $this->imageSource,
             'foodFacts' => $this->foodFacts?->toArray($this->barcode),
+            'listItem' => $this->listItem,
             'hidden' => $this->hidden,
             'hiddenAt' => $this->hiddenAt?->format(DATE_ATOM),
             'createdBy' => $this->createdBy,

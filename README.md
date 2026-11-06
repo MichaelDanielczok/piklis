@@ -98,6 +98,13 @@ under `design/piklis-designpaket/`.
   duplicate entries; what is already open is hidden on opening, what is
   tapped stays until leaving, done products stay visible with their hint;
   search with “„Begriff“ neu anlegen” (product and entry as operations)
+- List items: what is typed in a list stays on the list and out of catalog,
+  search and suggestions (“Lichterkette”). Everybody with access to the list
+  edits it, also guests; it travels with the list, offline too, and with
+  taking over, earlier purchases and templates. “In den Katalog aufnehmen” in
+  the entry sheet, hint “Schon im Katalog”. A daily cron removes the image 90
+  days after the last list was completed (unless a template uses it) and the
+  row once nothing uses it.
 - Quantity control on tiles, list rows and when editing templates: hold for
   about 350 ms, slide to change, release to save; without sliding it stays
   open with −, +, “Details” and “Entfernen”; packs step by 1, weights only
@@ -135,7 +142,8 @@ under `design/piklis-designpaket/`.
   move/copy, `POST /lists/{id}/invites`, `GET /lists/{id}/shares`,
   `GET /invites/{token}`, `POST /invites/{token}/accept`, `GET|POST /products`,
   `GET /products/search`, `GET /products/suggestions`, `GET|PATCH /products/{id}`,
-  `POST /products/{id}/hide|unhide`, `POST|DELETE /products/{id}/image`,
+  `POST /products/{id}/hide|unhide`, `POST /products/{id}/catalog`,
+  `POST|DELETE /products/{id}/image`,
   `GET|POST /templates`, `GET|PUT|DELETE /templates/{id}`,
   `POST /templates/{id}/move|copy`, `GET /openfoodfacts/{barcode}`,
   `GET /openfoodfacts/{barcode}/image`, `POST|DELETE /products/{id}/openfoodfacts`)

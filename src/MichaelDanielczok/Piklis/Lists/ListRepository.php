@@ -304,7 +304,7 @@ class ListRepository implements ListStore
      * sichtbare Einträge aller Listen, auf die der Benutzer Zugriff hat
      * (eigene persönliche, die seines Haushalts und mit ihm geteilte, wie
      * `listsForUser`), ohne gelöschte Listen
-     * und ohne ausgeblendete Produkte. Zeitpunkt: abgehakt = wann gekauft,
+     * und ohne ausgeblendete Produkte und Listenartikel. Zeitpunkt: abgehakt = wann gekauft,
      * sonst wann hinzugefügt; nur ab `$since`.
      *
      * @return list<array{product_id: string, list_id: string, used_at: DateTimeImmutable}>
@@ -325,6 +325,7 @@ class ListRepository implements ListStore
             ->andWhere('e.removed_at IS NULL')
             ->andWhere('e.merged_into IS NULL')
             ->andWhere('p.hidden = 0')
+            ->andWhere('p.list_item = 0')
             ->andWhere('(e.created_at >= :since OR e.status_changed_at >= :since)')
             ->setParameter('user', $userId)
             ->setParameter('since', $sinceText);

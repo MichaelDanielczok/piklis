@@ -2,10 +2,15 @@
 
 namespace MichaelDanielczok\Piklis\Tests\Unit\Products\Fixtures;
 
+use DateTimeImmutable;
+use MichaelDanielczok\Piklis\Products\ListItemUsage;
 use MichaelDanielczok\Piklis\Products\Product;
 use MichaelDanielczok\Piklis\Products\ProductStore;
 
+use function array_filter;
+use function array_map;
 use function array_values;
+use function in_array;
 use function str_contains;
 
 /**
@@ -19,6 +24,12 @@ final class InMemoryProductStore implements ProductStore
 
     public int $writes = 0;
 
+    /** @var array<string, list<string>> Listenartikel => Benutzer mit Zugriff über Liste oder Vorlage */
+    public array $listItemUsers = [];
+
+    /** @var array<string, array{active?: int, completed?: int, lastCompletedAt?: DateTimeImmutable, inTemplate?: bool}> */
+    public array $usages = [];
+
     public function find(string $id): ?Product
     {
         return $this->products[$id] ?? null;
@@ -26,7 +37,7 @@ final class InMemoryProductStore implements ProductStore
 
     public function all(): array
     {
-        return array_values($this->products);
+        return array_values(array_filter($this->products, static fn(Product $Product): bool => !$Product->listItem));
     }
 
     public function findContainingAll(array $tokens, bool $includeHidden): array
@@ -34,7 +45,7 @@ final class InMemoryProductStore implements ProductStore
         $found = [];
 
         foreach ($this->products as $Product) {
-            if ($Product->hidden && !$includeHidden) {
+            if ($Product->listItem || ($Product->hidden && !$includeHidden)) {
                 continue;
             }
 
@@ -60,5 +71,43 @@ final class InMemoryProductStore implements ProductStore
     {
         $this->products[$Product->id] = $Product;
         $this->writes++;
+    }
+
+    public function delete(string $id): void
+    {
+        unset($this->products[$id]);
+        $this->writes++;
+    }
+
+    public function listItems(array $productIds): array
+    {
+        return array_values(array_filter(
+            $this->products,
+            static fn(Product $Product): bool => $Product->listItem && in_array($Product->id, $productIds, true)
+        ));
+    }
+
+    public function canAccessListItem(Product $Product, string $userId): bool
+    {
+        $users = $this->listItemUsers[$Product->id] ?? [];
+
+        return in_array($userId, $users, true) || ($users === [] && $Product->createdBy === $userId);
+    }
+
+    public function listItemUsages(): array
+    {
+        $items = array_filter($this->products, static fn(Product $Product): bool => $Product->listItem);
+
+        return array_values(array_map(function (Product $Product): ListItemUsage {
+            $usage = $this->usages[$Product->id] ?? [];
+
+            return new ListItemUsage(
+                $Product,
+                $usage['active'] ?? 0,
+                $usage['completed'] ?? 0,
+                $usage['lastCompletedAt'] ?? null,
+                $usage['inTemplate'] ?? false
+            );
+        }, $items));
     }
 }

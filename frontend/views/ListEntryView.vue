@@ -223,6 +223,7 @@ async function remove() {
                     v-model:open="sheetOpen"
                     :entry="entry"
                     :product-name="productName"
+                    :product="product"
                     :list-name="listName"
                     @save="save"
                 />

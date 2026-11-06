@@ -30,7 +30,7 @@
 | `data/` | `icons.json` (fallback icons, category, source), `keywords.json` (suggestion), `catalog.json` (base catalog), read by PHP and JS |
 | `build/make-sprite.mjs`, `build/icons/` | generates the icon sprite (`npm run icons`) from Lucide, the design package and own icons |
 | `LICENSE-lucide.txt` | ISC licence of the Lucide icons in the sprite |
-| `console.xml`, `cron.xml` | example command `pk:hello`, the same code as cron (created inactive) |
+| `console.xml`, `cron.xml` | example command `pk:hello`, the same code as cron (created inactive); `pk:clean-list-items` with its daily cron at 03:30 (`required`, so the package setup creates it; see [List items](#list-items)) |
 | `locale.xml`, `locale/*.xml` | backend texts (see [Texts](#texts)) |
 | `standalone.html` | content of the start page |
 
@@ -71,6 +71,7 @@ committed because the server does not build (no Node there).
 | `utils/quantity.js` | quantities with unit (`2 ×`, `2 Packungen`, `1,5 kg`), input with comma, checks |
 | `utils/sortKey.js` | sort keys between two neighbours (same logic as `Lists\SortKey`) |
 | `utils/productSearch.js` | catalog search: normalising and ranking (same logic as `Products\ProductSearch`) |
+| `utils/listItems.js` | list items in the app: merging, finding the ones taken into the catalog, storing them with their list (tested with `node --test`) |
 | `utils/listState.js` | local state of a list: server state plus own operations, counts, append key, move plan (tested with `node --test`) |
 | `utils/takeOver.js` | taking over into another list (same merge as `Sync\TakeOverMerge`), plan with unit questions, entries for a new list from an earlier purchase |
 | `utils/templates.js` | products of a list for a template (`templatePlan`), the draft while editing (quantity, move, changed?) (tested with `node --test`) |
@@ -300,7 +301,9 @@ the other tables come with their steps (marked below).
   Households, shares and invites are created online only, but use UUIDs too.
 - **Times:** `datetime` in server time, JSON as ISO 8601 (`DATE_ATOM`).
 - **Deleting:** entries are never deleted while their list exists (removed
-  entries stay as rows); lists keep a tombstone (`deleted_at`).
+  entries stay as rows); lists keep a tombstone (`deleted_at`). Catalog
+  products are never deleted; unused list items are, so `product_id` of a
+  removed entry or an entry on a deleted list may point to nothing.
 
 ```
 QUIQQER user ──owner_user──────────────► pk_lists ◄──household_id── pk_households (9)
@@ -348,6 +351,7 @@ users.
 | `image_id`, `image_original_id` | integer, null | QUIQQER media in project `piklis`, folder “Produktbilder” and its “Originale” (step 4) |
 | `image_source` | string(20), null | null = own photo, `openfoodfacts` = taken over (licence note) |
 | `hidden`, `hidden_at`, `hidden_by` | boolean, datetime, string | hidden by a product maintainer |
+| `list_item` | boolean, index | not in the catalog, see [List items](#list-items) |
 | `created_by`, `created_at`, `updated_by`, `updated_at` | | creator may edit own products; `catalog` = base catalog without creator |
 
 - **Icons** are not a table: the sprite in the frontend holds all icons, a
@@ -363,8 +367,8 @@ users.
   search and suggestions; entries keep pointing to them and show the current
   name and image. Merging products comes later.
 - **Catalog sync:** `GET /products` returns the whole catalog
-  including hidden products (flagged `hidden`), with ETag/304; it is small
-  enough for a full download. No revision.
+  including hidden products (flagged `hidden`) but without list items, with
+  ETag/304; it is small enough for a full download. No revision.
 
 ### Lists and entries
 
@@ -507,7 +511,7 @@ the order is the arrival at the server.
 | `entry.transfer` | `transferredTo` (list id or null) | mark a not-got entry as taken over into that list |
 | `entry.takeOver` | `entryId`, `productId`, `quantity`, `note`, `sortKey`, `onUnitMismatch` (`keep` · `replace` · `note`, default `note`), `quantityText` (≤ 100), `fromListId` (information) | take over an entry of another list, see [Taking over](#taking-over) |
 
-| `product.create` | `productId`, `product` `{name, category, icon, description, packageSize}`; no `listId` | new catalog product (`Sync\ProductOperation`) |
+| `product.create` | `productId`, `product` `{name, category, icon, description, packageSize, listItem}`; no `listId` | new product, with `listItem: true` a list item (`Sync\ProductOperation`) |
 
 `product.create` lets the app create products offline; the queue sends it
 before the `entry.add` that uses it. It is idempotent through the product ID,
@@ -568,11 +572,13 @@ again and gets `duplicate` for the others).
   lists shared with the user (role `guest`, plus `sharedBy` `{ id, name }`:
   who created the link).
 - `GET /lists/{id}`: `{ list (with role; guests also `sharedBy`), revision,
-  full: true, entries }` with all visible entries.
+  full: true, entries, products }` with all visible entries; `products` are
+  the list items on them (see [List items](#list-items)).
 - `GET /lists/{id}?since=N`: `full: false` and only entries with a revision
   above N, including removed entries and aliases (`removed: true`,
   `mergedInto`) so the app can drop them. An unknown N (above the current
-  revision) answers like without `since`.
+  revision) answers like without `since`. `products` still holds all list
+  items of the list: changing one adds no revision.
 - Errors: `404 list_not_found`, `410 list_deleted`, `403 no_access`.
 - Live updates: poll every 5 s while a list is open (`refreshList`, “since
   N”) and every 30 s in the overview (`loadLists`), only while the app is
@@ -803,8 +809,9 @@ decisions “Lokaler Speicher” and “Freigabe entzogen”.
   store run in call order, so the last reported state always wins, also
   for fast repeated taps (the queue reports an operation before it is
   saved). Store `data` holds the offline copies: `me` (user), `overview`
-  (`GET /lists`), `list:<id>` (server state `{ list, revision, entries }`
-  of every active list, and of a list with pending operations),
+  (`GET /lists`), `list:<id>` (server state `{ list, revision, entries,
+  products }` of every active list, and of a list with pending operations;
+  `products` are its list items),
   `orphan:<id>` (see below), `products` and `suggestions`, plus
   `meta:user`. Values go in as JSON (Vue proxies cannot be cloned). Without
   IndexedDB the same module works in memory.
@@ -1114,11 +1121,14 @@ decisions “Produktauswahl und Übernahme”; design package screens 08 and 09.
   in the search, too.
 - **Search** in the loaded catalog (`utils/productSearch.js`, up to 60
   hits as tiles, “N Treffer”); at the end always “„Begriff“ neu anlegen”:
-  `createProductOnList()` queues `product.create` and then `entry.add`
-  (quantity 1), shows the product at once (`addLocalProduct`, replaced by
-  the server's product, removed again with a toast on rejection), clears
-  the field and keeps the focus for the next name. Names up to 120
-  characters.
+  `createProductOnList()` queues `product.create` with `listItem: true` and
+  then `entry.add` (quantity 1), shows the list item at once
+  (`addLocalProduct`, replaced by the server's product, removed again with a
+  toast on rejection), clears the field and keeps the focus for the next
+  name. Names up to 120 characters. A list item of the same name already on
+  the list counts instead of a new one: open +1, done or not got a new open
+  entry. Its tile stays under “Neu angelegt” while the view is open. In a
+  template the same button still creates a catalog product.
 - **Skeleton:** 8 tiles and the section label in end height (tiles start
   at the same offset as the loaded ones).
 - **“Fertig”** goes back to the list.
@@ -1305,8 +1315,8 @@ One catalog for all signed-in users (Obsidian “Piklis Konzept” ›
   null), `image` (`{ small, medium, large, original }` or null, see
   [Product images](#product-images)), `imageSource`, `foodFacts`
   (`{ fetchedAt, language, ingredients, nutrition, url }` or null, see
-  [Open Food Facts](#open-food-facts)), `hidden`, `hiddenAt`, `createdBy`,
-  `createdAt`, `updatedAt`.
+  [Open Food Facts](#open-food-facts)), `listItem`, `hidden`, `hiddenAt`,
+  `createdBy`, `createdAt`, `updatedAt`.
 - **Input** (`Products\ProductInput`): only `name` is required (1–120
   characters, whitespace collapsed); `category` one of the fixed keys or
   null; `icon` a sprite key (`a-z0-9-`), null or `allgemein` = general icon
@@ -1318,8 +1328,9 @@ One catalog for all signed-in users (Obsidian “Piklis Konzept” ›
 - **Rights** (`Products\ProductPermissions`, same rule in
   `useProducts.canEditProduct()`): everybody creates products; the creator
   edits their own as long as it is not hidden; `piklis.products.manage` edits
-  all and hides or shows them again. A list share never grants product
-  rights. The app offers only what is allowed, the server decides (`403
+  all and hides or shows them again. A list share never grants rights on
+  the catalog; list items have their own rule, see [List items](#list-items).
+  The app offers only what is allowed, the server decides (`403
   forbidden`). The right is checked before the input.
 - **Categories:** fixed keys in `Products\Categories` and
   `frontend/products/categories.js` (checked against
@@ -1381,6 +1392,67 @@ One catalog for all signed-in users (Obsidian “Piklis Konzept” ›
   allowed (Bearbeiten; Ausblenden or Wieder einblenden for maintainers, with
   undo in the toast; “Mit Open Food Facts ergänzen”), otherwise a hint who
   may edit.
+
+## List items
+
+Concept in Obsidian “Piklis Konzept” › “Listenartikel”. Not every line of a
+list belongs in the catalog (“Lichterkette”), so what is typed in a list
+becomes a list item: a row in `pk_products` with `list_item = 1`. Image,
+description, Open Food Facts, sync and offline work as for any product, and
+taking it into the catalog only clears the mark.
+
+- **Creating:** `product.create` and `POST /products` take `listItem: true`.
+  Only creating sets the mark; `PATCH` never changes it.
+- **Never in the catalog:** `GET /products`, `GET /products/search`,
+  `GET /products/suggestions` and the picker leave list items out, also for
+  product maintainers.
+- **How they reach the app:** lists only carry `productId`; names and images
+  come from the catalog, which has no list items. So they come with what uses
+  them (`Rest\ListItems`): `products` in `GET /lists/{id}`, `products` in a
+  template and, for the previews, in `GET /templates`. A list always sends all
+  its list items, also “since N”, because editing one adds no revision to any
+  list; the next poll brings it (5 s). The ETag covers them.
+- **In the app:** `useProducts` keeps them apart from the catalog in
+  `listItems` (`rememberListItems`), so `products`, `catalog` and `search` stay
+  the catalog; `findProduct` finds both. A known list item that a list no longer
+  sends was taken into the catalog: the app reloads the catalog and drops it.
+- **Offline:** stored with the list (`list:<id>`, `products`) and with
+  orphaned changes (`orphan:<id>`), restored at start; a list item leaves the
+  device with the last list that used it. Their images are fetched like those
+  of catalog products. Creating works offline, editing goes through the REST
+  API like all product changes and needs a connection.
+- **Visible** (`ProductStore::canAccessListItem`): for everybody with access to
+  a list with a visible entry of it, or to a template that has it. The creator
+  too, while nothing uses it yet (`product.create` arrives before `entry.add`).
+  A removed entry or a deleted list gives no access. Everybody else, also
+  product maintainers, gets `404 product_not_found` on all routes under
+  `/products/{id}` (`ProductService::loadVisible`).
+- **Rights:** whoever sees it edits it, also guests: data, image, Open Food
+  Facts. Hiding is `403 forbidden`, it is not in the catalog.
+- **Used by reference:** taking over, “Aus früherem Einkauf”, copies and
+  templates keep the same `productId`, so it is the same row on every list:
+  editing it changes it everywhere, and access follows each use. `entry.add`
+  and templates do not check the access: a v4 UUID is only known to someone
+  who had access, and “Als eigene Liste speichern” must still work after a
+  share was revoked.
+- **Into the catalog:** `POST /products/{id}/catalog` for everybody who sees
+  it; on a catalog product it changes nothing. Afterwards the normal rights
+  apply, `createdBy` stays. `EntrySheet.vue` shows it in `EntryCatalog.vue`
+  (lists and templates): the button “In den Katalog aufnehmen” for a list
+  item, “Schon im Katalog” for a catalog product and after taking it over. A
+  list item whose name is exactly that of a catalog product shows the hint and
+  keeps the button, because nothing is merged automatically. Offline the sheet
+  says “Das geht nur mit Verbindung.”
+- **Cleaning up** (`Products\ListItemCleanup`, cron and
+  `./console pk:clean-list-items`, daily at 03:30):
+  - The image (crop and original) goes 90 days after the completion of the
+    last list using the item, unless a template uses it or a list is active.
+    Name and fallback icon stay in the archive.
+  - The row goes, with its image, once no visible entry on a list that is not
+    deleted and no template that is not deleted uses it, one day after its last
+    change, so an `entry.add` on its way is safe.
+  - What counts is `Products\ListItemUsage`, from `listItemUsages()`, which
+    reads all list items at once. Fine for now; page it if there are many.
 
 ## Open Food Facts
 
@@ -1590,13 +1662,14 @@ picture of SmartPicker.
 | `POST` | `/ops` | operations on lists and entries, and `product.create`, see [Sync](#sync) |
 | `GET` | `/lists` | accessible lists without entries, with `role`, `counts` and `preview`, plus `household` (ETag) |
 | `GET` | `/lists/{id}?since=N` | one list: all visible entries, or with `since` only entries changed after revision N (ETag) |
-| `GET` | `/products` | whole catalog including hidden products (ETag) |
+| `GET` | `/products` | whole catalog including hidden products, without list items (ETag) |
 | `GET` | `/products/search?q=&limit=` | suggestions without hidden products, best first (limit 20, at most 100; `hidden=1` for maintainers) |
 | `GET` | `/products/suggestions` | weighted products of the last 90 days for “Produkte hinzufügen”, see [Adding products](#adding-products) |
-| `GET` | `/products/{id}` | one product |
+| `GET` | `/products/{id}` | one product; a list item only with access, else `404` |
 | `POST` | `/products` | create with the browser's UUID: `201` `{status: 'created', product}`, again `200` `unchanged` |
 | `PATCH` | `/products/{id}` | change the sent fields (creator or maintainer) |
-| `POST` | `/products/{id}/hide`, `/unhide` | hide or show again (maintainers only) |
+| `POST` | `/products/{id}/hide`, `/unhide` | hide or show again (maintainers only, not list items) |
+| `POST` | `/products/{id}/catalog` | take a list item into the catalog (everybody who sees it) |
 | `POST` | `/products/{id}/image` | multipart `image` (crop, JPEG 1600 px), optional `original` and `source` (`openfoodfacts`); `400 invalid_image` / `413 too_large` with `field` and `reason` |
 | `DELETE` | `/products/{id}/image` | remove the image (fallback icon again) |
 | `GET` | `/openfoodfacts/{barcode}?refresh=1` | `{ result }`: hit at Open Food Facts from the server cache, see [Open Food Facts](#open-food-facts); `400 invalid_barcode`, `404 off_not_found`, `429 off_busy`, `503 off_unavailable` |

@@ -15,4 +15,20 @@
             <active>0</active>
         </autocreate>
     </cron>
+
+    <!-- Listenartikel: alte Bilder und ungenutzte Zeilen löschen -->
+    <cron exec="\MichaelDanielczok\Piklis\Console\CleanListItems::cron" required="1">
+        <title>
+            <locale group="michaeldanielczok/piklis" var="cron.listItems.title"/>
+        </title>
+
+        <description>
+            <locale group="michaeldanielczok/piklis" var="cron.listItems.description"/>
+        </description>
+
+        <autocreate>
+            <interval>30 3 * * *</interval>
+            <active>1</active>
+        </autocreate>
+    </cron>
 </crons>

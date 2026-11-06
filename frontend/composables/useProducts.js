@@ -23,16 +23,26 @@
  * ein Produkt angelegt hat (solange es nicht ausgeblendet ist), und jeder
  * Produktpfleger; ausblenden nur Produktpfleger. Die Oberfläche bietet nur
  * an, was erlaubt ist; entscheidend bleibt der Server (403).
+ *
+ * Listenartikel (`product.listItem`) gehören nicht zum Katalog: `products`,
+ * `catalog` und `search` kennen sie nicht. Sie kommen mit Listen und Vorlagen
+ * (`rememberListItems`), liegen getrennt in `listItems` und sind offline Teil
+ * der Liste, die sie nutzt (`useLists`). `findProduct` findet beide. Wer einen
+ * Listenartikel sieht, darf ihn bearbeiten.
  */
-import { computed, ref, watch } from 'vue';
+import { computed, ref, shallowRef, watch } from 'vue';
 import { api, logError } from '@/api/index.js';
 import { localStore } from '@/api/localStore.js';
 import { locale } from '@/i18n/index.js';
+import { goneListItems, mergeListItems } from '@/utils/listItems.js';
 import { searchProducts } from '@/utils/productSearch.js';
 import { onLogout, onSessionStart, useSession } from './useSession.js';
 
 const products = ref([]);
 const status = ref('idle'); // idle · loading · ready · error
+
+/** Listenartikel aus geladenen Listen und Vorlagen: id → Produkt. */
+const listItems = shallowRef(new Map());
 
 /** Vorschläge für „Produkte hinzufügen“ (`GET /products/suggestions`), beste zuerst. */
 const suggestions = ref(null);
@@ -49,6 +59,7 @@ let hydratedFor = null;
 
 onLogout(() => {
     products.value = [];
+    listItems.value = new Map();
     status.value = 'idle';
     suggestions.value = null;
     pendingLoad = null;
@@ -71,10 +82,7 @@ onSessionStart(async (current) => {
     ]);
 
     if (Array.isArray(stored) && status.value !== 'ready') {
-        const ids = new Set(stored.map((product) => product.id));
-        const local = [...localProducts.values()].filter((product) => !ids.has(product.id));
-
-        products.value = sortByName([...stored, ...local]);
+        products.value = sortByName(withLocalProducts(stored));
         status.value = 'ready';
     }
 
@@ -114,11 +122,65 @@ function sortByName(list) {
     return [...list].sort((a, b) => collator.compare(a.name, b.name) || (a.id < b.id ? -1 : 1));
 }
 
+/** Geladener Katalog und die noch nicht bestätigten Katalogprodukte. */
+function withLocalProducts(loaded) {
+    const ids = new Set(loaded.map((product) => product.id));
+    const local = [...localProducts.values()].filter((product) => !product.listItem && !ids.has(product.id));
+
+    return [...loaded, ...local];
+}
+
+function setListItems(next) {
+    if (next !== listItems.value) {
+        listItems.value = next;
+    }
+}
+
+function dropListItems(ids) {
+    const next = new Map(listItems.value);
+
+    for (const id of ids) {
+        next.delete(id);
+    }
+
+    listItems.value = next;
+}
+
+/** Produkt ablegen, wo es hingehört; aufgenommen wechselt es in den Katalog. */
 function upsert(product) {
+    if (product.listItem) {
+        setListItems(mergeListItems(listItems.value, [product]));
+
+        return product;
+    }
+
+    if (listItems.value.has(product.id)) {
+        dropListItems([product.id]);
+    }
+
     const others = products.value.filter((item) => item.id !== product.id);
     products.value = sortByName([...others, product]);
 
     return product;
+}
+
+/**
+ * Listenartikel aus der Antwort zu einer Liste oder Vorlage übernehmen.
+ * `usedIds` (Produkte der sichtbaren Einträge): Kommt ein bekannter Artikel
+ * von dort nicht mehr, hat ihn jemand in den Katalog aufgenommen; dann den
+ * Katalog neu laden.
+ *
+ * @param {object[]} items
+ * @param {string[]} [usedIds]
+ */
+export function rememberListItems(items, usedIds = []) {
+    const gone = goneListItems(listItems.value, items, usedIds);
+
+    setListItems(mergeListItems(listItems.value, items));
+
+    if (gone.length > 0) {
+        loadProducts().then(() => dropListItems(gone)).catch(logError);
+    }
 }
 
 /**
@@ -133,11 +195,7 @@ export function loadProducts() {
 
         pendingLoad = api.getProducts()
             .then((data) => {
-                const loaded = data.products ?? [];
-                const ids = new Set(loaded.map((product) => product.id));
-                const local = [...localProducts.values()].filter((product) => !ids.has(product.id));
-
-                products.value = sortByName([...loaded, ...local]);
+                products.value = sortByName(withLocalProducts(data.products ?? []));
                 status.value = 'ready';
             })
             .catch((error) => {
@@ -221,6 +279,10 @@ export function confirmProduct(product) {
 export function dropLocalProduct(productId) {
     if (localProducts.delete(productId)) {
         products.value = products.value.filter((product) => product.id !== productId);
+
+        if (listItems.value.has(productId)) {
+            dropListItems([productId]);
+        }
     }
 }
 
@@ -229,7 +291,7 @@ export function dropLocalProduct(productId) {
  * zusammengeführt wird nie automatisch.
  *
  * @param {{ name: string, category?: string|null, icon?: string|null,
- *   description?: string|null, packageSize?: string|null }} fields
+ *   description?: string|null, packageSize?: string|null, listItem?: boolean }} fields
  */
 export async function createProduct(fields) {
     const { product } = await api.createProduct({ id: crypto.randomUUID(), ...fields });
@@ -246,6 +308,13 @@ export async function updateProduct(productId, changes) {
 
 export async function setProductHidden(productId, hidden) {
     const { product } = await api.setProductHidden(productId, hidden);
+
+    return upsert(product);
+}
+
+/** Listenartikel in den Katalog aufnehmen; dürfen alle, die ihn sehen. */
+export async function addProductToCatalog(productId) {
+    const { product } = await api.addProductToCatalog(productId);
 
     return upsert(product);
 }
@@ -288,7 +357,7 @@ export function canEditProduct(product) {
         return false;
     }
 
-    if (canManageProducts.value) {
+    if (product.listItem || canManageProducts.value) {
         return true;
     }
 
@@ -300,12 +369,13 @@ export function useProducts() {
 
     return {
         products,
+        listItems,
         status,
         suggestions,
         canManageProducts,
         // Katalog für alle: ohne ausgeblendete
         catalog: computed(() => products.value.filter((product) => !product.hidden)),
-        findProduct: (productId) => byId.value.get(productId) ?? null,
+        findProduct: (productId) => byId.value.get(productId) ?? listItems.value.get(productId) ?? null,
         search: (query, options) => searchProducts(query, products.value, options),
         canEdit: canEditProduct,
         isOwn: (product) => Boolean(product && user.value && product.createdBy === user.value.id)

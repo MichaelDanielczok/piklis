@@ -48,7 +48,7 @@ interface ListStore
     public function listIdOfEntry(string $entryId): ?string;
 
     /**
-     * Gibt es das Produkt im Katalog (auch ausgeblendet)?
+     * Gibt es das Produkt (auch ausgeblendet oder als Listenartikel)?
      */
     public function productExists(string $productId): bool;
 

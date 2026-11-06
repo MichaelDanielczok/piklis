@@ -8,6 +8,7 @@
  * Schritte: g und ml in 50ern, kg und l in halben, sonst ganze.
  *
  * v-model:open · entry (angezeigter Stand) · productName · listName
+ * · `product`: zeigt „In den Katalog aufnehmen“ oder „Schon im Katalog“
  * · `subtitle` und `noteHint` ersetzen die Texte für Listen (Vorlage bearbeiten)
  * Emits: save({ quantity?, note? }) nur mit geänderten Feldern
  */
@@ -15,6 +16,7 @@ import { computed, ref, useId, watch } from 'vue';
 import { CircleAlert, Minus, Plus } from '@lucide/vue';
 import AppButton from '@/components/ui/AppButton.vue';
 import AppSheet from '@/components/ui/AppSheet.vue';
+import EntryCatalog from '@/components/lists/EntryCatalog.vue';
 import { allowsDecimals, formatAmount, parseQuantity, quantityStep, sameQuantity, UNITS, unitName } from '@/utils/quantity.js';
 import { t } from '@/i18n/index.js';
 
@@ -28,6 +30,10 @@ const props = defineProps({
     productName: {
         type: String,
         default: ''
+    },
+    product: {
+        type: Object,
+        default: null
     },
     listName: {
         type: String,
@@ -202,6 +208,8 @@ function submit() {
                 >
                 <span :id="ids.noteHint" class="form-field__hint">{{ noteHint || t('entry.noteHint') }}</span>
             </label>
+
+            <EntryCatalog :product="product" />
         </form>
 
         <template #footer>

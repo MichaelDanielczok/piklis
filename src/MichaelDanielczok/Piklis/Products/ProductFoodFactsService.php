@@ -81,7 +81,7 @@ final class ProductFoodFactsService
      */
     private function loadEditable(string $productId, string $userId, bool $isManager): Product
     {
-        $Product = (new ProductService($this->Store))->load($productId);
+        $Product = (new ProductService($this->Store))->loadVisible($productId, $userId);
 
         if (!ProductPermissions::canEdit($Product, $userId, $isManager)) {
             throw ProductException::forbidden('Only the creator or a product maintainer may edit this product.');

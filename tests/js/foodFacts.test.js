@@ -6,10 +6,12 @@ import assert from 'node:assert/strict';
 import {
     defaultSelection,
     fieldEffect,
+    foodFactsErrorKey,
     hasServingColumn,
     missingFields,
     nutrientFormat,
-    nutritionSummary
+    nutritionSummary,
+    scanFields
 } from '@/utils/foodFacts.js';
 
 const milk = {
@@ -90,4 +92,18 @@ test('serving column and summary', () => {
     assert.equal(hasServingColumn(null), false);
     assert.deepEqual(nutritionSummary(milk.nutrition), { key: 'energy-kcal', value: 64, unit: 'kcal' });
     assert.equal(nutritionSummary(null), null);
+});
+
+test('a scanned product takes everything but the name', () => {
+    assert.deepEqual(scanFields(milk), ['brand', 'packageSize', 'image', 'ingredients', 'nutrition']);
+    assert.deepEqual(scanFields({ fields: ['name'] }), []);
+    assert.deepEqual(scanFields(null), []);
+});
+
+test('errors map to their texts', () => {
+    assert.equal(foodFactsErrorKey({ status: 0 }), 'foodFacts.errors.offline');
+    assert.equal(foodFactsErrorKey({ status: 429, code: 'off_busy' }), 'foodFacts.errors.busy');
+    assert.equal(foodFactsErrorKey({ status: 502, code: 'off_unavailable' }), 'foodFacts.errors.unavailable');
+    assert.equal(foodFactsErrorKey({ status: 403 }), 'products.forbidden');
+    assert.equal(foodFactsErrorKey({ status: 500 }), 'common.error');
 });

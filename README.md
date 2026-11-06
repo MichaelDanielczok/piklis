@@ -95,8 +95,12 @@ under `design/piklis-designpaket/`.
   frequent products, while typing the catalog hits; a suggestion adds the
   product (open +1, done a new entry, “auf der Liste · 1 ×”), Enter takes only
   the same name from the catalog, otherwise a list item; no toast, the keyboard
-  stays open, works offline. Buttons for the scanner (barcodes from the catalog)
-  and the tiles. Variants B and C stay switchable until one is chosen
+  stays open, works offline. Buttons for the scanner and the tiles. Variants B and C stay switchable until one is chosen
+- Scanner in the input bar: a barcode from the catalog goes on the list at once
+  (open +1, also offline); an unknown one shows name and image from Open Food Facts
+  with “Zur Liste” and “Im Katalog speichern” (on; off gives a list item with the
+  data), the image comes without a crop step and can be cropped later; not found
+  asks for a name, photo optional; offline a note. The number can also be typed
 - Adding products: picker without keyboard on open, compact tiles in three
   columns (one token; frequently bought first, weighted over 90 days, then
   the catalog A–Z, 48 tiles and 24 more while scrolling, order fixed while

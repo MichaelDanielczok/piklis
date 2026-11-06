@@ -53,7 +53,7 @@ use const UPLOAD_ERR_OK;
  * | GET | /products/search?q=&limit= | `{ products }`, Treffer ohne ausgeblendete |
  * | GET | /products/suggestions | `{ days, suggestions }`, Gewichtung für „Produkte hinzufügen“ |
  * | GET | /products/{id} | `{ product }` |
- * | POST | /products | `{ status, product }`, 201 angelegt, 200 schon vorhanden |
+ * | POST | /products | `{ status, product }`, 201 angelegt, 200 schon vorhanden; auch `listItem`, `barcode` |
  * | PATCH | /products/{id} | `{ product }` |
  * | POST | /products/{id}/hide, /unhide | `{ product }` |
  * | POST | /products/{id}/catalog | `{ product }`: Listenartikel in den Katalog aufnehmen |

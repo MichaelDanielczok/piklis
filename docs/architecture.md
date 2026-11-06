@@ -1091,9 +1091,26 @@ the tiles. `AppPage` (`addBar`) keeps the space free on wide screens, too.
   because they would otherwise be too tall for a moment, and then appear anyway.
   Without an on-screen keyboard the bar stays at the bottom. Tab reaches
   suggestions and buttons, Escape closes.
-- **Scanner:** `AddBarScanSheet.vue` runs the existing `BarcodeScanner`. A barcode
-  from the catalog goes on the list, also offline; an unknown one is only a note
-  until step 20.
+- **Scanner:** `AddBarScanSheet.vue` runs the existing `BarcodeScanner`, or takes
+  the number by hand (`BarcodeForm`, also the way out without a camera).
+  - In the catalog, or a list item with that barcode on this list: on the list at
+    once, open +1, also offline, no question (`productWithBarcode()`; leading zeros
+    do not count, UPC-A may arrive as EAN-13).
+  - Unknown and online: first `loadProducts()` (304 when nothing changed; a product
+    somebody just added saves a request and a duplicate), then
+    `GET /openfoodfacts/{barcode}`. A hit shows name and image (`FoodFactsHit`) with
+    “Zur Liste”; a hit without a name asks for one.
+  - Not found: name and an optional photo (`ProductImageField`). The barcode stays
+    on the product (`POST /products` takes `barcode`), so the next scan finds it.
+  - Offline: only a note.
+  - “Im Katalog speichern” is on, because brands come back; off gives a list item
+    with the same data. The product is created directly at the server
+    (`createProduct`, stable id for a retry), goes on the list, and the sheet closes.
+    `complete()` then adds the data (`applyFoodFacts`, everything but the name,
+    `scanFields()`) and the image in the background; a toast appears only on failure.
+  - Image without a crop step: `importFoodFactsImage()` uses `squareImage()`: padded
+    to a white square like before the crop dialog, the whole square as crop and as
+    original, so “Neu zuschneiden” works later.
 - **Tiles:** the button opens `/lists/:id/add`.
 - `position: fixed` refers to the Ionic page here (`contain`), so the bar is
   centred next to the sidebar without an offset.
@@ -1442,7 +1459,9 @@ becomes a list item: a row in `pk_products` with `list_item = 1`. Image,
 description, Open Food Facts, sync and offline work as for any product, and
 taking it into the catalog only clears the mark.
 
-- **Creating:** `product.create` and `POST /products` take `listItem: true`.
+- **Creating:** `product.create` and `POST /products` take `listItem: true`, and
+  `barcode` for what the scanner creates (checked like every barcode, an invalid one
+  is `invalid_product` with `field: barcode`; updating ignores it).
   Only creating sets the mark; `PATCH` never changes it.
 - **Never in the catalog:** `GET /products`, `GET /products/search`,
   `GET /products/suggestions` and the picker leave list items out, also for
@@ -1559,6 +1578,8 @@ in `Rest\FoodFactsEndpoint` and `Rest\ProductsEndpoint`, app in
   in the normal crop dialog and it is uploaded like an own photo with
   `source=openfoodfacts` (`image_source`). Recropping keeps the source, an
   own photo or removing clears it.
+- **Shared parts:** `BarcodeForm`, `FoodFactsHit` (also the skeleton) and
+  `FoodFactsMessage`, used here and in the scan sheet of the input bar.
 - **Sheet:** offline a clear message instead of the input; input with
   numeric keyboard and check digit hint; scan; hit with preview, then one
   checkbox per available field with what it does (neu · schon gleich ·
@@ -1571,7 +1592,10 @@ in `Rest\FoodFactsEndpoint` and `Rest\ProductsEndpoint`, app in
   (`import('@/utils/barcodeScanner.js')`); the WebAssembly file
   (`zxing_reader.wasm`, 0.95 MB, gzip 0.41 MB; JS chunk 43 KB, gzip
   15 KB) comes from `bin/app/assets/`, never from a CDN (`locateFile`
-  override), and is not precached (`globIgnores` for the scanner chunks).
+  override), and is not precached (`globIgnores` for the scanner chunks). The
+  first scan puts them into the runtime cache `pk-scanner` (CacheFirst, hashed
+  names), so catalog barcodes scan offline afterwards. Before that first scan the
+  scanner cannot start offline; “Nummer eingeben” still works.
   Rear camera, a code counts after two equal reads with a valid check digit.
 - **Detail:** brand next to the package size; ingredients and nutrition in
   `<details>` (closed), nutrition as a table with “je 100 g/ml” and, with

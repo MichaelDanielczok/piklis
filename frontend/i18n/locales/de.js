@@ -417,8 +417,18 @@ export default {
         tiles: 'Kachelansicht',
         switchMode: 'Variante der Leiste wechseln, jetzt {mode}',
         scanTitle: 'Barcode scannen',
-        scanUnknown: 'Der Barcode {barcode} steht nicht im Katalog.',
-        scanAgain: 'Noch einmal scannen'
+        scanAgain: 'Neu scannen',
+        scanNewTitle: 'Neues Produkt',
+        scanSaveCatalog: 'Im Katalog speichern',
+        scanSaveCatalogHint: 'Aus: nur auf dieser Liste',
+        scanToList: 'Zur Liste',
+        scanAdding: 'Wird eingetragen …',
+        scanSource: 'Daten von Open Food Facts, ohne Gewähr.',
+        scanNotFound: 'Open Food Facts kennt die Nummer {barcode} nicht. Trag den Namen selbst ein.',
+        scanNoName: 'Open Food Facts kennt keinen Namen.',
+        scanOffline: 'Die Nummer {barcode} steht nicht im Katalog. Nachschlagen geht nur mit Verbindung.',
+        scanDataFailed: '„{name}“ steht auf der Liste, aber ohne die Angaben von Open Food Facts.',
+        scanImageFailed: '„{name}“ steht auf der Liste, aber ohne Bild.'
     },
     addProducts: {
         title: 'Produkte hinzufügen',

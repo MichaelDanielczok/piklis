@@ -34,6 +34,7 @@ import { computed, ref, shallowRef, watch } from 'vue';
 import { api, logError } from '@/api/index.js';
 import { localStore } from '@/api/localStore.js';
 import { locale } from '@/i18n/index.js';
+import { squareImage } from '@/utils/imageEncode.js';
 import { goneListItems, mergeListItems } from '@/utils/listItems.js';
 import { searchProducts } from '@/utils/productSearch.js';
 import { onLogout, onSessionStart, useSession } from './useSession.js';
@@ -290,8 +291,9 @@ export function dropLocalProduct(productId) {
  * Nur der Name ist Pflicht. Ähnliche oder gleiche Namen verhindern nichts:
  * zusammengeführt wird nie automatisch.
  *
- * @param {{ name: string, category?: string|null, icon?: string|null,
- *   description?: string|null, packageSize?: string|null, listItem?: boolean }} fields
+ * @param {{ id?: string, name: string, category?: string|null, icon?: string|null,
+ *   description?: string|null, packageSize?: string|null, listItem?: boolean,
+ *   barcode?: string }} fields
  */
 export async function createProduct(fields) {
     const { product } = await api.createProduct({ id: crypto.randomUUID(), ...fields });
@@ -351,6 +353,16 @@ export async function applyFoodFacts(productId, choice) {
     const { product } = await api.applyFoodFacts(productId, choice);
 
     return upsert(product);
+}
+
+/**
+ * Bild aus Open Food Facts ohne Zuschnitt-Schritt setzen, zuschneiden geht
+ * später im Produkt. @param {{ cropSize: number, maxPixels: number }} limits
+ */
+export async function importFoodFactsImage(productId, barcode, limits) {
+    const blob = await api.getFoodFactsImage(barcode, { full: true });
+
+    return setProductImage(productId, { ...await squareImage(blob, limits), source: 'openfoodfacts' });
 }
 
 export async function removeFoodFacts(productId) {

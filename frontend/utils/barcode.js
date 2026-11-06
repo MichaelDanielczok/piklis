@@ -29,6 +29,24 @@ export function parseBarcode(input) {
     return { barcode, error: null };
 }
 
+/** Führende Nullen zählen nicht: UPC-A liest mancher Scanner als EAN-13 mit einer Null davor. */
+function gtin(barcode) {
+    return barcode.replace(/^0+/, '');
+}
+
+/**
+ * Das erste Produkt mit diesem Barcode.
+ *
+ * @param {object[]} products
+ * @param {string} barcode
+ * @returns {object|null}
+ */
+export function productWithBarcode(products, barcode) {
+    const wanted = gtin(barcode);
+
+    return products.find((product) => product.barcode && gtin(product.barcode) === wanted) ?? null;
+}
+
 /**
  * GTIN-Prüfziffer: von rechts ohne die Prüfziffer abwechselnd mal 3 und
  * mal 1 gewichtet, auf den nächsten Zehner ergänzt.

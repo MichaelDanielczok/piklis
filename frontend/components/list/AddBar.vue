@@ -263,7 +263,7 @@ defineExpose({ close });
 
     <p class="visually-hidden" aria-live="polite">{{ announcement }}</p>
 
-    <AddBarScanSheet v-model:open="scanOpen" @found="addProduct" />
+    <AddBarScanSheet v-model:open="scanOpen" :list-id="listId" @found="addProduct" />
 </template>
 
 <style scoped>

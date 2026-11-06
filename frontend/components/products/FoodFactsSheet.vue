@@ -22,20 +22,22 @@ import { computed, nextTick, ref, useId, watch } from 'vue';
 import { CircleAlert, ImageOff, ScanBarcode, SearchX, WifiOff } from '@lucide/vue';
 import AppButton from '@/components/ui/AppButton.vue';
 import AppSheet from '@/components/ui/AppSheet.vue';
+import BarcodeForm from './BarcodeForm.vue';
 import BarcodeScanner from './BarcodeScanner.vue';
+import FoodFactsHit from './FoodFactsHit.vue';
+import FoodFactsMessage from './FoodFactsMessage.vue';
 import ImageCropDialog from './ImageCropDialog.vue';
-import ProductImage from './ProductImage.vue';
 import { api } from '@/api/index.js';
 import { loadConfig, useConfig } from '@/composables/useConfig.js';
 import { useConnection } from '@/composables/useConnection.js';
 import { applyFoodFacts, setProductImage } from '@/composables/useProducts.js';
 import { showToast } from '@/composables/useToast.js';
 import { categoryOf, iconOf } from '@/products/catalog.js';
-import { parseBarcode } from '@/utils/barcode.js';
 import {
     defaultSelection,
     fieldEffect,
     FOOD_FACTS_FIELDS,
+    foodFactsErrorKey,
     missingFields,
     nutrientFormat,
     nutritionSummary
@@ -62,9 +64,6 @@ const { images: limits } = useConfig();
 
 const ids = {
     form: useId(),
-    barcode: useId(),
-    hint: useId(),
-    error: useId(),
     choices: useId()
 };
 
@@ -72,13 +71,11 @@ const canScan = typeof navigator !== 'undefined' && typeof navigator.mediaDevice
 
 const step = ref('input'); // input · scan · loading · result · notFound · error
 const input = ref('');
-const inputError = ref('');
-const submitted = ref(false);
 const errorMessage = ref('');
 const result = ref(null);
 const selected = ref([]);
 const applying = ref(false);
-const barcodeInput = ref(null);
+const barcodeForm = ref(null);
 const previewFailed = ref(false);
 
 const cropOpen = ref(false);
@@ -104,8 +101,6 @@ const previewUrl = computed(() => (result.value?.hasImage ? api.foodFactsImageUr
 
 function reset() {
     step.value = 'input';
-    inputError.value = '';
-    submitted.value = false;
     errorMessage.value = '';
     result.value = null;
     selected.value = [];
@@ -128,55 +123,8 @@ watch(open, (isOpen) => {
 
 function focusInput() {
     if (step.value === 'input') {
-        barcodeInput.value?.focus();
+        barcodeForm.value?.focus();
     }
-}
-
-function validate() {
-    const { barcode, error } = parseBarcode(input.value);
-
-    inputError.value = error ? t('foodFacts.errors.' + error) : '';
-
-    return barcode;
-}
-
-watch(input, () => {
-    if (submitted.value) {
-        validate();
-    }
-});
-
-function search() {
-    submitted.value = true;
-
-    const barcode = validate();
-
-    if (!barcode) {
-        barcodeInput.value?.focus();
-        return;
-    }
-
-    lookup(barcode, false);
-}
-
-function messageFor(error) {
-    if (error?.status === 0) {
-        return t('foodFacts.errors.offline');
-    }
-
-    if (error?.code === 'off_busy') {
-        return t('foodFacts.errors.busy');
-    }
-
-    if (error?.code === 'off_unavailable') {
-        return t('foodFacts.errors.unavailable');
-    }
-
-    if (error?.status === 403) {
-        return t('products.forbidden');
-    }
-
-    return t('common.error');
 }
 
 async function lookup(barcode, refresh) {
@@ -193,10 +141,8 @@ async function lookup(barcode, refresh) {
     } catch (error) {
         if (error?.code === 'invalid_barcode') {
             step.value = 'input';
-            submitted.value = true;
-            inputError.value = t('foodFacts.errors.' + (error.reason ?? 'invalid'));
             await nextTick();
-            barcodeInput.value?.focus();
+            barcodeForm.value?.showError(error.reason ?? 'invalid');
             return;
         }
 
@@ -205,7 +151,7 @@ async function lookup(barcode, refresh) {
             return;
         }
 
-        errorMessage.value = messageFor(error);
+        errorMessage.value = t(foodFactsErrorKey(error));
         step.value = 'error';
     }
 }
@@ -281,7 +227,7 @@ async function apply() {
         await applyFoodFacts(props.product.id, { barcode, fields });
     } catch (error) {
         applying.value = false;
-        errorMessage.value = messageFor(error);
+        errorMessage.value = t(foodFactsErrorKey(error));
         return;
     }
 
@@ -341,83 +287,40 @@ watch(cropOpen, (isOpen) => {
 
 <template>
     <AppSheet v-model:open="open" :title="title" :subtitle="subtitle" @presented="focusInput">
-        <div v-if="!online" class="off-message" role="status">
-            <WifiOff class="off-message__icon" aria-hidden="true" />
-            <p>{{ t('foodFacts.errors.offline') }}</p>
-        </div>
+        <FoodFactsMessage v-if="!online" :icon="WifiOff" role="status">{{ t('foodFacts.errors.offline') }}</FoodFactsMessage>
 
-        <form
+        <BarcodeForm
             v-else-if="step === 'input'"
             :id="ids.form"
-            class="off-input"
-            novalidate
-            @submit.prevent="search"
+            ref="barcodeForm"
+            v-model="input"
+            @search="lookup($event, false)"
         >
-            <div class="form-field">
-                <label :for="ids.barcode" class="form-field__label">{{ t('foodFacts.barcode') }}</label>
-                <input
-                    :id="ids.barcode"
-                    ref="barcodeInput"
-                    v-model="input"
-                    class="form-field__input off-input__barcode"
-                    type="text"
-                    name="barcode"
-                    inputmode="numeric"
-                    autocomplete="off"
-                    enterkeyhint="search"
-                    maxlength="20"
-                    :aria-invalid="inputError ? 'true' : 'false'"
-                    :aria-describedby="inputError ? ids.error : ids.hint"
-                >
-                <span v-if="inputError" :id="ids.error" class="form-field__error">
-                    <CircleAlert aria-hidden="true" />
-                    {{ inputError }}
-                </span>
-                <span v-else :id="ids.hint" class="form-field__hint">{{ t('foodFacts.barcodeHint') }}</span>
-            </div>
-
             <AppButton v-if="canScan" variant="secondary" block @click="step = 'scan'">
                 <ScanBarcode aria-hidden="true" />
                 {{ t('foodFacts.scan') }}
             </AppButton>
-        </form>
+        </BarcodeForm>
 
         <BarcodeScanner v-else-if="step === 'scan'" @detected="onDetected" />
 
         <div v-else-if="step === 'loading'" class="off-skeleton" aria-busy="true">
             <span class="visually-hidden" role="status">{{ t('foodFacts.searching') }}</span>
-            <div class="off-hit" aria-hidden="true">
-                <span class="off-skeleton__image"></span>
-                <span class="off-hit__text">
-                    <span class="off-skeleton__line off-skeleton__line--title"></span>
-                    <span class="off-skeleton__line"></span>
-                </span>
-            </div>
+            <FoodFactsHit />
             <!-- wie ein vollständiger Treffer: Überschrift und sechs Felder -->
             <span class="off-skeleton__choices" aria-hidden="true">
                 <span v-for="index in 6" :key="index" class="off-skeleton__row"></span>
             </span>
-            <span class="off-skeleton__line off-skeleton__line--note" aria-hidden="true"></span>
+            <span class="off-skeleton__note" aria-hidden="true"></span>
         </div>
 
         <div v-else-if="step === 'result'" class="off-result">
-            <section class="off-hit" :aria-label="t('foodFacts.hitLabel')">
-                <span v-if="previewUrl && !previewFailed" class="off-hit__image">
-                    <img :src="previewUrl" alt="" decoding="async" @error="previewFailed = true">
-                </span>
-                <ProductImage
-                    v-else
-                    :icon="iconOf(product)"
-                    :category="categoryOf(product)"
-                    size="lg"
-                />
-                <span class="off-hit__text">
-                    <span class="off-hit__name">{{ result.name ?? t('foodFacts.noName') }}</span>
-                    <span v-if="result.brand || result.packageSize" class="off-hit__meta">
-                        {{ [result.brand, result.packageSize].filter(Boolean).join(' · ') }}
-                    </span>
-                </span>
-            </section>
+            <FoodFactsHit
+                :result="result"
+                :icon="iconOf(product)"
+                :category="categoryOf(product)"
+                @image-failed="previewFailed = true"
+            />
 
             <fieldset v-if="offered.length > 0" class="off-choices">
                 <legend :id="ids.choices" class="off-choices__legend">{{ t('foodFacts.choose') }}</legend>
@@ -456,18 +359,12 @@ watch(cropOpen, (isOpen) => {
             </p>
         </div>
 
-        <div v-else-if="step === 'notFound'" class="off-message" role="status">
-            <SearchX class="off-message__icon" aria-hidden="true" />
-            <p>
-                <strong>{{ t('foodFacts.notFoundTitle') }}</strong><br>
-                {{ t('foodFacts.notFoundText', { barcode: input }) }}
-            </p>
-        </div>
+        <FoodFactsMessage v-else-if="step === 'notFound'" :icon="SearchX" role="status">
+            <strong>{{ t('foodFacts.notFoundTitle') }}</strong><br>
+            {{ t('foodFacts.notFoundText', { barcode: input }) }}
+        </FoodFactsMessage>
 
-        <div v-else-if="step === 'error'" class="off-message" role="alert">
-            <CircleAlert class="off-message__icon" aria-hidden="true" />
-            <p>{{ errorMessage }}</p>
-        </div>
+        <FoodFactsMessage v-else-if="step === 'error'" :icon="CircleAlert" role="alert">{{ errorMessage }}</FoodFactsMessage>
 
         <template #footer>
             <AppButton v-if="!online" variant="secondary" @click="open = false">{{ t('common.close') }}</AppButton>
@@ -505,78 +402,11 @@ watch(cropOpen, (isOpen) => {
 </template>
 
 <style scoped>
-.off-input,
 .off-result,
 .off-skeleton {
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
-}
-
-.off-input__barcode {
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0.04em;
-}
-
-.off-message {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--space-3);
-    padding: var(--space-4);
-    border-radius: var(--radius-md);
-    background: var(--color-surface-2);
-}
-
-.off-message__icon {
-    flex: none;
-    width: var(--icon-size-lg);
-    height: var(--icon-size-lg);
-    color: var(--color-text-2);
-}
-
-.off-hit {
-    display: flex;
-    align-items: center;
-    gap: var(--space-4);
-}
-
-.off-hit__image {
-    display: flex;
-    flex: none;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    width: var(--thumb-size-lg);
-    height: var(--thumb-size-lg);
-    border-radius: var(--radius-md);
-    background: var(--color-surface-2);
-}
-
-.off-hit__image img {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-}
-
-.off-hit__text {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    gap: var(--space-1);
-    min-width: 0;
-}
-
-.off-hit__name {
-    font-size: var(--font-size-name);
-    font-weight: var(--font-weight-semibold);
-    line-height: var(--line-height-qty);
-    overflow-wrap: anywhere;
-}
-
-.off-hit__meta {
-    color: var(--color-text-2);
-    font-size: var(--font-size-note);
-    line-height: var(--line-height-note);
 }
 
 .off-choices {
@@ -706,27 +536,6 @@ watch(cropOpen, (isOpen) => {
     line-height: var(--line-height-note);
 }
 
-.off-skeleton__image {
-    flex: none;
-    width: var(--thumb-size-lg);
-    height: var(--thumb-size-lg);
-    border-radius: var(--radius-md);
-    background: var(--color-skeleton);
-}
-
-.off-skeleton__line {
-    width: 60%;
-    height: var(--space-4);
-    border-radius: var(--radius-xs);
-    background: var(--color-skeleton-2);
-}
-
-.off-skeleton__line--title {
-    width: 85%;
-    height: var(--space-5);
-    background: var(--color-skeleton);
-}
-
 .off-skeleton__choices {
     display: flex;
     flex-direction: column;
@@ -737,9 +546,11 @@ watch(cropOpen, (isOpen) => {
     background: var(--color-surface-2);
 }
 
-.off-skeleton__line--note {
+.off-skeleton__note {
     width: 70%;
     height: var(--line-height-note);
+    border-radius: var(--radius-xs);
+    background: var(--color-skeleton-2);
 }
 
 /* Feld mit Wert und Hinweis: drei Zeilen, etwas höher als eine Listenzeile */

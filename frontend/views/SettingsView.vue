@@ -85,11 +85,11 @@ function toggleOffline(event) {
 
             <section v-if="canSimulate" class="settings__section" :aria-labelledby="devHeadingId">
                 <h2 :id="devHeadingId" class="settings__heading">{{ t('settings.dev') }}</h2>
-                <label class="settings__switch" :for="switchId">
+                <label class="form-switch" :for="switchId">
                     <span>{{ t('settings.simulateOffline') }}</span>
                     <input
                         :id="switchId"
-                        class="settings__toggle"
+                        class="form-switch__toggle"
                         type="checkbox"
                         role="switch"
                         data-name="simulate-offline"
@@ -137,56 +137,5 @@ function toggleOffline(event) {
     color: var(--color-text-1);
     font-size: var(--font-size-text);
     line-height: var(--line-height-name);
-}
-
-.settings__switch {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-    min-height: var(--tap-size);
-    color: var(--color-text-1);
-    font-size: var(--font-size-text);
-}
-
-/* Schalter ohne Bibliothek: Kontrollkästchen als Schiene mit Knopf */
-.settings__toggle {
-    position: relative;
-    flex: none;
-    width: 3rem;
-    height: 1.75rem;
-    margin: 0;
-    border-radius: 0.875rem;
-    background: var(--color-surface-2);
-    box-shadow: inset 0 0 0 1px var(--color-border);
-    appearance: none;
-    cursor: pointer;
-    transition: background-color var(--duration-fast) var(--ease-out);
-}
-
-.settings__toggle::after {
-    position: absolute;
-    top: 0.1875rem;
-    left: 0.1875rem;
-    width: 1.375rem;
-    height: 1.375rem;
-    border-radius: 50%;
-    background: var(--color-surface-1);
-    box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
-    content: '';
-    transition: transform var(--duration-fast) var(--ease-out);
-}
-
-.settings__toggle:checked {
-    background: var(--color-accent);
-}
-
-.settings__toggle:checked::after {
-    transform: translateX(1.25rem);
-}
-
-.settings__toggle:focus-visible {
-    outline: 2px solid var(--color-accent);
-    outline-offset: 2px;
 }
 </style>

@@ -100,6 +100,27 @@ export async function padToSquare(blob, maxPixels) {
     }
 }
 
+/**
+ * Bild ohne Zuschnitt-Schritt übernehmen: mittig aufs Quadrat, ganz als
+ * Ausschnitt und als Original, später also frei neu zuschneidbar.
+ *
+ * @param {Blob} blob
+ * @param {{ cropSize: number, maxPixels: number }} limits
+ * @returns {Promise<{ image: Blob, original: Blob }>}
+ */
+export async function squareImage(blob, { cropSize, maxPixels }) {
+    const original = await padToSquare(blob, maxPixels);
+    const { image, url, width } = await loadImage(original);
+
+    try {
+        const middle = width / 2;
+
+        return { image: await renderCrop(image, { x: middle, y: middle, zoom: 1 }, cropSize), original };
+    } finally {
+        URL.revokeObjectURL(url);
+    }
+}
+
 function createCanvas(width, height) {
     const element = document.createElement('canvas');
 

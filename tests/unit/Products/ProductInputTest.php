@@ -2,7 +2,9 @@
 
 namespace MichaelDanielczok\Piklis\Tests\Unit\Products;
 
+use DateTimeImmutable;
 use MichaelDanielczok\Piklis\Products\InvalidProductException;
+use MichaelDanielczok\Piklis\Products\Product;
 use MichaelDanielczok\Piklis\Products\ProductInput;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -41,6 +43,42 @@ class ProductInputTest extends TestCase
         $this->assertSame('Die mit dem blauen Deckel.', $Input->description);
         $this->assertSame('1,5 l', $Input->packageSize);
         $this->assertFalse($Input->has('unknown'));
+    }
+
+    public function testBarcodeOnCreate(): void
+    {
+        $this->assertSame('4000417025005', ProductInput::forCreate([
+            'name' => 'Milch',
+            'barcode' => '4000417 025005'
+        ])->barcode);
+
+        $this->assertNull(ProductInput::forCreate(['name' => 'Milch'])->barcode);
+        $this->assertNull(ProductInput::forCreate(['name' => 'Milch', 'barcode' => ''])->barcode);
+    }
+
+    public function testANewProductKeepsTheBarcode(): void
+    {
+        $Input = ProductInput::forCreate(['name' => 'Milch', 'barcode' => '4000417025005']);
+        $Product = Product::create('id', $Input, 'user', new DateTimeImmutable());
+
+        $this->assertSame('4000417025005', $Product->barcode);
+        $this->assertNull($Product->foodFacts);
+    }
+
+    public function testInvalidBarcodeIsAnInvalidProduct(): void
+    {
+        try {
+            ProductInput::forCreate(['name' => 'Milch', 'barcode' => '4000417025006']);
+            $this->fail('Expected an invalid product.');
+        } catch (InvalidProductException $Exception) {
+            $this->assertSame('barcode', $Exception->getField());
+            $this->assertSame('checksum', $Exception->getReason());
+        }
+    }
+
+    public function testUpdateIgnoresTheBarcode(): void
+    {
+        $this->assertNull(ProductInput::forUpdate(['name' => 'Milch', 'barcode' => '4000417025005'])->barcode);
     }
 
     public function testEmptyValuesMeanNone(): void

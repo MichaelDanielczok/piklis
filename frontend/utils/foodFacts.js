@@ -104,6 +104,37 @@ export function missingFields(result) {
 }
 
 /**
+ * Felder für ein neu gescanntes Produkt: alles, was der Treffer hat, außer dem
+ * Namen, der steht schon am Produkt.
+ *
+ * @returns {string[]}
+ */
+export function scanFields(result) {
+    return FOOD_FACTS_FIELDS.filter((field) => field !== 'name' && result?.fields?.includes(field));
+}
+
+/**
+ * Text zu einem Fehler beim Nachschlagen oder Übernehmen.
+ *
+ * @returns {string} Schlüssel für `t()`
+ */
+export function foodFactsErrorKey(error) {
+    if (error?.status === 0) {
+        return 'foodFacts.errors.offline';
+    }
+
+    if (error?.code === 'off_busy') {
+        return 'foodFacts.errors.busy';
+    }
+
+    if (error?.code === 'off_unavailable') {
+        return 'foodFacts.errors.unavailable';
+    }
+
+    return error?.status === 403 ? 'products.forbidden' : 'common.error';
+}
+
+/**
  * Optionen für Intl.NumberFormat je Nährwert: Energie ganz, kleine Werte
  * mit zwei, sonst eine Nachkommastelle („0,13 g“, „3,5 g“, „267 kJ“).
  *

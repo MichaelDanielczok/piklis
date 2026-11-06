@@ -68,7 +68,7 @@ final class Product
             $Input->icon,
             $Input->description,
             $Input->packageSize,
-            null,
+            $Input->barcode,
             null,
             null,
             false,

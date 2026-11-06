@@ -2,6 +2,9 @@
 
 namespace MichaelDanielczok\Piklis\Products;
 
+use MichaelDanielczok\Piklis\FoodFacts\Barcode;
+use MichaelDanielczok\Piklis\FoodFacts\InvalidBarcodeException;
+
 use function array_key_exists;
 use function in_array;
 use function is_bool;
@@ -26,6 +29,9 @@ use function trim;
  * - `listItem`: nur beim Anlegen, true = Listenartikel (nicht im Katalog,
  *   Schritt 18). Bearbeiten ändert die Markierung nie; aus einem Listenartikel
  *   wird ein Katalogprodukt nur über `ProductService::addToCatalog`.
+ * - `barcode`: nur beim Anlegen, null oder leer = ohne (`Barcode::normalize`).
+ *   Der Scanner legt so auch Produkte an, die Open Food Facts nicht kennt, damit
+ *   der nächste Scan sie findet (Schritt 20). Später ändert ihn nur Open Food Facts.
  */
 final class ProductInput
 {
@@ -57,6 +63,8 @@ final class ProductInput
 
     public bool $listItem = false;
 
+    public ?string $barcode = null;
+
     /** @var list<string> */
     private array $present = [];
 
@@ -83,6 +91,7 @@ final class ProductInput
         }
 
         $Input->listItem = $listItem;
+        $Input->barcode = self::barcode($input['barcode'] ?? null);
 
         return $Input;
     }
@@ -105,6 +114,22 @@ final class ProductInput
     public function has(string $field): bool
     {
         return in_array($field, $this->present, true);
+    }
+
+    /**
+     * @throws InvalidProductException
+     */
+    private static function barcode(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        try {
+            return Barcode::normalize($value);
+        } catch (InvalidBarcodeException $Exception) {
+            throw new InvalidProductException('barcode', $Exception->getReason());
+        }
     }
 
     /**

@@ -69,8 +69,8 @@ const pwa = VitePWA({
         inlineWorkboxRuntime: true,
         globPatterns: ['**/*.{js,css,woff2,webp,png,svg}'],
         // Barcode-Scanner (barcode-detector, zxing-wasm ~1 MB) nur beim Scannen
-        // nachgeladen und nicht vorab gecacht: Scannen braucht ohnehin Verbindung
-        // (Open Food Facts); .wasm fällt schon durch globPatterns heraus.
+        // nachgeladen, nicht vorab gecacht; .wasm fällt schon durch globPatterns heraus.
+        // Der erste Scan legt ihn in `pk-scanner` ab (unten).
         globIgnores: ['sw.js', 'chunks/barcodeScanner-*.js', 'chunks/ponyfill-*.js'],
         modifyURLPrefix: { '': appBase },
         cleanupOutdatedCaches: true,
@@ -87,6 +87,19 @@ const pwa = VitePWA({
                 options: {
                     cacheName: 'pk-start',
                     expiration: { maxEntries: 1 }
+                }
+            },
+            {
+                // Scanner offline: Barcodes aus dem Katalog gehen ohne Verbindung, also muss
+                // er nach dem ersten Scan auch ohne Netz starten. Neue Fassungen haben einen
+                // neuen Hash im Namen, deshalb CacheFirst.
+                urlPattern: ({ url }) => url.origin === self.location.origin
+                    && /\/(chunks\/(barcodeScanner|ponyfill)-[^/]+\.js|assets\/zxing_reader-[^/]+\.wasm)$/.test(url.pathname),
+                handler: 'CacheFirst',
+                options: {
+                    cacheName: 'pk-scanner',
+                    expiration: { maxEntries: 6 },
+                    cacheableResponse: { statuses: [200] }
                 }
             },
             {

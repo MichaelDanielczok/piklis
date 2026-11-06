@@ -194,19 +194,19 @@ const { control, openMenu, close, listeners, onClickCapture } = useQuantityHold(
     outline-offset: calc(-1 * var(--focus-ring-width));
 }
 
+/* Keine Silbentrennung: Ein Wort, das nicht in die Kachel passt, endet mit „…“.
+   Das geht nur als Block, `line-clamp` kürzt lange Wörter ohne Auslassungszeichen */
 .add-tile__name {
-    display: -webkit-box;
+    display: block;
+    width: 100%;
+    max-height: calc(2 * var(--line-height-note));
     margin-top: var(--space-1);
     overflow: hidden;
     color: var(--color-text-1);
     font-size: var(--font-size-note);
     font-weight: var(--font-weight-medium);
     line-height: var(--line-height-note);
-    overflow-wrap: anywhere;
-    hyphens: auto;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
+    text-overflow: ellipsis;
 }
 
 .add-tile__top {

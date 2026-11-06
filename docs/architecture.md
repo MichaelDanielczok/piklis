@@ -203,7 +203,7 @@ data and sample photos cut from the design package's drawn placeholders.
 | `list/RowGroup.vue` | card for rows, separators instead of single cards |
 | `list/SkeletonRow.vue` | loading row with exactly the end height (64 px) and the same zones, flat without shimmer |
 | `list/QuantityLabel.vue` | quantity, semibold with tabular figures |
-| `list/AddTile.vue` | tile in “Produkte hinzufügen”: as tall as its content (from 80 px), image 40 px, name in 14 px, a tap anywhere adds 1, badge with the quantity, inset outline when selected; `meta` (package size, “erledigt”); holding opens the quantity control (`open` for “Details”) |
+| `list/AddTile.vue` | tile in “Produkte hinzufügen”: as tall as the tallest tile of its grid row (from 80 px), image 40 px with `meta` beside it, name in 14 px, a tap anywhere adds 1, badge with the quantity, inset outline when selected; `meta` (package size, “erledigt”); holding opens the quantity control (`open` for “Details”) |
 | `list/QuantityControl.vue` | quantity control for tile and row: scale next to the finger while holding, small dialog with −, +, “Details”, “Entfernen” otherwise; see [Quantity control](#quantity-control) |
 | `list/AddTileSkeleton.vue` | loading tile in the same height |
 | `ui/SectionLabel.vue` | section heading in capitals (“ERLEDIGT · 8”), capitals by CSS only |
@@ -1063,8 +1063,8 @@ decisions “Produktauswahl und Übernahme”; design package screens 08 and 09.
   `AppPage`), also when editing a template. Changing the search scrolls back
   to the top, where the hits are.
 - **Tiles** (`AddTile.vue`): the number of columns is the single token
-  `--tile-columns` (3 for now, on every width; two or three is decided on
-  the phone). As tall as its content, from 80 px. The whole tile is one button: the first
+  `--tile-columns` (3, on every width). The grid gives each row the height of
+  its tallest tile, from 80 px, and every tile fills its row. The whole tile is one button: the first
   tap sets quantity 1, every further tap adds 1, a badge shows the quantity
   (weights with their unit). Holding opens the
   [quantity control](#quantity-control); “Details” goes to the entry

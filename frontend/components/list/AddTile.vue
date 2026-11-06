@@ -1,8 +1,9 @@
 <script setup>
 /**
  * Kachel in „Produkte hinzufügen“: so hoch wie ihr Inhalt (ab 80 px), Bild
- * 40 px, kleiner Name in höchstens 2 Zeilen, darunter nur bei Bedarf eine Zeile
- * für `meta`. Kacheln einer Reihe sind gleich hoch.
+ * 40 px, `meta` rechts daneben, darunter der kleine Name in höchstens 2 Zeilen.
+ * Das Raster gibt jeder Reihe die Höhe ihrer höchsten Kachel, `height: 100%`
+ * füllt sie, Kacheln einer Reihe sind also gleich hoch.
  *
  * - Ein Tipp irgendwo auf die Kachel erhöht um 1 (aus 0 wird 1); die Kachel
  *   behält dabei ihre Größe, schnelle Tipps treffen immer dasselbe Produkt.
@@ -12,7 +13,7 @@
  *   „Menge“, den nur Tastatur und Bildschirmleser finden.
  *
  * v-model: Menge (0 = nicht ausgewählt).
- * `meta`: kurzer Text unter dem Namen (Packungsgröße, „erledigt“), ohne ihn die
+ * `meta`: kurzer Text neben dem Bild (Packungsgröße, „erledigt“), ohne ihn die
  * Einheit.
  */
 import { computed, nextTick, useTemplateRef } from 'vue';
@@ -103,9 +104,11 @@ const { control, openMenu, close, listeners, onClickCapture } = useQuantityHold(
         @click.capture="onClickCapture"
     >
         <button type="button" class="add-tile__main" data-name="tile" :aria-label="label" @click="increase">
-            <ProductImage size="tile" :image-url="imageUrl" :icon="icon" :category="category" />
+            <span class="add-tile__top">
+                <ProductImage size="tile" :image-url="imageUrl" :icon="icon" :category="category" />
+                <span v-if="metaText" class="add-tile__meta">{{ metaText }}</span>
+            </span>
             <span class="add-tile__name">{{ name }}</span>
-            <span v-if="metaText" class="add-tile__meta">{{ metaText }}</span>
         </button>
 
         <span v-if="selected" class="add-tile__badge" aria-hidden="true">{{ badgeText }}</span>
@@ -139,6 +142,7 @@ const { control, openMenu, close, listeners, onClickCapture } = useQuantityHold(
 /* Halten darf weder Text markieren noch das iOS-Menü für Bilder öffnen */
 .add-tile {
     position: relative;
+    height: 100%;
     min-height: var(--tile-min-height);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
@@ -205,10 +209,18 @@ const { control, openMenu, close, listeners, onClickCapture } = useQuantityHold(
     line-clamp: 2;
 }
 
-.add-tile__meta {
+.add-tile__top {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--space-2);
     width: 100%;
-    margin-top: auto;
-    padding-top: var(--space-1);
+    min-width: 0;
+}
+
+/* unten am Bild: oben rechts steht das Mengen-Badge */
+.add-tile__meta {
+    flex: 1;
+    min-width: 0;
     overflow: hidden;
     color: var(--color-text-2);
     font-size: var(--font-size-caption);

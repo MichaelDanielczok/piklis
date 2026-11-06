@@ -194,7 +194,7 @@
 
     --row-min-height: 4rem; /* 64, Listenzeile */
     --thumb-size: 2.75rem; /* 44, Bild/Icon in der Zeile */
-    --thumb-size-tile: 3rem; /* 48, Bild/Icon in der Hinzufügen-Kachel */
+    --thumb-size-tile: 2.5rem; /* 40, Bild/Icon in der Hinzufügen-Kachel */
     --thumb-size-lg: 5rem; /* 80, Musterseite und Details */
     --thumb-icon-ratio: 0.68; /* Ersatzicon im Feld: 30 von 44 px */
     --product-hero-size: 15rem; /* 240, großes Bild bzw. Icon im Produktdetail */
@@ -209,7 +209,11 @@
     --check-ring-size: 1.75rem; /* 28 */
     --swipe-action-width: 5.5rem; /* 88, je Aktion hinter einer nach links gewischten Zeile */
     --progress-height: 0.375rem; /* 6, Fortschrittsbalken */
-    --tile-height: 7.75rem; /* 124, Hinzufügen-Kachel */
+    --tile-columns: 3; /* Spalten der Kachelansicht, die einzige Stelle dafür */
+    --tile-height: 7.25rem; /* 116, Hinzufügen-Kachel */
+    --tile-badge-size: 1.5rem; /* 24, Mengen-Badge */
+    --quantity-control-width: 8.5rem; /* 136, Skala und Knöpfe des Mengen-Controls */
+    --z-quantity-control: 30000; /* über Ionics Sheets */
     --tile-min-width: 9.5rem;
     --stepper-button-size: 2.75rem; /* 44, Plus und Minus */
     --sheet-handle-width: 2.25rem;

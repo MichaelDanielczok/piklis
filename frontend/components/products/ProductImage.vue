@@ -10,7 +10,7 @@
  * category: färbt Feld und Linie des Ersatzicons dezent nach der Kategorie
  * (`data-category`, Tokens `--cat-…` in tokens.css); ohne Kategorie neutral.
  *
- * size: row (44 px, Listenzeile) · tile (48 px, Hinzufügen-Kachel) · lg (80 px) ·
+ * size: row (44 px, Listenzeile) · tile (40 px, Hinzufügen-Kachel) · lg (80 px) ·
  * hero (Produktdetail: quadratisch, volle Breite bis 240 px)
  * muted: erledigte Zeile (Foto mit Überlagerung, Icon gedämpft)
  */

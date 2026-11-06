@@ -91,12 +91,18 @@ under `design/piklis-designpaket/`.
   move the list; participants and open links can be removed or withdrawn,
   guests can leave; used or expired links say “Link nicht mehr gültig,
   bitte um einen neuen”
-- Adding products: picker without keyboard on open, two columns of tiles
-  (frequently bought first, weighted over 90 days, then the catalog A–Z,
-  48 tiles and 24 more while scrolling, order fixed while open), plus
-  becomes “− n +” with the plus at the same place, no duplicate entries,
-  filter “Nur nicht ausgewählte”, search with “„Begriff“ neu anlegen”
-  (product and entry as operations), image or name open the product
+- Adding products: picker without keyboard on open, compact tiles in three
+  columns (one token; frequently bought first, weighted over 90 days, then
+  the catalog A–Z, 48 tiles and 24 more while scrolling, order fixed while
+  open), a tap anywhere on the tile adds 1 and a badge shows the quantity, no
+  duplicate entries; what is already open is hidden on opening, what is
+  tapped stays until leaving, done products stay visible with their hint;
+  search with “„Begriff“ neu anlegen” (product and entry as operations)
+- Quantity control on tiles, list rows and when editing templates: hold for
+  about 350 ms, slide to change, release to save; without sliding it stays
+  open with −, +, “Details” and “Entfernen”; packs step by 1, weights only
+  with a set unit; keyboard and screen readers reach it through a button
+  and need no gesture
 - Not got, completion and archive: swipe a row to the left for the buttons
   “Nicht bekommen” (own section, symbol and text, undo in the toast) and
   “Entfernen” (undo in the toast), swiping itself runs nothing; rows show the

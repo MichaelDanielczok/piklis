@@ -13,6 +13,9 @@ export const UNITS = ['piece', 'pack', 'bottle', 'cup', 'can', 'jar', 'bag', 'ne
 
 export const DECIMAL_UNITS = ['kg', 'l'];
 
+/** Gewichte und Volumen: Sie zählen in eigenen Schritten, alles andere Stück für Stück. */
+export const MEASURE_UNITS = ['g', 'kg', 'ml', 'l'];
+
 export const MAX_AMOUNT = 9999;
 
 export const MAX_DECIMALS = 3;
@@ -27,6 +30,46 @@ const DECIMAL_NUMBER = /^(\d+[,.]?\d*|[,.]\d+)$/;
 
 export function allowsDecimals(unit) {
     return DECIMAL_UNITS.includes(unit);
+}
+
+/**
+ * Schrittweite für −, + und das Mengen-Control: Packungen 1, Gewichtsschritte
+ * nur bei gesetzter Einheit (50 g und ml, 0,5 kg und l).
+ */
+export function quantityStep(unit = null) {
+    if (!MEASURE_UNITS.includes(unit)) {
+        return 1;
+    }
+
+    return allowsDecimals(unit) ? 0.5 : 50;
+}
+
+/**
+ * Menge nach `steps` Schritten (negativ = weniger). Nach oben begrenzt auf
+ * MAX_AMOUNT, nach unten auf den kleinsten Wert über 0, der in Schritten
+ * erreichbar ist (120 g → 20 g). Mit `removable` geht es darunter auf 0, also
+ * „nicht mehr ausgewählt“.
+ *
+ * @param {number} amount
+ * @param {string|null} unit
+ * @param {number} steps
+ * @param {{ removable?: boolean }} [options]
+ * @returns {number}
+ */
+export function steppedAmount(amount, unit, steps, { removable = false } = {}) {
+    const step = Math.round(quantityStep(unit) * SCALE);
+    const current = Math.round(amount * SCALE);
+    const next = current + steps * step;
+
+    if (next > 0) {
+        return Math.min(MAX_AMOUNT, next / SCALE);
+    }
+
+    if (removable) {
+        return 0;
+    }
+
+    return (current % step || step) / SCALE;
 }
 
 /**

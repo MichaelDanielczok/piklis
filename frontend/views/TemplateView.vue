@@ -10,7 +10,8 @@
  *
  * Bearbeiten (ausdrücklich, Konzept: „Dauerhafte Anpassungen erfolgen
  * ausdrücklich über ‚Vorlage bearbeiten‘“): ein Entwurf mit Name, Sortieren
- * am Griff (`useDragSort`, Pfeiltasten), Menge und Notiz im Sheet,
+ * am Griff (`useDragSort`, Pfeiltasten), Menge über das Mengen-Control
+ * (Halten auf der Zeile) oder mit der Notiz im Sheet,
  * Herausnehmen mit „Rückgängig“, „Produkte hinzufügen“ über die Auswahl
  * (`/templates/:id/add`). „Speichern“ schickt alles zusammen mit der
  * Revision, von der der Entwurf ausging; hat jemand anderes inzwischen
@@ -226,6 +227,11 @@ function onEntrySave(changes) {
     if (editedProductId.value) {
         updateDraftItem(templateId, editedProductId.value, changes);
     }
+}
+
+/** Mengen-Control: neue Menge im Entwurf, die Einheit bleibt. */
+function changeAmount(row, amount) {
+    updateDraftItem(templateId, row.key, { quantity: { ...row.item.quantity, amount } });
 }
 
 function remove(row, index) {
@@ -537,7 +543,9 @@ async function onCreateList(fields) {
                             :category="row.category"
                             status="open"
                             trailing="remove"
+                            quantity-control
                             @details="openEntry(row.key)"
+                            @quantity="changeAmount(row, $event)"
                             @remove="remove(row, index)"
                             @handle-pointerdown="startDrag($event, row.key)"
                             @move="moveByKey(row, index, $event)"

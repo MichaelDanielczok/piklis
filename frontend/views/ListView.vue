@@ -22,6 +22,9 @@
  *   der Zahl wartender Änderungen, je Eintrag „noch nicht übertragen“.
  *   Abhaken, Mengen, Hinzufügen, Sortieren und Abschließen gehen über die
  *   Warteschlange; Verschieben, Kopieren und Teilen nur mit Verbindung.
+ * - Halten auf einer offenen Zeile: Mengen-Control (`QuantityControl`), Schieben
+ *   ändert die Menge, Loslassen speichert; ohne Schieben mit −, +, „Details“
+ *   und „Entfernen“.
  * - Nach links wischen: Knöpfe „Nicht bekommen“ (eigener Abschnitt, mit
  *   „Rückgängig“ im Toast) und „Entfernen“ (ebenso mit „Rückgängig“); im
  *   Abschnitt „Nicht bekommen“ stattdessen „Wieder offen“ und „Entfernen“.
@@ -101,6 +104,7 @@ import {
     removeEntry,
     reopenList,
     restoreEntry,
+    setEntry,
     uncheckEntry,
     updateList,
     useLists
@@ -593,6 +597,11 @@ async function remove(entry) {
     });
 }
 
+/** Mengen-Control: neue Menge, die Einheit bleibt. */
+function changeAmount(entry, amount) {
+    setEntry(entry, { quantity: { amount, unit: entry.quantity.unit } }).catch(logError);
+}
+
 function onSwipeAction(entry, action) {
     ({ notGot, reopen: backToOpen, remove })[action](entry);
 }
@@ -953,7 +962,10 @@ async function onDelete() {
                                 status="open"
                                 :unsynced="isEntryUnsynced(row.entry.id)"
                                 :swipe="swipeOpenRow"
+                                quantity-control
                                 @details="openEntry(row.entry)"
+                                @quantity="changeAmount(row.entry, $event)"
+                                @remove="remove(row.entry)"
                                 @swipe-action="onSwipeAction(row.entry, $event)"
                                 @toggle="check(row.entry)"
                                 @handle-pointerdown="startDrag($event, row.entry.id)"

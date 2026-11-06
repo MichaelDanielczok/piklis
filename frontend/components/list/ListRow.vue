@@ -33,6 +33,11 @@
  * übernommen wurde. `readonly` (abgeschlossene Liste): Zustand nur als
  * Symbol, ohne Griff und ohne Abhaken.
  *
+ * `quantityControl`: Halten auf der Zeile öffnet das Mengen-Control
+ * (`useQuantityHold`, nicht auf Griff und Abhaken). Es meldet `quantity` mit der
+ * neuen Menge, `details` und `remove`. Tastatur und Bildschirmleser erreichen es
+ * über den Knopf „Menge“, der erst mit dem Fokus erscheint.
+ *
  * Vorlagen (`trailing`): `remove` zeigt rechts statt des Abhakens einen
  * Knopf zum Herausnehmen (`remove`), `none` lässt die Fläche weg (Vorlage
  * ansehen).
@@ -40,7 +45,9 @@
 import { computed, useId, useTemplateRef } from 'vue';
 import { ArrowRight, Check, CloudUpload, GripVertical, RotateCcw, Trash2, X } from '@lucide/vue';
 import ProductImage from '@/components/products/ProductImage.vue';
+import QuantityControl from './QuantityControl.vue';
 import QuantityLabel from './QuantityLabel.vue';
+import { useQuantityHold } from '@/composables/useQuantityHold.js';
 import { useRowSwipe } from '@/composables/useRowSwipe.js';
 import { t } from '@/i18n/index.js';
 
@@ -101,6 +108,10 @@ const props = defineProps({
         type: Array,
         default: null
     },
+    quantityControl: {
+        type: Boolean,
+        default: false
+    },
     trailing: {
         type: String,
         default: 'check',
@@ -108,7 +119,7 @@ const props = defineProps({
     }
 });
 
-const emit = defineEmits(['details', 'toggle', 'transfer', 'handle-pointerdown', 'move', 'swipe-action', 'remove']);
+const emit = defineEmits(['details', 'toggle', 'transfer', 'handle-pointerdown', 'move', 'swipe-action', 'remove', 'quantity']);
 
 const handleHintId = useId();
 const isDone = computed(() => props.status === 'done');
@@ -125,11 +136,21 @@ const notGotText = computed(() => {
 
 const rootRef = useTemplateRef('root');
 const actionsRef = useTemplateRef('actions');
-const { offset, dragging, close, listeners, onClickCapture } = useRowSwipe({
+const { offset, dragging, close, release, listeners, onClickCapture } = useRowSwipe({
     root: rootRef,
     actions: actionsRef,
     enabled: () => props.swipe !== null && !props.readonly
 });
+
+const hold = useQuantityHold({
+    root: useTemplateRef('content'),
+    enabled: () => props.quantityControl && !props.readonly && offset.value === 0,
+    amount: () => props.amount,
+    unit: () => props.unit,
+    onCommit: (amount) => emit('quantity', amount),
+    onHold: release
+});
+const { control } = hold;
 
 /** Geschlossene Zeile: zweites Tippen beim Zuschieben löst nicht noch einmal aus. */
 function runSwipeAction(action) {
@@ -151,7 +172,8 @@ function runSwipeAction(action) {
             'list-row--not-got': isNotGot,
             'list-row--readonly': readonly,
             'list-row--no-trailing': trailing === 'none',
-            'list-row--swiped': offset !== 0
+            'list-row--swiped': offset !== 0,
+            'list-row--held': control
         }"
         v-on="listeners"
         @click.capture="onClickCapture"
@@ -178,11 +200,14 @@ function runSwipeAction(action) {
         </div>
 
         <div
+            ref="content"
             class="list-row__content"
             :class="{ 'is-dragging': dragging }"
             :style="offset !== 0 ? { transform: `translateX(${offset}px)` } : undefined"
+            v-on="hold.listeners"
+            @click.capture="hold.onClickCapture"
         >
-            <div class="list-row__handle-zone">
+            <div class="list-row__handle-zone" data-no-hold>
                 <button
                     v-if="status === 'open' && !readonly"
                     type="button"
@@ -233,7 +258,18 @@ function runSwipeAction(action) {
                 <QuantityLabel class="list-row__quantity" :amount="amount" :unit="unit" />
             </button>
 
-            <div v-if="trailing === 'remove'" class="list-row__check-zone">
+            <button
+                v-if="quantityControl && !readonly"
+                type="button"
+                class="list-row__more visually-hidden-focusable"
+                aria-haspopup="dialog"
+                :aria-label="t('quantityControl.open', { name })"
+                @click="hold.openMenu($event.currentTarget)"
+            >
+                {{ t('quantityControl.openShort') }}
+            </button>
+
+            <div v-if="trailing === 'remove'" class="list-row__check-zone" data-no-hold>
                 <button
                     type="button"
                     class="list-row__check list-row__check--remove"
@@ -244,7 +280,7 @@ function runSwipeAction(action) {
                     <Trash2 class="list-row__remove-icon" aria-hidden="true" />
                 </button>
             </div>
-            <div v-else-if="trailing === 'check'" class="list-row__check-zone">
+            <div v-else-if="trailing === 'check'" class="list-row__check-zone" data-no-hold>
                 <span v-if="readonly" class="list-row__check list-row__check--static" aria-hidden="true">
                     <span v-if="isNotGot" class="list-row__transfer">
                         <X class="list-row__transfer-icon" />
@@ -278,6 +314,18 @@ function runSwipeAction(action) {
                 </button>
             </div>
         </div>
+
+        <QuantityControl
+            v-if="control"
+            :state="control"
+            :name="name"
+            :amount="amount"
+            :unit="unit"
+            @change="emit('quantity', $event)"
+            @details="emit('details')"
+            @remove="emit('remove')"
+            @close="hold.close"
+        />
     </li>
 </template>
 
@@ -302,7 +350,21 @@ function runSwipeAction(action) {
     min-width: 0;
     background: var(--color-surface-1);
     touch-action: pan-y;
+    /* Halten darf weder Text markieren noch das iOS-Menü für Bilder öffnen */
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
     transition: transform var(--duration-medium) var(--ease-out);
+}
+
+.list-row__content :deep(img) {
+    pointer-events: none;
+    -webkit-user-drag: none;
+}
+
+.list-row--held .list-row__content {
+    outline: 2px solid var(--color-accent);
+    outline-offset: -2px;
 }
 
 .list-row__content.is-dragging {
@@ -520,6 +582,17 @@ function runSwipeAction(action) {
 /* ohne Fläche rechts (Vorlage ansehen): Menge mit Abstand zum Rand */
 .list-row--no-trailing .list-row__details {
     padding-right: var(--space-4);
+}
+
+/* erst mit dem Fokus sichtbar: am Finger öffnet Halten dasselbe Control */
+.list-row__more:focus-visible {
+    flex: none;
+    align-self: center;
+    margin-right: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    outline: var(--focus-ring-width) solid var(--color-accent);
+    font-size: var(--font-size-small);
 }
 
 /* 3 · Abhaken */

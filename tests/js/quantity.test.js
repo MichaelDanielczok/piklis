@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { parseQuantity, validateQuantity, formatAmount, formatQuantity, parseAmount, sameQuantity } from '@/utils/quantity.js';
+import { parseQuantity, quantityStep, steppedAmount, validateQuantity, formatAmount, formatQuantity, parseAmount, sameQuantity } from '@/utils/quantity.js';
 
 const fixture = JSON.parse(readFileSync(new URL('../fixtures/quantities.json', import.meta.url), 'utf8'));
 
@@ -46,4 +46,29 @@ test('sameQuantity compares amount and unit', () => {
     assert.ok(sameQuantity({ amount: 2, unit: null }, { amount: 2 }));
     assert.ok(!sameQuantity({ amount: 2, unit: null }, { amount: 2, unit: 'pack' }));
     assert.ok(sameQuantity({ amount: 0.1 + 0.2, unit: 'kg' }, { amount: 0.3, unit: 'kg' }));
+});
+
+test('packs step by one, weights only with a set unit', () => {
+    assert.equal(quantityStep(null), 1);
+    assert.equal(quantityStep('pack'), 1);
+    assert.equal(quantityStep('g'), 50);
+    assert.equal(quantityStep('ml'), 50);
+    assert.equal(quantityStep('kg'), 0.5);
+    assert.equal(quantityStep('l'), 0.5);
+});
+
+test('stepping stops at the smallest reachable amount', () => {
+    assert.equal(steppedAmount(2, null, 1), 3);
+    assert.equal(steppedAmount(1, null, -1), 1);
+    assert.equal(steppedAmount(120, 'g', -5), 20);
+    assert.equal(steppedAmount(1.25, 'kg', -1), 0.75);
+    assert.equal(steppedAmount(0.5, 'kg', -1), 0.5);
+    assert.equal(steppedAmount(9999, null, 1), 9999);
+});
+
+test('stepping below the minimum removes when allowed', () => {
+    assert.equal(steppedAmount(1, null, -1, { removable: true }), 0);
+    assert.equal(steppedAmount(50, 'g', -1, { removable: true }), 0);
+    assert.equal(steppedAmount(0, null, 1, { removable: true }), 1);
+    assert.equal(steppedAmount(0, null, -1, { removable: true }), 0);
 });

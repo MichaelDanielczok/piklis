@@ -15,7 +15,7 @@ import { computed, ref, useId, watch } from 'vue';
 import { CircleAlert, Minus, Plus } from '@lucide/vue';
 import AppButton from '@/components/ui/AppButton.vue';
 import AppSheet from '@/components/ui/AppSheet.vue';
-import { allowsDecimals, formatAmount, parseQuantity, sameQuantity, UNITS, unitName } from '@/utils/quantity.js';
+import { allowsDecimals, formatAmount, parseQuantity, quantityStep, sameQuantity, UNITS, unitName } from '@/utils/quantity.js';
 import { t } from '@/i18n/index.js';
 
 const NOTE_MAX = 500;
@@ -79,13 +79,7 @@ const amountError = computed(() => {
     return parsed.value.error ? t('entry.errors.' + parsed.value.error) : '';
 });
 
-const step = computed(() => {
-    if (unit.value === 'g' || unit.value === 'ml') {
-        return 50;
-    }
-
-    return allowsDecimals(unit.value) ? 0.5 : 1;
-});
+const step = computed(() => quantityStep(unit.value));
 
 const currentAmount = computed(() => parsed.value.amount ?? 0);
 const canDecrease = computed(() => currentAmount.value - step.value > 0);

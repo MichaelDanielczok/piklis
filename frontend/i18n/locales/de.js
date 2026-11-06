@@ -408,7 +408,7 @@ export default {
         subtitle: '{selected} · {list}',
         searchLabel: 'Produkte suchen oder neu anlegen',
         searchPlaceholder: 'Suchen oder neu anlegen',
-        onlyUnselected: 'Nur nicht ausgewählte',
+        hiddenSelected: { one: '{count} schon ausgewähltes ausgeblendet', other: '{count} schon ausgewählte ausgeblendet' },
         orderHint: 'häufig zuerst',
         results: '{count} Treffer',
         sectionCreated: 'Neu angelegt',
@@ -418,12 +418,12 @@ export default {
         tiles: 'Produkte',
         done: 'erledigt',
         notGot: 'nicht bekommen',
-        openDetail: 'Details zu „{name}“',
         create: '„{name}“ neu anlegen',
         createHint: 'als neues Produkt, direkt auf die Liste',
         createHintTemplate: 'als neues Produkt, direkt in die Vorlage',
         added: '„{name}“ hinzugefügt',
         removed: '„{name}“ entfernt',
+        quantity: '„{name}“: {quantity}',
         created: '„{name}“ angelegt und hinzugefügt',
         createRejected: '„{name}“ konnte nicht angelegt werden',
         nameTooLong: 'Höchstens {max} Zeichen für einen Namen',
@@ -787,7 +787,7 @@ export default {
         startList: 'Neue Liste daraus',
         edit: 'Vorlage bearbeiten',
         editTitle: 'Vorlage bearbeiten',
-        editHint: 'Sortieren am Griff, Menge und Notiz durch Antippen. Erst „Speichern“ übernimmt alles; Listen aus dieser Vorlage bleiben unverändert.',
+        editHint: 'Sortieren am Griff, Menge und Notiz durch Antippen, die Menge auch durch Halten. Erst „Speichern“ übernimmt alles; Listen aus dieser Vorlage bleiben unverändert.',
         emptyTitle: 'Noch keine Produkte',
         emptyText: 'Füge Produkte hinzu, die du bei diesem Einkauf meistens brauchst.',
         removed: '„{name}“ aus der Vorlage genommen',
@@ -1013,10 +1013,15 @@ export default {
     },
     tile: {
         add: '„{name}“ hinzufügen',
-        increase: '„{name}“: eins mehr',
-        decrease: '„{name}“: eins weniger',
-        remove: '„{name}“ entfernen',
-        selected: 'ausgewählt'
+        increase: '„{name}“: {quantity}, eins mehr'
+    },
+    quantityControl: {
+        open: '„{name}“: Menge und Details',
+        openShort: 'Menge',
+        increase: '„{name}“: mehr',
+        decrease: '„{name}“: weniger',
+        details: 'Details',
+        remove: 'Entfernen'
     },
     section: {
         count: '{label} · {count}'
@@ -1029,7 +1034,7 @@ export default {
         sourceDesign: 'Designpaket',
         sourceOwn: 'eigen',
         family: 'Farbe: {family}',
-        sizes: 'Größen 44 · 48 · 80 px'
+        sizes: 'Größen 40 · 44 · 80 px'
     },
     components: {
         title: 'Musterseite',

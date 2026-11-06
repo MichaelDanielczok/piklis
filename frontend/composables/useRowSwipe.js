@@ -56,6 +56,12 @@ export function useRowSwipe({ root, actions, enabled }) {
         }
     });
 
+    /** Das Mengen-Control übernimmt den Finger: kein Wischen mehr, offene Zeile schließt sich. */
+    function release() {
+        start = null;
+        openRow.value = null;
+    }
+
     function onPointerDown(event) {
         if (!enabled() || event.button > 0 || event.target.closest('[data-name="handle"], [data-name="swipe-action"]')) {
             return;
@@ -165,6 +171,7 @@ export function useRowSwipe({ root, actions, enabled }) {
         offset,
         dragging,
         close,
+        release,
         listeners: {
             pointerdown: onPointerDown,
             pointermove: onPointerMove,

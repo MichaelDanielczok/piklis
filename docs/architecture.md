@@ -58,7 +58,7 @@ committed because the server does not build (no Node there).
 | `api/index.js` | the only module that talks to the server (REST and core Ajax) |
 | `api/operations.js` | operations: builders, queue, sending, pull since revision (see [Sync](#sync)) |
 | `api/localStore.js` | local storage in IndexedDB without a library: the queue and the offline copies (see [Offline](#offline)) |
-| `composables/` | shared state: session (with the household summary), household (`useHousehold.js`), templates with their drafts (`useTemplates.js`), toast, page transition, product catalog (`useProducts.js`), server settings (`useConfig.js`), media query, shopping lists (`useLists.js`), sorting by the drag handle (`useDragSort.js`), swiping a row (`useRowSwipe.js`) |
+| `composables/` | shared state: session (with the household summary), household (`useHousehold.js`), templates with their drafts (`useTemplates.js`), toast, page transition, product catalog (`useProducts.js`), server settings (`useConfig.js`), media query, shopping lists (`useLists.js`), sorting by the drag handle (`useDragSort.js`), swiping a row (`useRowSwipe.js`), holding and sliding for the quantity control (`useQuantityHold.js`) |
 | `components/layout/` | page frame and header, sidebar, mobile navigation, nav items, user menu |
 | `components/ui/` | button, sheet, section label, theme switch, avatar, logo, empty state, search field |
 | `components/list/` | list row, row group, skeleton row, quantity, add tile |
@@ -197,13 +197,14 @@ data and sample photos cut from the design package's drawn placeholders.
 
 | Component | Purpose |
 | --- | --- |
-| `products/ProductImage.vue` | photo or fallback icon with the same size and radius (`row` 44 px, `tile` 48 px, `lg` 80 px, `hero` square up to 240 px in the detail); `muted` for done rows and hidden products; a broken photo falls back to the icon |
+| `products/ProductImage.vue` | photo or fallback icon with the same size and radius (`row` 44 px, `tile` 40 px, `lg` 80 px, `hero` square up to 240 px in the detail); `muted` for done rows and hidden products; a broken photo falls back to the icon |
 | `products/ProductIcon.vue` | one fallback icon from the sprite (`#pk-<name>`, unknown names show `allgemein`) |
 | `list/ListRow.vue` | list row with three separate touch areas: handle (32 px wide, full row height), details (image, name max. 2 lines, note or status, quantity), check zone (60 px wide, full row height, ring 28 px). States `open` · `done` · `notGot` (transfer button instead of the ring), plus `unsynced` |
 | `list/RowGroup.vue` | card for rows, separators instead of single cards |
 | `list/SkeletonRow.vue` | loading row with exactly the end height (64 px) and the same zones, flat without shimmer |
 | `list/QuantityLabel.vue` | quantity, semibold with tabular figures |
-| `list/AddTile.vue` | tile in “Produkte hinzufügen”: fixed height 124 px, plus button turns into “− 1 +” with the plus at the same place, inset outline when selected, minus at 1 removes; `meta` (package size, “erledigt”), `openLabel` makes image and name a button (`open`) |
+| `list/AddTile.vue` | tile in “Produkte hinzufügen”: fixed height 116 px, image 40 px, name in 14 px, a tap anywhere adds 1, badge with the quantity, inset outline when selected; `meta` (package size, “erledigt”); holding opens the quantity control (`open` for “Details”) |
+| `list/QuantityControl.vue` | quantity control for tile and row: scale next to the finger while holding, small dialog with −, +, “Details”, “Entfernen” otherwise; see [Quantity control](#quantity-control) |
 | `list/AddTileSkeleton.vue` | loading tile in the same height |
 | `ui/SectionLabel.vue` | section heading in capitals (“ERLEDIGT · 8”), capitals by CSS only |
 | `ui/AppSheet.vue` | bottom sheet (see above) |
@@ -1008,6 +1009,47 @@ screens 01–07 and 10.
   block 46 px, overview cards like the card and as many as last time; title and subtitle keep their
   height while the list name is loading.
 
+## Quantity control
+
+Concept in Obsidian “Piklis Konzept” › “Mengen, Reihenfolge und
+Wiederherstellen”. One component for tile and row, also when editing a
+template: `QuantityControl.vue` shows it, `useQuantityHold.js` is the gesture
+(Pointer Events, no library), `steppedAmount()` and `quantityStep()` in
+`utils/quantity.js` are the steps.
+
+- **Hold:** 350 ms on one spot open a vertical scale next to the finger, on
+  the side with more room. Moving 8 px earlier counts as scrolling or
+  swiping and starts nothing, a scroll taken over by the browser ends the
+  press (`pointercancel`).
+- **Slide:** every 20 px up is one step more, down one less; releasing saves
+  once and closes. At the end of the scale the reference point moves along,
+  so turning back acts at once. A cancelled gesture saves nothing.
+- **Without sliding** the control stays open as a dialog with −, +, “Details”
+  and “Entfernen”; − and + act at once, a tap beside it closes it. For 300 ms
+  after releasing it takes no taps, the click of the finished touch would
+  otherwise land on it.
+- **Steps:** 1 for packs and everything without a unit; 50 for g and ml, 0.5
+  for kg and l, only when that unit was set on purpose. Rows stop at the
+  smallest amount reachable above 0 (120 g → 20 g), tiles reach 0, which
+  takes the product off. The same rule as in `EntrySheet.vue`.
+- **Scrolling:** `touch-action` only counts from the start of a touch, so a
+  non-passive `touchmove` blocks scrolling once the control has the finger.
+- **Swiping:** the control calls `release()` of `useRowSwipe` when it takes
+  over; rows that are swiped open do not start it.
+- **Handle and check area:** marked `data-no-hold`, they start nothing.
+- **iOS:** tiles and rows set `-webkit-touch-callout: none` and `user-select:
+  none`, photos in them take no pointer events and no drag. The control and
+  its backdrop use `touch-action: none`, otherwise quick taps on + zoom the
+  page. The backdrop is a real button: Safari did not report taps on a plain
+  element there.
+- **Without a gesture:** a button “Menge” appears on keyboard focus and stays
+  reachable for screen readers (`visually-hidden-focusable`) in tile and
+  row. It opens the same dialog: `role="dialog"`, `ion-app` becomes `inert`,
+  the quantity is a live region, Escape or “Schließen” close it, and the
+  focus returns to the button.
+- The control is teleported to `body` and closes on every route change,
+  because Ionic keeps pages alive in the history.
+
 ## Adding products
 
 Concept in Obsidian “Piklis Konzept” › “Neue Liste und Produktauswahl”,
@@ -1020,22 +1062,30 @@ decisions “Produktauswahl und Übernahme”; design package screens 08 and 09.
   scrolling and with the keyboard open (`stickyHead` and the `head` slot of
   `AppPage`), also when editing a template. Changing the search scrolls back
   to the top, where the hits are.
-- **Tiles** (`AddTile.vue`, two columns on phones, three from 48 em):
-  fixed height 124 px, image and name are one button that opens the
-  product (on the list: `/lists/:id/entries/:entryId` with quantity and
-  note; otherwise `/products/:id`), separate from the plus. First tap on
-  plus: quantity 1; then “− n +” with the plus at the same place; minus at
-  1 takes the product off the list (`entry.remove`). Nothing on the page
-  changes size while tapping: the tile keeps its height, the subtitle
-  “35 ausgewählt · Lidl” stays on one line.
+- **Tiles** (`AddTile.vue`): the number of columns is the single token
+  `--tile-columns` (3 for now, on every width; two or three is decided on
+  the phone). Fixed height 116 px. The whole tile is one button: the first
+  tap sets quantity 1, every further tap adds 1, a badge shows the quantity
+  (weights with their unit). Holding opens the
+  [quantity control](#quantity-control); “Details” goes to the entry
+  (`/lists/:id/entries/:entryId` with quantity and note) or to
+  `/products/:id`. Nothing on the page changes size while tapping: the tile
+  keeps its height, the subtitle “35 ausgewählt · Lidl” stays on one line.
+- **What is shown:** products that are open on the list when the view opens
+  are hidden, the line above the tiles says how many (“3 schon ausgewählte
+  ausgeblendet”). Tiles tapped here stay in place until the view is left,
+  done and not-got products stay visible with their hint. A hidden product
+  comes back if its entry stops being open meanwhile (somebody else checked
+  it). The search ignores the hiding: it shows open products with their
+  badge, otherwise “neu anlegen” would invite duplicates.
 - **No duplicates:** `setProductQuantity(listId, productId, amount)` in
   `useLists.js` sets the quantity of the open entry, adds one
   (`entry.add`) or removes it; it acts on the display state at once, also
   for several taps in the same tick. Done entries do not count as “on the
   list” (decision from step 2): their tile is unselected and shows
-  “erledigt”, plus adds a second entry (“noch mal Milch”), which the tile
+  “erledigt”, a tap adds a second entry (“noch mal Milch”), which the tile
   then shows with its quantity. Not-got entries behave the same (tile
-  “nicht bekommen”, plus adds a new open entry; decision of step 7).
+  “nicht bekommen”, a tap adds a new open entry; decision of step 7).
 - **Order** (`utils/pickerOrder.js`): products created here (section
   “Neu angelegt”), then the suggestions (“Häufig gekauft”), then the rest
   of the catalog alphabetically (“Weitere Produkte”, without suggestions

@@ -3,35 +3,37 @@
  * „Produkte hinzufügen“ (Designpaket 08 und 09, docs/architecture.md,
  * „Adding products“).
  *
- * - Öffnet ohne Fokus im Suchfeld (keine Tastatur), mit zwei Spalten
- *   Kacheln: hier angelegte · häufig gekauft (Vorschläge vom Server) ·
- *   übriger Katalog alphabetisch. Die Reihenfolge wird beim ersten Laden
- *   festgehalten und bleibt, solange die Ansicht offen ist. Erst 48 Kacheln,
- *   beim Scrollen je 24 mehr.
- * - Erster Tipp auf Plus: Menge 1; danach „− Menge +“, das Plus an derselben
- *   Stelle; Minus bei 1 nimmt das Produkt wieder von der Liste. Kein Produkt
- *   doppelt: Plus erhöht den offenen Eintrag. Erledigte und nicht bekommene
+ * - Öffnet ohne Fokus im Suchfeld (keine Tastatur), mit Kacheln (Spaltenzahl:
+ *   Token `--tile-columns`): hier angelegte · häufig gekauft (Vorschläge vom
+ *   Server) · übriger Katalog alphabetisch. Die Reihenfolge wird beim ersten
+ *   Laden festgehalten und bleibt, solange die Ansicht offen ist. Erst 48
+ *   Kacheln, beim Scrollen je 24 mehr.
+ * - Ein Tipp auf die Kachel: Menge 1, jeder weitere +1, ein Badge zeigt die
+ *   Menge. Halten öffnet das Mengen-Control mit „Details“ und „Entfernen“ (auf
+ *   der Liste mit Menge und Notiz, sonst die Produktseite). Kein Produkt
+ *   doppelt: Tippen erhöht den offenen Eintrag. Erledigte und nicht bekommene
  *   Einträge zählen nicht („noch mal Milch“ legt einen zweiten, offenen an),
- *   die Kachel zeigt „erledigt“ bzw. „nicht bekommen“.
- * - „Nur nicht ausgewählte“ blendet aus, was beim Einschalten ausgewählt
- *   war; was danach dazukommt, bleibt stehen (Kacheln springen nicht).
+ *   die Kachel bleibt mit „erledigt“ bzw. „nicht bekommen“ sichtbar.
+ * - Was beim Öffnen schon offen auf der Liste steht, ist ausgeblendet; was
+ *   danach angetippt wird, bleibt stehen, bis man die Ansicht verlässt
+ *   (Kacheln springen nicht). Die Suche findet auch Ausgeblendetes, sonst
+ *   entstünden über „neu anlegen“ Dubletten.
  * - Kopf und Suchfeld kleben oben: Eingabe und Rückweg bleiben beim Scrollen
  *   und bei offener Tastatur sichtbar.
  * - Suche erst beim Antippen; Treffer als Kacheln, am Ende immer
  *   „„Begriff“ neu anlegen“ (Produkt und Eintrag als Operationen). Die Suche
  *   beginnt oben, auch wenn weiter unten gescrollt war.
- * - Bild oder Name öffnen das Produkt: auf der Liste mit Menge und Notiz,
- *   sonst die Produktseite. „Fertig“ führt zur Liste.
+ * - „Fertig“ führt zur Liste.
  *
  * Dieselbe Auswahl füllt beim Bearbeiten einer Vorlage deren Entwurf
- * (Route `/templates/:id/add`, Schritt 12): Plus und Minus ändern nur den
- * Entwurf, gespeichert wird erst in der Vorlage. Dort gibt es kein
- * „erledigt“ und kein „nicht bekommen“; Bild oder Name öffnen das Produkt.
+ * (Route `/templates/:id/add`, Schritt 12): Kacheln und Mengen-Control ändern
+ * nur den Entwurf, gespeichert wird erst in der Vorlage. Dort gibt es kein
+ * „erledigt“ und kein „nicht bekommen“; „Details“ öffnet das Produkt.
  */
 import { logError } from '@/api/index.js';
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 import { onIonViewWillEnter, useIonRouter } from '@ionic/vue';
-import { Check, Plus, TriangleAlert } from '@lucide/vue';
+import { Plus, TriangleAlert } from '@lucide/vue';
 import { useRoute } from 'vue-router';
 import AppPage from '@/components/layout/AppPage.vue';
 import AddTile from '@/components/list/AddTile.vue';
@@ -46,6 +48,7 @@ import { loadProducts, loadSuggestions, useProducts } from '@/composables/usePro
 import { navigateBack } from '@/composables/usePageTransition.js';
 import { showToast } from '@/composables/useToast.js';
 import { categoryOf, iconOf } from '@/products/catalog.js';
+import { formatQuantity } from '@/utils/quantity.js';
 import { countOrder, currentOrder, FIRST_PAGE, freezeOrder, nextLimit, sliceOrder } from '@/utils/pickerOrder.js';
 import { t } from '@/i18n/index.js';
 
@@ -97,7 +100,6 @@ const { catalog, status: productStatus, search, findProduct } = useProducts();
 const page = ref(null);
 const query = ref('');
 const searchField = ref(null);
-const onlyUnselected = ref(false);
 const announcement = ref('');
 const suggestionsLoaded = ref(false);
 const limit = ref(FIRST_PAGE);
@@ -106,8 +108,8 @@ const limit = ref(FIRST_PAGE);
 const frozen = shallowRef(null);
 /** Hier angelegte Produkte, neueste zuerst. */
 const createdHere = ref([]);
-/** Beim Einschalten des Filters ausgewählte Produkte. */
-const filteredOut = shallowRef(new Set());
+/** Beim Öffnen schon offene Produkte; was hier dazukommt, gehört nicht dazu und bleibt stehen. */
+const openOnArrival = shallowRef(new Set());
 
 let suggestions = null;
 
@@ -166,15 +168,14 @@ function quantityOf(productId) {
     return onList.value.active.get(productId)?.quantity.amount ?? 0;
 }
 
-function shownWithFilter(ids) {
-    if (!onlyUnselected.value) {
-        return ids;
-    }
+/** Ausgeblendet: beim Öffnen offen und noch immer offen (sonst z. B. von jemandem erledigt). */
+const hidden = computed(() => new Set([...openOnArrival.value].filter((id) => onList.value.active.has(id))));
 
-    return ids.filter((id) => !filteredOut.value.has(id));
+function withoutHidden(ids) {
+    return ids.filter((id) => !hidden.value.has(id));
 }
 
-/** Abschnitte der Auswahl ohne Suche, gefiltert, noch nicht begrenzt. */
+/** Abschnitte der Auswahl ohne Suche und ohne Ausgeblendetes, noch nicht begrenzt. */
 const order = computed(() => {
     if (!frozen.value) {
         return { created: [], suggested: [], rest: [] };
@@ -183,9 +184,9 @@ const order = computed(() => {
     const current = currentOrder(frozen.value, catalog.value, createdHere.value);
 
     return {
-        created: shownWithFilter(current.created),
-        suggested: shownWithFilter(current.suggested),
-        rest: shownWithFilter(current.rest)
+        created: withoutHidden(current.created),
+        suggested: withoutHidden(current.suggested),
+        rest: withoutHidden(current.rest)
     };
 });
 
@@ -220,14 +221,13 @@ const results = computed(() => {
         return [];
     }
 
-    const hits = search(searchText.value, { limit: SEARCH_LIMIT }).map((product) => product.id);
-
-    return shownWithFilter(hits);
+    return search(searchText.value, { limit: SEARCH_LIMIT }).map((product) => product.id);
 });
 
 const canCreate = computed(() => searchText.value.length > 0 && searchText.value.length <= NAME_MAX);
 
 const info = computed(() => (searching.value ? t('addProducts.results', { count: results.value.length }) : t('addProducts.orderHint')));
+const hiddenNote = computed(() => (!searching.value && hidden.value.size > 0 ? t('addProducts.hiddenSelected', { count: hidden.value.size }) : ''));
 
 // Reihenfolge festhalten, sobald Liste, Katalog und Vorschläge da sind
 watch(
@@ -235,6 +235,7 @@ watch(
     ([listOk, catalogOk, suggestionsOk]) => {
         if (!frozen.value && listOk && catalogOk && suggestionsOk) {
             frozen.value = freezeOrder(catalog.value, suggestions);
+            openOnArrival.value = new Set(onList.value.active.keys());
         }
     },
     { immediate: true }
@@ -292,6 +293,7 @@ function metaOf(product) {
 
 function setQuantity(productId, amount) {
     const before = quantityOf(productId);
+    const unit = onList.value.active.get(productId)?.quantity.unit ?? null;
 
     if (isTemplate) {
         setDraftQuantity(listId, productId, amount);
@@ -303,6 +305,8 @@ function setQuantity(productId, amount) {
         announcement.value = t('addProducts.added', { name: productName(productId) });
     } else if (before > 0 && amount <= 0) {
         announcement.value = t('addProducts.removed', { name: productName(productId) });
+    } else if (amount > 0) {
+        announcement.value = t('addProducts.quantity', { name: productName(productId), quantity: formatQuantity(amount, unit) });
     }
 }
 
@@ -316,10 +320,6 @@ function openProduct(productId) {
 
     ionRouter.push('/products/' + encodeURIComponent(productId));
 }
-
-watch(onlyUnselected, (on) => {
-    filteredOut.value = on ? new Set(onList.value.active.keys()) : new Set();
-});
 
 function create() {
     if (!canCreate.value) {
@@ -413,14 +413,8 @@ onBeforeUnmount(() => {
 
         <div class="picker">
             <div class="picker__bar">
-                <label class="picker__filter" :class="{ 'picker__filter--on': onlyUnselected }">
-                    <input v-model="onlyUnselected" type="checkbox" class="picker__filter-input">
-                    <span class="picker__filter-box" aria-hidden="true">
-                        <Check class="picker__filter-check" />
-                    </span>
-                    {{ t('addProducts.onlyUnselected') }}
-                </label>
-                <span class="picker__info">{{ info }}</span>
+                <span class="picker__info">{{ hiddenNote }}</span>
+                <span class="picker__info picker__info--end">{{ info }}</span>
             </div>
 
             <EmptyState v-if="failed" :icon="TriangleAlert" :title="isTemplate ? t('template.loadError') : t('list.loadError')">
@@ -449,7 +443,6 @@ onBeforeUnmount(() => {
                             :category="categoryOf(findProduct(productId))"
                             :unit="onList.active.get(productId)?.quantity.unit ?? null"
                             :meta="metaOf(findProduct(productId))"
-                            :open-label="t('addProducts.openDetail', { name: findProduct(productId).name })"
                             @update:model-value="(amount) => setQuantity(productId, amount)"
                             @open="openProduct(productId)"
                         />
@@ -472,7 +465,7 @@ onBeforeUnmount(() => {
 
             <template v-else>
                 <p v-if="total === 0" class="picker__note">
-                    {{ onlyUnselected && catalog.length > 0 ? t('addProducts.allSelected') : t('addProducts.emptyCatalog') }}
+                    {{ hidden.size > 0 ? t('addProducts.allSelected') : t('addProducts.emptyCatalog') }}
                 </p>
 
                 <div v-else class="picker__sections">
@@ -488,8 +481,7 @@ onBeforeUnmount(() => {
                                     :category="categoryOf(findProduct(productId))"
                                     :unit="onList.active.get(productId)?.quantity.unit ?? null"
                                     :meta="metaOf(findProduct(productId))"
-                                    :open-label="t('addProducts.openDetail', { name: findProduct(productId).name })"
-                                    @update:model-value="(amount) => setQuantity(productId, amount)"
+                                            @update:model-value="(amount) => setQuantity(productId, amount)"
                                     @open="openProduct(productId)"
                                 />
                             </li>
@@ -549,79 +541,23 @@ onBeforeUnmount(() => {
 
 .picker__bar {
     display: flex;
-    align-items: center;
     justify-content: space-between;
     gap: var(--space-3);
-    min-height: var(--tap-size);
-}
-
-/* Filter als Pille mit echtem Kontrollkästchen (Zustand für Screenreader) */
-.picker__filter {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2);
-    min-height: var(--tap-size);
-    padding: 0 var(--space-4) 0 var(--space-3);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-pill);
-    background: var(--color-surface-1);
-    color: var(--color-text-1);
-    font-size: var(--font-size-title);
-    cursor: pointer;
-    user-select: none;
-    -webkit-tap-highlight-color: transparent;
-}
-
-.picker__filter--on {
-    border-color: var(--color-accent);
-    background: var(--color-accent-tint);
-}
-
-.picker__filter-input {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    margin: 0;
-    border-radius: var(--radius-pill);
-    opacity: 0;
-    cursor: pointer;
-}
-
-.picker__filter:has(.picker__filter-input:focus-visible) {
-    outline: var(--focus-ring-width) solid var(--color-accent);
-    outline-offset: 2px;
-}
-
-.picker__filter-box {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.25rem;
-    height: 1.25rem;
-    border: 2px solid var(--color-text-2);
-    border-radius: var(--radius-xs);
-    color: transparent;
-}
-
-.picker__filter--on .picker__filter-box {
-    border-color: var(--color-accent);
-    background: var(--color-accent);
-    color: var(--color-on-accent);
-}
-
-.picker__filter-check {
-    width: 0.875rem;
-    height: 0.875rem;
-    stroke-width: 3;
+    min-height: var(--line-height-note);
 }
 
 .picker__info {
-    flex: none;
+    min-width: 0;
+    overflow: hidden;
     color: var(--color-text-2);
     font-size: var(--font-size-note);
     line-height: var(--line-height-note);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.picker__info--end {
+    flex: none;
 }
 
 .picker__sections {
@@ -652,19 +588,12 @@ onBeforeUnmount(() => {
 
 .picker__grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-3);
+    grid-template-columns: repeat(var(--tile-columns), minmax(0, 1fr));
+    gap: var(--space-2);
 }
 
 .picker__grid--first {
     padding-top: var(--space-1);
-}
-
-/* ab Tablet drei Spalten: die Listenbreite (45 rem) gibt Kacheln von gut 200 px */
-@media (min-width: 48em) {
-    .picker__grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
 }
 
 /* Streifen über dem Ende der Kacheln: berührt er den sichtbaren Bereich, kommen 24 mehr */

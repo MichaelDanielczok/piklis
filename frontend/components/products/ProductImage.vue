@@ -10,7 +10,7 @@
  * category: färbt Feld und Linie des Ersatzicons dezent nach der Kategorie
  * (`data-category`, Tokens `--cat-…` in tokens.css); ohne Kategorie neutral.
  *
- * size: row (44 px, Listenzeile) · tile (40 px, Hinzufügen-Kachel) · lg (80 px) ·
+ * size: row (44 px, Listenzeile) · tile (40 px, Hinzufügen-Kachel) · md (64 px) · lg (80 px) ·
  * hero (Produktdetail: quadratisch, volle Breite bis 240 px)
  * muted: erledigte Zeile (Foto mit Überlagerung, Icon gedämpft)
  */
@@ -33,7 +33,7 @@ const props = defineProps({
     size: {
         type: String,
         default: 'row',
-        validator: (value) => ['row', 'tile', 'lg', 'hero'].includes(value)
+        validator: (value) => ['row', 'tile', 'md', 'lg', 'hero'].includes(value)
     },
     muted: {
         type: Boolean,
@@ -92,6 +92,11 @@ watch(() => props.imageUrl, () => {
 
 .product-image--tile {
     --product-image-size: var(--thumb-size-tile);
+}
+
+.product-image--md {
+    --product-image-size: var(--thumb-size-md);
+    border-radius: var(--radius-md);
 }
 
 .product-image--lg {

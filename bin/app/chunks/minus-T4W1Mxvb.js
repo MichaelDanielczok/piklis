@@ -1,0 +1,1 @@
+import{R as e}from"./AppPage-6nM9Nm42.js";var t=e({name:`minus`,size:24,node:[[`path`,{d:`M5 12h14`,key:`1ays0h`}]]});export{t};

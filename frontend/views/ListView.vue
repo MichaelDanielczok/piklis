@@ -24,9 +24,10 @@
  *   der Zahl wartender Änderungen, je Eintrag „noch nicht übertragen“.
  *   Abhaken, Mengen, Hinzufügen, Sortieren und Abschließen gehen über die
  *   Warteschlange; Verschieben, Kopieren und Teilen nur mit Verbindung.
- * - Halten auf einer offenen Zeile: Mengen-Control (`QuantityControl`), Schieben
- *   ändert die Menge, Loslassen speichert; ohne Schieben mit −, +, „Details“
- *   und „Entfernen“.
+ * - Halten auf einer offenen Zeile (`ListRow`, Halten-Geste): Ziehen ändert die
+ *   Menge, Loslassen speichert mit Toast und „Rückgängig“, 0 entfernt; Halten
+ *   und Loslassen öffnet das Aktionsmenü (Menge, Details, Notiz im
+ *   `EntrySheet`, In andere Liste übernehmen, Nicht bekommen, Entfernen).
  * - Nach links wischen: Knöpfe „Nicht bekommen“ (eigener Abschnitt, mit
  *   „Rückgängig“ im Toast) und „Entfernen“ (ebenso mit „Rückgängig“); im
  *   Abschnitt „Nicht bekommen“ stattdessen „Wieder offen“ und „Entfernen“.
@@ -78,6 +79,7 @@ import ListRow from '@/components/list/ListRow.vue';
 import SkeletonRow from '@/components/list/SkeletonRow.vue';
 import ListFormSheet from '@/components/lists/ListFormSheet.vue';
 import ListShareSheet from '@/components/lists/ListShareSheet.vue';
+import EntrySheet from '@/components/lists/EntrySheet.vue';
 import TransferSheet from '@/components/lists/TransferSheet.vue';
 import TemplateSaveSheet from '@/components/templates/TemplateSaveSheet.vue';
 import OfflineNote from '@/components/ui/OfflineNote.vue';
@@ -140,6 +142,8 @@ const live = listView(listId);
 const frozen = shallowRef(null);
 const view = computed(() => frozen.value ?? live.value);
 const { activeLists, archivedLists, overview, online, orphans } = useLists();
+const ROW_MENU_ACTIONS = ['details', 'note', 'transfer', 'notGot'];
+
 const { findProduct, status: productStatus } = useProducts();
 
 const openListRef = useTemplateRef('openList');
@@ -147,6 +151,8 @@ const doneListRef = useTemplateRef('doneList');
 const addBar = useTemplateRef('addBar');
 
 const formOpen = ref(false);
+const noteEntryId = ref(null);
+const noteOpen = ref(false);
 const shareOpen = ref(false);
 const newFromOpen = ref(false);
 const templateSaveOpen = ref(false);
@@ -161,6 +167,16 @@ const busy = new Set();
 const settling = ref(false);
 
 const list = computed(() => view.value.list);
+const noteEntry = computed(() => (noteEntryId.value ? findEntry(listId, noteEntryId.value) : null));
+
+/** Unterzeile im Aktionsmenü: „Lidl · Haushalt“. */
+const menuSubtitle = computed(() => {
+    if (!list.value) {
+        return '';
+    }
+
+    return list.value.name + ' · ' + (list.value.householdId ? t('lists.originHousehold') : t('lists.originPersonal'));
+});
 const counts = computed(() => view.value.counts);
 const isCompleted = computed(() => list.value?.status === 'completed');
 const isGuest = computed(() => list.value?.role === 'guest');
@@ -599,9 +615,43 @@ async function remove(entry) {
     });
 }
 
-/** Mengen-Control: neue Menge, die Einheit bleibt. */
+/** Halten-Geste und Aktionsmenü: neue Menge, die Einheit bleibt. */
 function changeAmount(entry, amount) {
     setEntry(entry, { quantity: { amount, unit: entry.quantity.unit } }).catch(logError);
+}
+
+/** Geste beendet oder Menü geschlossen: Menge melden, „Rückgängig“ holt die vorherige. */
+function amountChanged(entry, before, amount) {
+    const { name } = rowOf(entry);
+
+    showToast(t('list.amountToast', { name, quantity: formatQuantity(amount, entry.quantity.unit) }), {
+        icon: 'info',
+        action: {
+            text: t('common.undo'),
+            handler: () => {
+                const current = findEntry(listId, entry.id);
+
+                if (current) {
+                    changeAmount(current, before);
+                }
+            }
+        }
+    });
+}
+
+function openNote(entry) {
+    noteEntryId.value = entry.id;
+    noteOpen.value = true;
+}
+
+function saveNote(changes) {
+    if (noteEntry.value) {
+        setEntry(noteEntry.value, changes).catch(logError);
+    }
+}
+
+function onRowAction(entry, action) {
+    ({ note: openNote, notGot, transfer: (item) => openTransfer([item]) })[action](entry);
 }
 
 function onSwipeAction(entry, action) {
@@ -962,8 +1012,12 @@ async function onDelete() {
                                 :unsynced="isEntryUnsynced(row.entry.id)"
                                 :swipe="swipeOpenRow"
                                 quantity-control
+                                :menu-actions="ROW_MENU_ACTIONS"
+                                :menu-subtitle="menuSubtitle"
                                 @details="openEntry(row.entry)"
                                 @quantity="changeAmount(row.entry, $event)"
+                                @quantity-done="(before, amount) => amountChanged(row.entry, before, amount)"
+                                @action="onRowAction(row.entry, $event)"
                                 @remove="remove(row.entry)"
                                 @swipe-action="onSwipeAction(row.entry, $event)"
                                 @toggle="check(row.entry)"
@@ -1099,6 +1153,17 @@ async function onDelete() {
         <ListShareSheet v-if="list" v-model:open="shareOpen" :list="list" @left="onLeft" />
 
         <ListFormSheet v-if="list" v-model:open="newFromOpen" :source-list-id="listId" @submit="onCreateFrom" />
+
+        <!-- immer im DOM: Das Sheet füllt seine Felder beim Öffnen -->
+        <EntrySheet
+            v-model:open="noteOpen"
+            :entry="noteEntry"
+            :product-name="noteEntry ? rowOf(noteEntry).name : ''"
+            :product="noteEntry ? findProduct(noteEntry.productId) : null"
+            :list-name="list?.name ?? ''"
+            list-item-fields
+            @save="saveNote"
+        />
 
         <TransferSheet
             v-if="list"

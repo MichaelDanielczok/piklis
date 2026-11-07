@@ -356,6 +356,7 @@ export default {
         swipeNotGot: 'Nicht bekommen',
         swipeReopen: 'Wieder offen',
         swipeRemove: 'Entfernen',
+        amountToast: '„{name}“: {quantity}',
         notGotToast: '„{name}“ nicht bekommen'
     },
     entry: {
@@ -410,14 +411,11 @@ export default {
     addBar: {
         placeholder: 'Produkt hinzufügen',
         suggestions: 'Vorschläge',
-        onList: 'auf der Liste · {quantity}',
-        noMatch: 'Nicht im Katalog. Die Eingabetaste trägt „{name}“ nur auf dieser Liste ein.',
         noProducts: 'Noch keine Produkte im Katalog.',
         freeAdd: '„{name}“ zur Liste',
         freeHint: 'nur auf dieser Liste',
         scan: 'Scannen',
         tiles: 'Kachelansicht',
-        switchMode: 'Variante der Leiste wechseln, jetzt {mode}',
         scanTitle: 'Barcode scannen',
         scanAgain: 'Neu scannen',
         scanNewTitle: 'Neues Produkt',
@@ -980,6 +978,14 @@ export default {
         title: 'Einstellungen',
         theme: 'Darstellung',
         themeHint: 'Automatisch folgt der Einstellung des Geräts.',
+        holdTest: 'Halten-Geste (Testphase)',
+        holdTestHint: 'Gilt in Listen, Kacheln und Vorlagen und für dein ganzes Konto.',
+        quantityVariant: 'Mengenwahl',
+        quantityRuler: 'Lineal',
+        quantityCounter: 'Zählwerk',
+        menuVariant: 'Aktionsmenü',
+        menuSheet: 'Sheet',
+        menuDialog: 'Dialog',
         offline: 'Offline',
         offlineHint: 'Aktive Listen, der Katalog und die Bilder der Produkte auf deinen Listen liegen auf diesem Gerät. So kannst du auch ohne Netz einkaufen; Änderungen werden übertragen, sobald wieder Netz da ist.',
         offlineLists: { one: '{count} Liste', other: '{count} Listen' },
@@ -1048,11 +1054,34 @@ export default {
     },
     quantityControl: {
         open: '„{name}“: Menge und Details',
-        openShort: 'Menge',
-        increase: '„{name}“: mehr',
-        decrease: '„{name}“: weniger',
+        openShort: 'Menge'
+    },
+    holdLayer: {
+        label: 'Menge ändern: {name}',
+        hint: 'Gedrückt halten und ziehen ändert die Menge. Gedrückt halten und loslassen öffnet die Aktionen. Mit der Kontextmenü-Taste oder Umschalt+F10 öffnen sich die Aktionen ebenfalls.',
+        hintRuler: 'Skala hochziehen für mehr',
+        hintCounter: 'Hochziehen für mehr',
+        hintReleaseRuler: 'Loslassen übernimmt · ○ bisherige Menge',
+        hintRelease: 'Loslassen übernimmt',
+        before: 'vorher {quantity}',
+        steps: 'in Schritten von {quantity}',
+        removes: 'wird entfernt',
+        releaseRemoves: 'Loslassen entfernt das Produkt'
+    },
+    actionMenu: {
+        quantity: 'Menge',
+        less: '{step} weniger',
+        more: '{step} mehr',
         details: 'Details',
-        remove: 'Entfernen'
+        detailsShort: 'Details',
+        note: 'Notiz bearbeiten',
+        noteShort: 'Notiz',
+        transfer: 'In andere Liste übernehmen',
+        transferShort: 'Andere Liste',
+        notGot: 'Nicht bekommen',
+        notGotShort: 'Nicht bekommen',
+        remove: 'Von der Liste entfernen',
+        removeTemplate: 'Aus der Vorlage entfernen'
     },
     section: {
         count: '{label} · {count}'

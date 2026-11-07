@@ -8,19 +8,22 @@
  * - Ein Tipp irgendwo auf die Kachel erhöht um 1 (aus 0 wird 1); die Kachel
  *   behält dabei ihre Größe, schnelle Tipps treffen immer dasselbe Produkt.
  * - Ausgewählt: Badge mit der Menge oben rechts, 2-px-Innenkontur in Grün.
- * - Halten öffnet das Mengen-Control (`useQuantityHold`), dort auch „Details“
- *   (`open`) und „Entfernen“ (Menge 0). Ohne Geste geht es über den Knopf
- *   „Menge“, den nur Tastatur und Bildschirmleser finden.
+ * - Halten und Ziehen ändert die Menge (`QuantityLayer`), 0 nimmt das Produkt
+ *   weg; Halten und Loslassen öffnet das Aktionsmenü mit „Details“ (`open`) und
+ *   „Entfernen“ (`useHoldGesture`). Ohne Geste geht es über den Knopf „Menge“, den
+ *   nur Tastatur und Bildschirmleser finden.
  *
  * v-model: Menge (0 = nicht ausgewählt). Emits: open, increase (nur der Tipp auf
- * die Kachel, nicht das Mengen-Control).
+ * die Kachel, nicht die Halten-Geste).
  * `meta`: kurzer Text neben dem Bild (Packungsgröße, „erledigt“), ohne ihn die
  * Einheit.
  */
 import { computed, nextTick, useTemplateRef } from 'vue';
 import ProductImage from '@/components/products/ProductImage.vue';
-import QuantityControl from './QuantityControl.vue';
-import { useQuantityHold } from '@/composables/useQuantityHold.js';
+import ActionMenu from './ActionMenu.vue';
+import QuantityLayer from './QuantityLayer.vue';
+import { useHoldGesture } from '@/composables/useHoldGesture.js';
+import { useHoldVariants } from '@/composables/useHoldVariants.js';
 import { formatAmount, formatQuantity, MEASURE_UNITS, unitName } from '@/utils/quantity.js';
 import { t } from '@/i18n/index.js';
 
@@ -86,26 +89,36 @@ function setAmount(amount) {
     quantity.value = amount;
 }
 
-const { control, openMenu, close, listeners, onClickCapture } = useQuantityHold({
+function onMenuAction(action) {
+    if (action === 'remove') {
+        setAmount(0);
+    } else {
+        emit('open');
+    }
+}
+
+const { quantityVariant, menuVariant } = useHoldVariants();
+const mainRef = useTemplateRef('main');
+const hold = useHoldGesture({
     root: useTemplateRef('root'),
+    layer: useTemplateRef('layer'),
     enabled: () => true,
     amount: () => quantity.value,
-    unit: () => props.unit,
-    removable: () => true,
     onCommit: setAmount
 });
+const { held, menu, openMenu, closeMenu, markMoved, listeners, onClickCapture } = hold;
 </script>
 
 <template>
     <div
         ref="root"
         class="add-tile"
-        :class="{ 'add-tile--selected': selected, 'add-tile--held': control }"
+        :class="{ 'add-tile--selected': selected, 'add-tile--held': held || menu }"
         :data-category="category || undefined"
         v-on="listeners"
         @click.capture="onClickCapture"
     >
-        <button type="button" class="add-tile__main" data-name="tile" :aria-label="label" @click="increase">
+        <button ref="main" type="button" class="add-tile__main" data-name="tile" aria-haspopup="dialog" :aria-label="label" @click="increase">
             <span class="add-tile__top">
                 <ProductImage size="tile" :image-url="imageUrl" :icon="icon" :category="category" />
                 <span v-if="metaText" class="add-tile__meta">{{ metaText }}</span>
@@ -125,17 +138,36 @@ const { control, openMenu, close, listeners, onClickCapture } = useQuantityHold(
             {{ t('quantityControl.openShort') }}
         </button>
 
-        <QuantityControl
-            v-if="control"
-            :state="control"
+        <QuantityLayer
+            v-if="held"
+            ref="layer"
+            :variant="quantityVariant"
+            :rect="held.rect"
+            wide
             :name="name"
+            :image-url="imageUrl"
+            :icon="icon"
+            :category="category"
+            :amount="held.amount"
+            :unit="unit"
+            @moved="markMoved"
+        />
+
+        <ActionMenu
+            v-if="menu"
+            :variant="menuVariant"
+            :name="name"
+            :subtitle="metaText"
+            :image-url="imageUrl"
+            :icon="icon"
+            :category="category"
             :amount="quantity"
             :unit="unit"
-            removable
+            :removable="selected"
+            :return-focus="menu.opener ?? mainRef"
             @change="setAmount"
-            @details="emit('open')"
-            @remove="setAmount(0)"
-            @close="close"
+            @action="onMenuAction"
+            @close="closeMenu"
         />
     </div>
 </template>

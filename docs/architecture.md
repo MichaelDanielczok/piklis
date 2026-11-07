@@ -25,7 +25,7 @@
 | `package.xml` | registers the REST provider |
 | `database.xml` | own tables, prefix `pk_`, portable types (see [Data model](#data-model)) |
 | `permissions.xml` | `piklis.products.manage`: product maintainers may edit all products (sent as `permissions.manageProducts` in `GET /me`) |
-| `user.xml` | app settings as user attributes (`pk.theme`) |
+| `user.xml` | app settings as user attributes (`pk.theme`, `pk.quantityVariant`, `pk.menuVariant`) |
 | `events.xml` | `onRequest`: service worker and manifest; `onPackageSetup`: base catalog once (`Setup\EventHandler`) |
 | `data/` | `icons.json` (fallback icons, category, source), `keywords.json` (suggestion), `catalog.json` (base catalog), read by PHP and JS |
 | `build/make-sprite.mjs`, `build/icons/` | generates the icon sprite (`npm run icons`) from Lucide, the design package and own icons |
@@ -58,10 +58,10 @@ committed because the server does not build (no Node there).
 | `api/index.js` | the only module that talks to the server (REST and core Ajax) |
 | `api/operations.js` | operations: builders, queue, sending, pull since revision (see [Sync](#sync)) |
 | `api/localStore.js` | local storage in IndexedDB without a library: the queue and the offline copies (see [Offline](#offline)) |
-| `composables/` | shared state: session (with the household summary), household (`useHousehold.js`), templates with their drafts (`useTemplates.js`), toast, page transition, product catalog (`useProducts.js`), server settings (`useConfig.js`), media query, shopping lists (`useLists.js`), sorting by the drag handle (`useDragSort.js`), swiping a row (`useRowSwipe.js`), holding and sliding for the quantity control (`useQuantityHold.js`) |
+| `composables/` | shared state: session (with the household summary), household (`useHousehold.js`), templates with their drafts (`useTemplates.js`), toast, page transition, product catalog (`useProducts.js`), server settings (`useConfig.js`), media query, shopping lists (`useLists.js`), sorting by the drag handle (`useDragSort.js`), swiping a row (`useRowSwipe.js`), the hold gesture and its variants (`useHoldGesture.js`, `useHoldVariants.js`) |
 | `components/layout/` | page frame and header, sidebar, mobile navigation, nav items, user menu |
 | `components/ui/` | button, sheet, section label, theme switch, avatar, logo, empty state, search field |
-| `components/list/` | list row, row group, skeleton row, quantity, add tile, input bar with its suggestions as list or tiles, scan sheet and variant switch (`AddBar*.vue`, `addBarMode.js`) |
+| `components/list/` | list row, row group, skeleton row, quantity, add tile, input bar with its tiles and scan sheet (`AddBar*.vue`), hold gesture layer, ruler, counter and action menu (`QuantityLayer.vue`, `QuantityRuler.vue`, `QuantityCounter.vue`, `ActionMenu.vue`) |
 | `components/lists/` | overview card and its skeleton, sheet “Neue Liste / Liste bearbeiten” (with start from an earlier purchase), sheet for quantity and note of an entry (for list items also photo and description), card “In der Liste …” (`EntryContextCard.vue`), transfer and completion sheet (`TransferSheet.vue`), product checklist (`EntryChecklist.vue`), sheet “Liste teilen” / “Geteilte Liste” (`ListShareSheet.vue`) |
 | `components/templates/` | sheet “Neue Vorlage / Vorlage verwalten” (`TemplateFormSheet.vue`), sheet “Als Vorlage speichern” with the product check (`TemplateSaveSheet.vue`) |
 | `components/household/` | member options (`MemberSheet.vue`), leaving, switching and dissolving with the offer of personal copies (`HouseholdLeaveSheet.vue`) |
@@ -194,8 +194,8 @@ data and sample photos cut from the design package's drawn placeholders.
 | `list/RowGroup.vue` | card for rows, separators instead of single cards |
 | `list/SkeletonRow.vue` | loading row with exactly the end height (64 px) and the same zones, flat without shimmer |
 | `list/QuantityLabel.vue` | quantity, semibold with tabular figures |
-| `list/AddTile.vue` | tile in “Produkte hinzufügen”: as tall as the tallest tile of its grid row (from 80 px), image 40 px with `meta` beside it, name in 14 px, a tap anywhere adds 1, badge with the quantity, inset outline when selected; `meta` (package size, “erledigt”); holding opens the quantity control (`open` for “Details”) |
-| `list/QuantityControl.vue` | quantity control for tile and row: scale next to the finger while holding, small dialog with −, +, “Details”, “Entfernen” otherwise; see [Quantity control](#quantity-control) |
+| `list/AddTile.vue` | tile in “Produkte hinzufügen”: as tall as the tallest tile of its grid row (from 80 px), image 40 px with `meta` beside it, name in 14 px, a tap anywhere adds 1, badge with the quantity, inset outline when selected; `meta` (package size, “erledigt”); holding uses the [hold gesture](#hold-gesture) (`open` for “Details”) |
+| `list/QuantityLayer.vue`, `list/ActionMenu.vue` | hold gesture for tile and row: ruler or counter while dragging, sheet or dialog after holding; see [Hold gesture](#hold-gesture) |
 | `list/AddTileSkeleton.vue` | loading tile in the same height |
 | `ui/SectionLabel.vue` | section heading in capitals (“ERLEDIGT · 8”), capitals by CSS only |
 | `ui/AppSheet.vue` | bottom sheet (see above) |
@@ -772,8 +772,9 @@ merge rules in `Sync\TakeOverMerge`, cases shared with
 - Units: `piece`, `pack`, `bottle`, `cup`, `can`, `jar`, `bag`, `net`,
   `bunch`, `roll`, `bar`, `g`, `kg`, `ml`, `l`; null = without unit (“2 ×”).
 - Decimals only for `kg` and `l`, at most 3 places; all other units whole
-  numbers from 1. Maximum 9999. In the list 1 is the minimum and removing is
-  its own action; in “Produkte hinzufügen” minus at 1 removes the entry.
+  numbers from 1. Maximum 9999. Steppers stop above 0, removing is its own
+  action; dragging the hold gesture to 0 removes, too.
+- g and ml show the large unit from 1000 on (“1,5 kg”), the stored unit stays.
 - Input: comma is the decimal separator; a dot separates thousands when
   exactly three digits follow (`1.500` = 1500, `1.234,5`), otherwise a single
   dot is a decimal point (`1.5`). Error codes: `empty`, `invalid_number`,
@@ -1006,46 +1007,58 @@ screens 01–07 and 10.
   block 46 px, overview cards like the card and as many as last time; title and subtitle keep their
   height while the list name is loading.
 
-## Quantity control
+## Hold gesture
 
-Concept in Obsidian “Piklis Konzept” › “Mengen, Reihenfolge und
-Wiederherstellen”. One component for tile and row, also when editing a
-template: `QuantityControl.vue` shows it, `useQuantityHold.js` is the gesture
-(Pointer Events, no library), `steppedAmount()` and `quantityStep()` in
-`utils/quantity.js` are the steps.
+Hand-over in the instance root under `design/piklis-halten-geste/` (README,
+prototype); the numbers, times and tables come from the prototype 1 : 1. One
+gesture for list rows, tiles and template rows: `useHoldGesture.js` (Pointer
+Events, no library), the layer `QuantityLayer.vue` with the variants
+`QuantityRuler.vue` and `QuantityCounter.vue`, the menu `ActionMenu.vue`
+(sheet or dialog), the scale in `utils/quantityScale.js`.
 
-- **Hold:** 350 ms on one spot open a vertical scale next to the finger, on
-  the side with more room. Moving 8 px earlier counts as scrolling or
-  swiping and starts nothing, a scroll taken over by the browser ends the
-  press (`pointercancel`).
-- **Slide:** every 20 px up is one step more, down one less; releasing saves
-  once and closes. At the end of the scale the reference point moves along,
-  so turning back acts at once. A cancelled gesture saves nothing.
-- **Without sliding** the control stays open as a dialog with −, +, “Details”
-  and “Entfernen”; − and + act at once, a tap beside it closes it. For 300 ms
-  after releasing it takes no taps, the click of the finished touch would
-  otherwise land on it.
-- **Steps:** 1 for packs and everything without a unit; 50 for g and ml, 0.5
-  for kg and l, only when that unit was set on purpose. Rows stop at the
-  smallest amount reachable above 0 (120 g → 20 g), tiles reach 0, which
-  takes the product off. The same rule as in `EntrySheet.vue`.
-- **Scrolling:** `touch-action` only counts from the start of a touch, so a
-  non-passive `touchmove` blocks scrolling once the control has the finger.
-- **Swiping:** the control calls `release()` of `useRowSwipe` when it takes
-  over; rows that are swiped open do not start it.
+- **Hold:** 380 ms on one spot open the quantity layer, vibration 10 ms.
+  Moving 10 px earlier counts as scrolling or swiping, lifting as a tap
+  (details). A swipe that started in the meantime wins.
+- **Hold and drag:** after 6 px the quantity follows the finger without steps
+  (position is a float index), larger values lie below, dragging up pulls them
+  in. Behind the ends a rubber band (0.35, at most 0.45 steps). Releasing
+  snaps in 300 ms (ease-out cubic) and reports the new amount; the same step
+  reports nothing. Each new step vibrates 6 ms (not on iOS) and is announced.
+  The mouse wheel moves one step and counts as dragging.
+- **Hold and release:** the layer fades out (160 ms) and the action menu
+  opens. Keyboard: the context menu key, Shift+F10 or the button “Menge”
+  (`visually-hidden-focusable`) open it without a gesture.
+- **Move and release are followed on the window** while the finger is down:
+  without movement iOS reports `pointerup` to the element under the finger,
+  which is the layer then, not the row.
+- **Scale:** step i is `i × quantityStep(unit)` (1, 50 g/ml, 0.5 kg/l), step 0
+  removes (rows) or takes the tile off. No stored maximum: at least 20 steps,
+  otherwise twice the amount, at most 9999. A free amount (120 g) shows the
+  nearest step; ending there saves nothing. Only visible marks are in the DOM,
+  slots are reused (`slotIndex`).
+- **Ruler:** the held row becomes the lens (row hidden with `opacity`, it keeps
+  the finger), the tape runs through its quantity column. On tiles the lens has
+  row width around the tile.
+- **Counter:** big drum at 54 % of the height, head with image, before and
+  step size.
+- **Action menu:** stepper (− stops above 0), actions per place (`menuActions`:
+  `details`, `note`, `transfer`, `notGot`), “Entfernen” apart. − and + act at
+  once; closing reports the earlier amount for the toast with “Rückgängig”.
+  Close with X, the scrim (a real button, 300 ms armed late), Escape or by
+  dragging the sheet grip 96 px down. Focus on “Schließen”, kept in the menu,
+  back to the row; `ion-app` is `inert` meanwhile, an open toast closes.
+- **Variants** for the test phase per user (`settings.quantityVariant`:
+  `ruler`/`counter`, `settings.menuVariant`: `sheet`/`dialog`, default ruler and
+  sheet; `useHoldVariants.js`, settings view). To remove one, drop its
+  component, its value in `Users\Profile` and the switch.
+- **Scrolling:** a non-passive `touchmove` blocks scrolling once the layer has
+  the finger; `touch-action` only counts from the start of a touch.
 - **Handle and check area:** marked `data-no-hold`, they start nothing.
-- **iOS:** tiles and rows set `-webkit-touch-callout: none` and `user-select:
-  none`, photos in them take no pointer events and no drag. The control and
-  its backdrop use `touch-action: none`, otherwise quick taps on + zoom the
-  page. The backdrop is a real button: Safari did not report taps on a plain
-  element there.
-- **Without a gesture:** a button “Menge” appears on keyboard focus and stays
-  reachable for screen readers (`visually-hidden-focusable`) in tile and
-  row. It opens the same dialog: `role="dialog"`, `ion-app` becomes `inert`,
-  the quantity is a live region, Escape or “Schließen” close it, and the
-  focus returns to the button.
-- The control is teleported to `body` and closes on every route change,
-  because Ionic keeps pages alive in the history.
+- **iOS:** rows and tiles set `-webkit-touch-callout: none` and `user-select:
+  none`. An open keyboard (tiles of the input bar) is closed when the layer
+  opens, otherwise the scale has no room.
+- Layer and menu are teleported to `body` (`--z-hold-layer`) and close on every
+  route change, because Ionic keeps pages alive in the history.
 
 ## Input bar
 
@@ -1055,12 +1068,10 @@ navigation, the plus in the head and the dashed button; archived lists and
 templates do not have it. The button in the empty state stays and leads to
 the tiles. `AppPage` (`addBar`) keeps the space free on wide screens, too.
 
-- **Suggestions:** from the catalog, list items never. Empty field: the most
+- **Tiles:** from the catalog, list items never. Empty field: the most
   frequent products (`topProductIds()`, same weighting as the tiles). While
-  typing: the hits of the catalog search. B shows up to 20 as a list
-  (`AddBarSuggestions.vue`): a product on the list shows “auf der Liste · 1 ×”, a
-  done one “erledigt”. C shows the whole catalog as tiles (`AddBarTiles.vue`,
-  first 48, then 24 more while scrolling, see below).
+  typing: the hits of the catalog search. The whole catalog as tiles
+  (`AddBarTiles.vue`, first 48, then 24 more while scrolling, see below).
 - **Adding:** a suggestion adds exactly this product (`increaseProduct()`: open
   +1, otherwise a new open entry). Enter takes a catalog product only if the name
   is the same (`exactProduct()`: case, accents and punctuation do not count, as
@@ -1076,32 +1087,20 @@ the tiles. `AppPage` (`addBar`) keeps the space free on wide screens, too.
   suggestions more room. `autocapitalize="sentences"`: names start with a capital.
   `:value` with `@input` instead of `v-model`, which waits for the end of a
   composition, so suggestions would lag on Android.
-- **Variants B and C** (`addBarMode.js`), switchable with the button in the bar
-  until Michael has chosen, B by default, also in the build. To remove the
-  switch, leave only the chosen variant in `MODES`.
-  - B: suggestions above the bar, best hit next to it. With the keyboard open
-    the bar slides on top of it (`--keyboard-height`, `transform` over 250 ms).
-    Tapping an input near the bottom makes iOS pan the whole page by the
-    keyboard height, and fixed elements then no longer take taps where they are
-    drawn. So a button lies over the field at rest and calls
-    `focus({ preventScroll: true })`.
-  - C: field and tiles in a layer over the page. The field is always in the
-    DOM: only an existing field gets the focus in the same tap, otherwise iOS
-    does not open the keyboard. The tiles are the ones of “Produkte hinzufügen”
-    (`AddTile`): a tap adds 1, the badge shows the quantity, holding opens the
-    quantity control. What is open on the list when the layer opens or the search
-    is emptied is left out, the search still finds it. Tiles tapped without a
-    search stay until then, so nothing moves under the finger. After a tap on a
-    search hit the search stays for 400 ms, so the badge shows what was added and a
-    quick second tap hits the same product; typing in that time starts a new search. The menu of the quantity
-    control takes the focus, so the keyboard closes until the field is tapped.
-    Without an exact catalog name a row “„Hafer“ zur Liste” above the tiles does
-    what Enter does.
-- **Hardware keyboard:** nothing depends on the on-screen keyboard. On touch
-  screens the suggestions of B wait up to 400 ms for `data-keyboard="open"`,
-  because they would otherwise be too tall for a moment, and then appear anyway.
-  Without an on-screen keyboard the bar stays at the bottom. Tab reaches
-  suggestions and buttons, Escape closes.
+- **Layer:** field and tiles in a layer over the page. The field is always in the
+  DOM: only an existing field gets the focus in the same tap, otherwise iOS
+  does not open the keyboard. The tiles are the ones of “Produkte hinzufügen”
+  (`AddTile`): a tap adds 1, the badge shows the quantity, holding opens the
+  quantity control. What is open on the list when the layer opens or the search
+  is emptied is left out, the search still finds it. Tiles tapped without a
+  search stay until then, so nothing moves under the finger. After a tap on a
+  search hit the search stays for 400 ms, so the badge shows what was added and a
+  quick second tap hits the same product; typing in that time starts a new search. The menu of the quantity
+  control takes the focus, so the keyboard closes until the field is tapped.
+  Without an exact catalog name a row “„Hafer“ zur Liste” above the tiles does
+  what Enter does.
+- **Hardware keyboard:** nothing depends on the on-screen keyboard. Tab reaches
+  tiles and buttons, Escape closes.
 - **Scanner:** `AddBarScanSheet.vue` runs the existing `BarcodeScanner`, or takes
   the number by hand (`BarcodeForm`, also the way out without a camera).
   - In the catalog, or a list item with that barcode on this list: on the list at
@@ -1143,7 +1142,7 @@ decisions “Produktauswahl und Übernahme”; design package screens 08 and 09.
   its tallest tile, from 80 px, and every tile fills its row. The whole tile is one button: the first
   tap sets quantity 1, every further tap adds 1, a badge shows the quantity
   (weights with their unit). Holding opens the
-  [quantity control](#quantity-control); “Details” goes to the entry
+  [hold gesture](#hold-gesture); “Details” goes to the entry
   (`/lists/:id/entries/:entryId` with quantity and note) or to
   `/products/:id`. Nothing on the page changes size while tapping: the tile
   keeps its height, the subtitle “35 ausgewählt · Lidl” stays on one line.
@@ -1716,8 +1715,8 @@ picture of SmartPicker.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/me` | own user: `id`, `name`, `initials` (first and last name), `avatarUrl`, `settings.theme`, `permissions.manageProducts`, `household` (`{ id, name, role }` or null) |
-| `PATCH` | `/me/settings` | `theme` (`auto`/`light`/`dark`); answers like `GET /me` |
+| `GET` | `/me` | own user: `id`, `name`, `initials` (first and last name), `avatarUrl`, `settings` (`theme`, `quantityVariant`, `menuVariant`), `permissions.manageProducts`, `household` (`{ id, name, role }` or null) |
+| `PATCH` | `/me/settings` | `theme` (`auto`/`light`/`dark`), `quantityVariant` (`ruler`/`counter`), `menuVariant` (`sheet`/`dialog`); answers like `GET /me` |
 | `GET` | `/household` | own household `{ id, name, role, createdAt, members: [{ id, name, initials, avatarUrl, role, joinedAt }], invite }` or null; `invite` (`{ code, expiresAt }`) only for admins |
 | `POST` | `/household` | `{ name }`: create (201), the user becomes admin |
 | `POST` | `/household/join` | `{ code, switch?, confirmDissolve? }`: join; `switch` leaves the current household first |

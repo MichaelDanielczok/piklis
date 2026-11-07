@@ -33,10 +33,13 @@
  * übernommen wurde. `readonly` (abgeschlossene Liste): Zustand nur als
  * Symbol, ohne Griff und ohne Abhaken.
  *
- * `quantityControl`: Halten auf der Zeile öffnet das Mengen-Control
- * (`useQuantityHold`, nicht auf Griff und Abhaken). Es meldet `quantity` mit der
- * neuen Menge, `details` und `remove`. Tastatur und Bildschirmleser erreichen es
- * über den Knopf „Menge“, der erst mit dem Fokus erscheint.
+ * `quantityControl`: Halten auf der Zeile (`useHoldGesture`, nicht auf Griff und
+ * Abhaken). Halten und Ziehen ändert die Menge (`QuantityLayer`), 0 heißt
+ * entfernen; Halten und Loslassen öffnet das Aktionsmenü (`ActionMenu`) mit
+ * `menuActions`. Es meldet `quantity` mit der neuen Menge, `quantity-done`
+ * (vorher, jetzt) für den Toast, `details`, `remove` und `action` (alles andere).
+ * Tastatur und Bildschirmleser erreichen das Menü über den Knopf „Menge“, der
+ * erst mit dem Fokus erscheint, über die Kontextmenü-Taste und Umschalt+F10.
  *
  * Vorlagen (`trailing`): `remove` zeigt rechts statt des Abhakens einen
  * Knopf zum Herausnehmen (`remove`), `none` lässt die Fläche weg (Vorlage
@@ -45,9 +48,11 @@
 import { computed, useId, useTemplateRef } from 'vue';
 import { ArrowRight, Check, CloudUpload, GripVertical, RotateCcw, Trash2, X } from '@lucide/vue';
 import ProductImage from '@/components/products/ProductImage.vue';
-import QuantityControl from './QuantityControl.vue';
+import ActionMenu from './ActionMenu.vue';
 import QuantityLabel from './QuantityLabel.vue';
-import { useQuantityHold } from '@/composables/useQuantityHold.js';
+import QuantityLayer from './QuantityLayer.vue';
+import { useHoldGesture } from '@/composables/useHoldGesture.js';
+import { useHoldVariants } from '@/composables/useHoldVariants.js';
 import { useRowSwipe } from '@/composables/useRowSwipe.js';
 import { t } from '@/i18n/index.js';
 
@@ -112,6 +117,18 @@ const props = defineProps({
         type: Boolean,
         default: false
     },
+    menuActions: {
+        type: Array,
+        default: () => ['details']
+    },
+    menuSubtitle: {
+        type: String,
+        default: ''
+    },
+    menuRemoveLabel: {
+        type: String,
+        default: ''
+    },
     trailing: {
         type: String,
         default: 'check',
@@ -119,9 +136,10 @@ const props = defineProps({
     }
 });
 
-const emit = defineEmits(['details', 'toggle', 'transfer', 'handle-pointerdown', 'move', 'swipe-action', 'remove', 'quantity']);
+const emit = defineEmits(['details', 'toggle', 'transfer', 'handle-pointerdown', 'move', 'swipe-action', 'remove', 'quantity', 'quantity-done', 'action']);
 
 const handleHintId = useId();
+const holdHintId = useId();
 const isDone = computed(() => props.status === 'done');
 const isNotGot = computed(() => props.status === 'notGot');
 
@@ -142,15 +160,44 @@ const { offset, dragging, close, release, listeners, onClickCapture } = useRowSw
     enabled: () => props.swipe !== null && !props.readonly
 });
 
-const hold = useQuantityHold({
+const { quantityVariant, menuVariant } = useHoldVariants();
+const detailsRef = useTemplateRef('details');
+const hold = useHoldGesture({
     root: useTemplateRef('content'),
+    layer: useTemplateRef('layer'),
     enabled: () => props.quantityControl && !props.readonly && offset.value === 0,
     amount: () => props.amount,
-    unit: () => props.unit,
-    onCommit: (amount) => emit('quantity', amount),
+    onCommit: commitAmount,
     onHold: release
 });
-const { control } = hold;
+const { held, menu } = hold;
+const hasHold = computed(() => props.quantityControl && !props.readonly);
+
+function commitAmount(amount, before) {
+    if (amount === 0) {
+        emit('remove');
+        return;
+    }
+
+    emit('quantity', amount);
+    emit('quantity-done', before, amount);
+}
+
+function closeMenu(before) {
+    hold.closeMenu();
+
+    if (before !== null) {
+        emit('quantity-done', before, props.amount);
+    }
+}
+
+function onMenuAction(action) {
+    if (action === 'details' || action === 'remove') {
+        emit(action);
+    } else {
+        emit('action', action);
+    }
+}
 
 /** Geschlossene Zeile: zweites Tippen beim Zuschieben löst nicht noch einmal aus. */
 function runSwipeAction(action) {
@@ -173,7 +220,7 @@ function runSwipeAction(action) {
             'list-row--readonly': readonly,
             'list-row--no-trailing': trailing === 'none',
             'list-row--swiped': offset !== 0,
-            'list-row--held': control
+            'list-row--held': held && quantityVariant === 'ruler'
         }"
         v-on="listeners"
         @click.capture="onClickCapture"
@@ -224,7 +271,14 @@ function runSwipeAction(action) {
                 </button>
             </div>
 
-            <button type="button" class="list-row__details" @click="emit('details')">
+            <button
+                ref="details"
+                type="button"
+                class="list-row__details"
+                :aria-haspopup="hasHold ? 'dialog' : undefined"
+                :aria-describedby="hasHold ? holdHintId : undefined"
+                @click="emit('details')"
+            >
                 <ProductImage :image-url="imageUrl" :icon="icon" :category="category" :muted="isDone" />
 
                 <span class="list-row__text">
@@ -258,8 +312,10 @@ function runSwipeAction(action) {
                 <QuantityLabel class="list-row__quantity" :amount="amount" :unit="unit" />
             </button>
 
+            <span v-if="hasHold" :id="holdHintId" class="visually-hidden">{{ t('holdLayer.hint') }}</span>
+
             <button
-                v-if="quantityControl && !readonly"
+                v-if="hasHold"
                 type="button"
                 class="list-row__more visually-hidden-focusable"
                 aria-haspopup="dialog"
@@ -315,16 +371,36 @@ function runSwipeAction(action) {
             </div>
         </div>
 
-        <QuantityControl
-            v-if="control"
-            :state="control"
+        <QuantityLayer
+            v-if="held"
+            ref="layer"
+            :variant="quantityVariant"
+            :rect="held.rect"
             :name="name"
+            :image-url="imageUrl"
+            :icon="icon"
+            :category="category"
+            :amount="held.amount"
+            :unit="unit"
+            @moved="hold.markMoved"
+        />
+
+        <ActionMenu
+            v-if="menu"
+            :variant="menuVariant"
+            :name="name"
+            :subtitle="menuSubtitle"
+            :image-url="imageUrl"
+            :icon="icon"
+            :category="category"
             :amount="amount"
             :unit="unit"
+            :actions="menuActions"
+            :remove-label="menuRemoveLabel"
+            :return-focus="menu.opener ?? detailsRef"
             @change="emit('quantity', $event)"
-            @details="emit('details')"
-            @remove="emit('remove')"
-            @close="hold.close"
+            @action="onMenuAction"
+            @close="closeMenu"
         />
     </li>
 </template>
@@ -362,9 +438,9 @@ function runSwipeAction(action) {
     -webkit-user-drag: none;
 }
 
-.list-row--held .list-row__content {
-    outline: 2px solid var(--color-accent);
-    outline-offset: -2px;
+/* das Sichtfenster des Lineals steht an ihrer Stelle; `opacity`, damit die Zeile den Finger behält */
+.list-row--held {
+    opacity: 0;
 }
 
 .list-row__content.is-dragging {

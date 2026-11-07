@@ -41,6 +41,7 @@ import { navigateBack } from '@/composables/usePageTransition.js';
 import { loadProducts, useProducts } from '@/composables/useProducts.js';
 import { useSession } from '@/composables/useSession.js';
 import { showToast } from '@/composables/useToast.js';
+import { formatQuantity } from '@/utils/quantity.js';
 import {
     copyTemplateTo,
     deleteTemplate,
@@ -233,6 +234,17 @@ function onEntrySave(changes) {
 /** Mengen-Control: neue Menge im Entwurf, die Einheit bleibt. */
 function changeAmount(row, amount) {
     updateDraftItem(templateId, row.key, { quantity: { ...row.item.quantity, amount } });
+}
+
+/** Geste beendet oder Menü geschlossen: Menge melden, „Rückgängig“ holt die vorherige. */
+function amountChanged(row, before, amount) {
+    showToast(t('list.amountToast', { name: row.name, quantity: formatQuantity(amount, row.item.quantity.unit) }), {
+        icon: 'info',
+        action: {
+            text: t('common.undo'),
+            handler: () => changeAmount(row, before)
+        }
+    });
 }
 
 function remove(row, index) {
@@ -545,8 +557,10 @@ async function onCreateList(fields) {
                             status="open"
                             trailing="remove"
                             quantity-control
+                            :menu-remove-label="t('actionMenu.removeTemplate')"
                             @details="openEntry(row.key)"
                             @quantity="changeAmount(row, $event)"
+                            @quantity-done="(before, amount) => amountChanged(row, before, amount)"
                             @remove="remove(row, index)"
                             @handle-pointerdown="startDrag($event, row.key)"
                             @move="moveByKey(row, index, $event)"

@@ -61,6 +61,7 @@
     --color-success: var(--color-done);
     --color-danger: #B3261E;
     --color-on-danger: #FFFFFF;
+    --color-danger-soft: #FBEDEB; /* Fläche des Entfernen-Knopfs im Aktionsmenü */
     /* graue Wisch-Aktion; folgt über die Bezüge auch dem dunklen Thema */
     --color-swipe-neutral: var(--color-text-2);
     --color-on-swipe-neutral: var(--color-surface-1);
@@ -70,6 +71,8 @@
 
     /* Overlays */
     --color-scrim: rgb(20 22 21 / 0.45); /* hinter Sheets */
+    --color-frost: rgb(247 246 243 / 0.88); /* Milchglas der Mengen-Ebene */
+    --hold-blur: blur(0.75rem);
     --color-toast-bg: #1D1F1E;
     --color-toast-text: #ECEDEA;
     --color-toast-action: #5CC495;
@@ -134,7 +137,9 @@
     --font-size-text: 0.9375rem; /* 15: Menge, Fließtext */
     --font-size-title: 1rem; /* 16: Knöpfe, Eingaben (iOS zoomt darunter) */
     --font-size-name: 1.0625rem; /* 17: Produktname */
+    --font-size-menu-title: 1.25rem; /* 20: Titel im Aktionsmenü */
     --font-size-h2: 1.375rem; /* 22: Sheet-Titel */
+    --font-size-stepper: 1.625rem; /* 26: Wert im Dialog */
     --font-size-h1: 1.75rem; /* 28: Bildschirmtitel */
 
     /* Zeilenhöhen in rem, damit Zeilen eine feste Höhe haben */
@@ -195,6 +200,7 @@
     --row-min-height: 4rem; /* 64, Listenzeile */
     --thumb-size: 2.75rem; /* 44, Bild/Icon in der Zeile */
     --thumb-size-tile: 2.5rem; /* 40, Bild/Icon in der Hinzufügen-Kachel */
+    --thumb-size-md: 4rem; /* 64, Kopf des Zählwerks */
     --thumb-size-lg: 5rem; /* 80, Musterseite und Details */
     --thumb-icon-ratio: 0.68; /* Ersatzicon im Feld: 30 von 44 px */
     --product-hero-size: 15rem; /* 240, großes Bild bzw. Icon im Produktdetail */
@@ -212,8 +218,25 @@
     --tile-columns: 3; /* Spalten der Kachelansicht, die einzige Stelle dafür */
     --tile-min-height: 5rem; /* 80, Hinzufügen-Kachel mit einzeiligem Namen; sie wächst mit dem Inhalt */
     --tile-badge-size: 1.5rem; /* 24, Mengen-Badge */
-    --quantity-control-width: 8.5rem; /* 136, Skala und Knöpfe des Mengen-Controls */
-    --z-quantity-control: 30000; /* über Ionics Sheets */
+    --z-hold-layer: 30000; /* Mengen-Ebene und Aktionsmenü, über Ionics Sheets */
+    --hold-tape-width: 11rem; /* 176, Maßband des Lineals */
+    --hold-tape-radius: 1.5rem;
+    --hold-lens-height: 5rem; /* 80, Sichtfenster des Lineals */
+    --hold-lens-radius: 1rem;
+    --hold-ruler-number: 1.875rem; /* 30, Zahlen auf dem Lineal */
+    --hold-ruler-label-width: 7.75rem; /* 124 */
+    --hold-ruler-label-height: 2.25rem; /* 36 */
+    --hold-prev-size: 0.5rem; /* 8, Ring der bisherigen Menge */
+    --hold-band-height: 8.75rem; /* 140, Feld des Zählwerks */
+    --hold-drum-height: 7.75rem; /* 124, Zeile der Trommel */
+    --action-sheet-width: 30rem; /* 480 */
+    --action-dialog-width: 22rem; /* 352 */
+    --action-tile-height: 4.75rem; /* 76, Kachel im Sheet */
+    --action-stepper-sheet: 3.5rem; /* 56 */
+    --action-stepper-dialog: 4.5rem; /* 72 */
+    --action-step-width: 4.5rem; /* 72, Knopf im Sheet */
+    --action-grip-width: 2.5rem; /* 40 */
+    --action-grip-height: 0.3125rem; /* 5 */
     --tile-min-width: 9.5rem;
     --stepper-button-size: 2.75rem; /* 44, Plus und Minus */
     --sheet-handle-width: 2.25rem;
@@ -241,11 +264,18 @@
     --shadow-float: 0 0.75rem 2rem -0.75rem rgb(29 31 30 / 0.28);
     --shadow-toast: 0 0.375rem 1.25rem rgb(0 0 0 / 0.22);
     --shadow-drag: 0 0.625rem 1.5rem rgb(0 0 0 / 0.22);
+    --shadow-lift: 0 1rem 2.25rem rgb(0 0 0 / 0.16); /* Sichtfenster des Lineals */
+    --shadow-tape: 0 0.5rem 1.5rem rgb(0 0 0 / 0.06);
+    --shadow-sheet: 0 -0.75rem 2.5rem rgb(0 0 0 / 0.22);
+    --shadow-dialog: 0 1.5rem 3rem rgb(0 0 0 / 0.28);
     --focus-ring-width: 0.125rem;
     --focus-ring-offset: 0.125rem;
     --duration-fast: 120ms;
     --duration-medium: 200ms;
     --ease-out: cubic-bezier(0.2, 0, 0, 1);
+    --duration-hold-fade: 160ms; /* Mengen-Ebene ein- und ausblenden */
+    --duration-hold-panel: 240ms; /* Sichtfenster, Sheet und Dialog */
+    --ease-hold: cubic-bezier(0.2, 0.8, 0.2, 1);
     --press-scale: 0.97;
     /* endregion */
 }
@@ -284,8 +314,10 @@
         --color-offline-text: #B7C8F0;
         --color-danger: #F2857E;
         --color-on-danger: #2A0D0B;
+        --color-danger-soft: #3A2120;
         --color-focus: #8FA9E8;
         --color-scrim: rgb(0 0 0 / 0.6);
+        --color-frost: rgb(20 22 21 / 0.88);
         --color-toast-bg: #2E3230;
         --color-toast-text: #ECEDEA;
         --color-toast-action: #5CC495;
@@ -295,6 +327,7 @@
         --shadow-1: 0 1px 2px rgb(0 0 0 / 0.3);
         --shadow-menu: 0 0.75rem 2rem -0.5rem rgb(0 0 0 / 0.7);
         --shadow-float: 0 0.75rem 2rem -0.75rem rgb(0 0 0 / 0.8);
+        --shadow-lift: 0 1rem 2.25rem rgb(0 0 0 / 0.5);
         /* Kategorienfarben dunkel: Linie zur Fläche 7,4–8,2 : 1 */
         --cat-green-bg: #233024;
         --cat-green-line: #A9CC9A;
@@ -354,8 +387,10 @@
     --color-offline-text: #B7C8F0;
     --color-danger: #F2857E;
     --color-on-danger: #2A0D0B;
+    --color-danger-soft: #3A2120;
     --color-focus: #8FA9E8;
     --color-scrim: rgb(0 0 0 / 0.6);
+    --color-frost: rgb(20 22 21 / 0.88);
     --color-toast-bg: #2E3230;
     --color-toast-text: #ECEDEA;
     --color-toast-action: #5CC495;
@@ -365,6 +400,7 @@
     --shadow-1: 0 1px 2px rgb(0 0 0 / 0.3);
     --shadow-menu: 0 0.75rem 2rem -0.5rem rgb(0 0 0 / 0.7);
     --shadow-float: 0 0.75rem 2rem -0.75rem rgb(0 0 0 / 0.8);
+    --shadow-lift: 0 1rem 2.25rem rgb(0 0 0 / 0.5);
     /* Kategorienfarben dunkel: Linie zur Fläche 7,4–8,2 : 1 */
     --cat-green-bg: #233024;
     --cat-green-line: #A9CC9A;
@@ -461,5 +497,7 @@
     :root {
         --duration-fast: 0ms;
         --duration-medium: 0ms;
+        --duration-hold-fade: 0ms;
+        --duration-hold-panel: 0ms;
     }
 }

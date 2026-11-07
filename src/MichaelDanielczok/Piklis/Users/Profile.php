@@ -22,7 +22,16 @@ class Profile
 {
     public const ATTRIBUTE_THEME = 'pk.theme';
 
+    public const ATTRIBUTE_QUANTITY_VARIANT = 'pk.quantityVariant';
+
+    public const ATTRIBUTE_MENU_VARIANT = 'pk.menuVariant';
+
     public const THEMES = ['auto', 'light', 'dark'];
+
+    /** Testphase der Halten-Geste: Der erste Wert ist jeweils der Standard. */
+    public const QUANTITY_VARIANTS = ['ruler', 'counter'];
+
+    public const MENU_VARIANTS = ['sheet', 'dialog'];
 
     /** Produktpfleger: dürfen alle Produkte bearbeiten und ausblenden */
     public const PERMISSION_MANAGE_PRODUCTS = 'piklis.products.manage';
@@ -70,7 +79,7 @@ class Profile
     }
 
     /**
-     * @return array{theme: string}
+     * @return array{theme: string, quantityVariant: string, menuVariant: string}
      */
     public function getSettings(): array
     {
@@ -81,8 +90,20 @@ class Profile
         }
 
         return [
-            'theme' => $theme
+            'theme' => $theme,
+            'quantityVariant' => $this->variant(self::ATTRIBUTE_QUANTITY_VARIANT, self::QUANTITY_VARIANTS),
+            'menuVariant' => $this->variant(self::ATTRIBUTE_MENU_VARIANT, self::MENU_VARIANTS)
         ];
+    }
+
+    /**
+     * @param list<string> $variants
+     */
+    private function variant(string $attribute, array $variants): string
+    {
+        $value = $this->User->getAttribute($attribute);
+
+        return in_array($value, $variants, true) ? $value : $variants[0];
     }
 
     /**
@@ -100,6 +121,22 @@ class Profile
             }
 
             $this->User->setAttribute(self::ATTRIBUTE_THEME, $input['theme']);
+        }
+
+        if (isset($input['quantityVariant'])) {
+            if (!in_array($input['quantityVariant'], self::QUANTITY_VARIANTS, true)) {
+                throw new InvalidSettingException('quantityVariant');
+            }
+
+            $this->User->setAttribute(self::ATTRIBUTE_QUANTITY_VARIANT, $input['quantityVariant']);
+        }
+
+        if (isset($input['menuVariant'])) {
+            if (!in_array($input['menuVariant'], self::MENU_VARIANTS, true)) {
+                throw new InvalidSettingException('menuVariant');
+            }
+
+            $this->User->setAttribute(self::ATTRIBUTE_MENU_VARIANT, $input['menuVariant']);
         }
 
         $this->User->save();

@@ -1,8 +1,9 @@
 <script setup>
 /**
  * Einstellungen (aus dem Benutzermenü): Darstellung (dieselbe Wahl wie im
- * Benutzermenü) und was offline auf dem Gerät liegt (Listen, Produkte,
- * Bilder, wartende Änderungen, Größe).
+ * Benutzermenü), Varianten der Halten-Geste (Testphase, je Nutzer) und was
+ * offline auf dem Gerät liegt (Listen, Produkte, Bilder, wartende Änderungen,
+ * Größe).
  *
  * Nur im Entwicklungsserver: Schalter „Offline simulieren“ (`api/index.js`),
  * damit sich Offline-Einkauf und Abgleich im Browser testen lassen.
@@ -10,14 +11,19 @@
 import { computed, ref, useId } from 'vue';
 import { onIonViewWillEnter } from '@ionic/vue';
 import AppPage from '@/components/layout/AppPage.vue';
+import OptionSwitch from '@/components/ui/OptionSwitch.vue';
 import ThemeSwitch from '@/components/ui/ThemeSwitch.vue';
 import { localStore } from '@/api/localStore.js';
 import { useConnection } from '@/composables/useConnection.js';
+import { useHoldVariants } from '@/composables/useHoldVariants.js';
 import { useLists } from '@/composables/useLists.js';
+import { updateSettings } from '@/composables/useSession.js';
+import { showToast } from '@/composables/useToast.js';
 import { imageCacheSize } from '@/utils/offlineImages.js';
 import { formatNumber, t } from '@/i18n/index.js';
 
 const headingId = useId();
+const holdHeadingId = useId();
 const offlineHeadingId = useId();
 const devHeadingId = useId();
 const switchId = useId();
@@ -61,6 +67,27 @@ async function measure() {
 
 onIonViewWillEnter(measure);
 
+const { quantityVariant, menuVariant } = useHoldVariants();
+
+const quantityOptions = [
+    { value: 'ruler', label: t('settings.quantityRuler') },
+    { value: 'counter', label: t('settings.quantityCounter') }
+];
+
+const menuOptions = [
+    { value: 'sheet', label: t('settings.menuSheet') },
+    { value: 'dialog', label: t('settings.menuDialog') }
+];
+
+async function saveVariant(changes) {
+    try {
+        await updateSettings(changes);
+    } catch (error) {
+        console.error(error);
+        showToast(t('common.error'), { icon: 'info' });
+    }
+}
+
 function toggleOffline(event) {
     setSimulatedOffline(event.target.checked);
 }
@@ -73,6 +100,25 @@ function toggleOffline(event) {
                 <h2 :id="headingId" class="settings__heading">{{ t('settings.theme') }}</h2>
                 <ThemeSwitch :label="t('settings.theme')" />
                 <p class="settings__hint">{{ t('settings.themeHint') }}</p>
+            </section>
+
+            <section class="settings__section" :aria-labelledby="holdHeadingId">
+                <h2 :id="holdHeadingId" class="settings__heading">{{ t('settings.holdTest') }}</h2>
+                <h3 class="settings__subheading">{{ t('settings.quantityVariant') }}</h3>
+                <OptionSwitch
+                    :model-value="quantityVariant"
+                    :options="quantityOptions"
+                    :label="t('settings.quantityVariant')"
+                    @update:model-value="saveVariant({ quantityVariant: $event })"
+                />
+                <h3 class="settings__subheading">{{ t('settings.menuVariant') }}</h3>
+                <OptionSwitch
+                    :model-value="menuVariant"
+                    :options="menuOptions"
+                    :label="t('settings.menuVariant')"
+                    @update:model-value="saveVariant({ menuVariant: $event })"
+                />
+                <p class="settings__hint">{{ t('settings.holdTestHint') }}</p>
             </section>
 
             <section class="settings__section" :aria-labelledby="offlineHeadingId">
@@ -125,6 +171,14 @@ function toggleOffline(event) {
     font-size: var(--font-size-name);
     font-weight: var(--font-weight-semibold);
     line-height: var(--line-height-name);
+}
+
+.settings__subheading {
+    margin: 0;
+    color: var(--color-text-2);
+    font-size: var(--font-size-note);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--line-height-note);
 }
 
 .settings__hint {

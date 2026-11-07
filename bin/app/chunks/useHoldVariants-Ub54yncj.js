@@ -1,0 +1,1 @@
+import{St as e,y as t}from"./AppPage-6nM9Nm42.js";function n(){let{user:n}=t();return{quantityVariant:e(()=>n.value?.settings?.quantityVariant??`ruler`),menuVariant:e(()=>n.value?.settings?.menuVariant??`sheet`)}}export{n as t};

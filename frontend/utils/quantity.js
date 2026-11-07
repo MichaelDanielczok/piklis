@@ -4,6 +4,9 @@
  * höchstens 9999. Ohne Einheit „2 ד. Texte und Mehrzahl in i18n (`units.*`,
  * `unitNames.*`).
  *
+ * g und ml zeigen ab 1000 die große Einheit („1,5 kg“), gespeichert bleibt die
+ * gewählte Einheit.
+ *
  * Prüfung, Komma-Eingabe und Zahlanzeige gleich wie `Lists\Quantity` in PHP
  * (gemeinsame Testfälle in `tests/fixtures/quantities.json`).
  */
@@ -21,6 +24,9 @@ export const MAX_AMOUNT = 9999;
 export const MAX_DECIMALS = 3;
 
 const SCALE = 1000;
+
+/** Anzeige ab 1000 in der großen Einheit. */
+const LARGE_UNITS = { g: 'kg', ml: 'l' };
 
 const MAX_INPUT_LENGTH = 20;
 
@@ -162,15 +168,39 @@ export function formatAmount(amount) {
     return formatNumber(Math.round(amount * SCALE) / SCALE, { maximumFractionDigits: MAX_DECIMALS });
 }
 
+/** Was angezeigt wird: 1500 g als 1,5 kg. */
+function shownQuantity(amount, unit) {
+    const large = LARGE_UNITS[unit];
+
+    return large && amount >= SCALE ? { amount: amount / SCALE, unit: large } : { amount, unit };
+}
+
 /**
  * @param {number} amount
  * @param {string|null} [unit] Schlüssel aus UNITS, null ohne Einheit
  */
 export function formatQuantity(amount, unit = null) {
-    const key = UNITS.includes(unit) ? unit : 'none';
-    const count = DECIMAL_UNITS.includes(key) ? Math.round(amount * SCALE) / SCALE : Math.round(amount);
+    const shown = shownQuantity(amount, unit);
+    const key = UNITS.includes(shown.unit) ? shown.unit : 'none';
+    const count = DECIMAL_UNITS.includes(key) ? Math.round(shown.amount * SCALE) / SCALE : Math.round(shown.amount);
 
     return t('units.' + key, { count });
+}
+
+/**
+ * Zahl und Einheit getrennt, etwa für die Trommel des Zählwerks: `1500 g` gibt
+ * „1,5“ und „kg“, `3 jar` „3“ und „Gläser“. Bei 0 bleibt die Einheit leer.
+ *
+ * @returns {{ number: string, unit: string }}
+ */
+export function quantityParts(amount, unit = null) {
+    if (amount === 0) {
+        return { number: formatAmount(0), unit: '' };
+    }
+
+    const number = formatAmount(shownQuantity(amount, unit).amount);
+
+    return { number, unit: formatQuantity(amount, unit).slice(number.length).trim() };
 }
 
 /** Name der Einheit ohne Zahl („Packung“), leer ohne Einheit. */

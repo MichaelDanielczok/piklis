@@ -31,7 +31,7 @@ class ProfileTest extends TestCase
             [Profile::ATTRIBUTE_THEME, 'sepia']
         ]);
 
-        $this->assertSame(['theme' => 'auto'], (new Profile($User))->getSettings());
+        $this->assertSame('auto', (new Profile($User))->getSettings()['theme']);
     }
 
     public function testSettingsHaveNoLanguage(): void
@@ -41,7 +41,8 @@ class ProfileTest extends TestCase
             [Profile::ATTRIBUTE_THEME, 'dark']
         ]);
 
-        $this->assertSame(['theme' => 'dark'], (new Profile($User))->getSettings());
+        $this->assertArrayNotHasKey('language', (new Profile($User))->getSettings());
+        $this->assertSame('dark', (new Profile($User))->getSettings()['theme']);
     }
 
     public function testUpdateSettingsStoresValidTheme(): void
@@ -63,6 +64,47 @@ class ProfileTest extends TestCase
         $this->expectException(InvalidSettingException::class);
 
         (new Profile($User))->updateSettings(['theme' => 'sepia']);
+    }
+
+    public function testHoldVariantsDefaultToRulerAndSheet(): void
+    {
+        $User = $this->createMock(User::class);
+        $User->method('getAttribute')->willReturnMap([
+            [Profile::ATTRIBUTE_QUANTITY_VARIANT, 'wheel'],
+            [Profile::ATTRIBUTE_MENU_VARIANT, null]
+        ]);
+
+        $settings = (new Profile($User))->getSettings();
+
+        $this->assertSame('ruler', $settings['quantityVariant']);
+        $this->assertSame('sheet', $settings['menuVariant']);
+    }
+
+    public function testUpdateSettingsStoresHoldVariants(): void
+    {
+        $User = $this->createMock(User::class);
+        $stored = [];
+        $User->method('setAttribute')->willReturnCallback(function (string $name, string $value) use (&$stored): void {
+            $stored[$name] = $value;
+        });
+        $User->expects($this->once())->method('save');
+
+        (new Profile($User))->updateSettings(['quantityVariant' => 'counter', 'menuVariant' => 'dialog']);
+
+        $this->assertSame([
+            Profile::ATTRIBUTE_QUANTITY_VARIANT => 'counter',
+            Profile::ATTRIBUTE_MENU_VARIANT => 'dialog'
+        ], $stored);
+    }
+
+    public function testUpdateSettingsRejectsUnknownVariant(): void
+    {
+        $User = $this->createMock(User::class);
+        $User->expects($this->never())->method('save');
+
+        $this->expectException(InvalidSettingException::class);
+
+        (new Profile($User))->updateSettings(['menuVariant' => 'popover']);
     }
 
     public function testUpdateSettingsIgnoresLanguage(): void

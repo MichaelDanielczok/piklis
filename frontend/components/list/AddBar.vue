@@ -4,10 +4,9 @@
  * und Produktauswahl“, docs/architecture.md, „Input bar“). Steht unten anstelle
  * der Navigation, führt auch zum Scanner und zur Kachelansicht.
  *
- * - Vorschläge: beim Öffnen die häufigsten Produkte (wie die Kachelansicht), beim
+ * - Kacheln: beim Öffnen die häufigsten Produkte (wie die Kachelansicht), beim
  *   Tippen die Treffer der Katalogsuche. Listenartikel erscheinen dort nie.
- *   B zeigt sie als Liste, C als Kacheln.
- * - Ein Vorschlag fügt genau dieses Produkt hinzu. Die Eingabetaste nimmt nur
+ * - Eine Kachel fügt genau dieses Produkt hinzu. Die Eingabetaste nimmt nur
  *   einen gleichen Namen aus dem Katalog, sonst entsteht ein Listenartikel; ein
  *   Teiltreffer wird nie gewählt. Offen auf der Liste heißt +1, erledigt ein neuer
  *   offener Eintrag. Alles läuft über die Warteschlange, geht also auch offline.
@@ -17,22 +16,15 @@
  * - `:value` statt `v-model`: `v-model` wartet auf das Ende einer Komposition, die
  *   Vorschläge kämen auf Android erst nach dem Wort.
  *
- * Zwei Varianten, bis Michael gewählt hat (`addBarMode.js`):
- *
- * - B: Vorschläge über der Leiste, die bei offener Tastatur direkt darüber sitzt
- *   (`--keyboard-height`). In Ruhe liegt ein Knopf über dem Feld und setzt den
- *   Fokus mit `preventScroll`: Tippt man direkt ins Feld, schiebt iOS die ganze
- *   Seite um die Tastaturhöhe hoch, und Vorschläge sind nicht mehr dort antippbar,
- *   wo man sie sieht.
- * - C: Eingabe und Kacheln in einer Ebene über der Seite. Das Feld steht immer
- *   im DOM, denn nur ein vorhandenes Feld bekommt im selben Tipp den Fokus. Es
- *   erscheint der ganze Katalog, beim Scrollen kommen weitere Kacheln dazu. Was
- *   beim Öffnen oder beim Leeren der Suche offen auf der Liste steht, fehlt, die
- *   Suche findet es trotzdem. Ohne Suche angetippte Kacheln bleiben bis dahin
- *   stehen, damit nichts unter dem Finger springt. Nach einem Tipp auf einen
- *   Treffer bleibt die Suche 400 ms stehen: Das Badge zeigt, was dazukam, und ein
- *   schneller zweiter Tipp trifft dasselbe Produkt. Wer sofort weitertippt,
- *   beginnt eine neue Suche.
+ * Eingabe und Kacheln liegen in einer Ebene über der Seite. Das Feld steht immer
+ * im DOM, denn nur ein vorhandenes Feld bekommt im selben Tipp den Fokus. Es
+ * erscheint der ganze Katalog, beim Scrollen kommen weitere Kacheln dazu. Was
+ * beim Öffnen oder beim Leeren der Suche offen auf der Liste steht, fehlt, die
+ * Suche findet es trotzdem. Ohne Suche angetippte Kacheln bleiben bis dahin
+ * stehen, damit nichts unter dem Finger springt. Nach einem Tipp auf einen
+ * Treffer bleibt die Suche 400 ms stehen: Das Badge zeigt, was dazukam, und ein
+ * schneller zweiter Tipp trifft dasselbe Produkt. Wer sofort weitertippt,
+ * beginnt eine neue Suche.
  *
  * Props: listId · Emits: tiles · Exponiert `close()`
  */
@@ -40,9 +32,7 @@ import { computed, onBeforeUnmount, ref, shallowRef, useTemplateRef, watch } fro
 import { useIonRouter } from '@ionic/vue';
 import { LayoutGrid, ScanBarcode, X } from '@lucide/vue';
 import AddBarScanSheet from './AddBarScanSheet.vue';
-import AddBarSuggestions from './AddBarSuggestions.vue';
 import AddBarTiles from './AddBarTiles.vue';
-import { addBarMode as mode, addBarSwitchable, nextAddBarMode } from './addBarMode.js';
 import { createProductOnList, increaseProduct, listView, setProductQuantity } from '@/composables/useLists.js';
 import { useProducts } from '@/composables/useProducts.js';
 import { dismissToast } from '@/composables/useToast.js';
@@ -51,7 +41,6 @@ import { exactProduct } from '@/utils/productSearch.js';
 import { formatQuantity } from '@/utils/quantity.js';
 import { t } from '@/i18n/index.js';
 
-const SUGGESTION_LIMIT = 20;
 const CLEAR_DELAY_MS = 400;
 const NAME_MAX = 120;
 
@@ -73,7 +62,7 @@ const open = ref(false);
 const text = ref('');
 const scanOpen = ref(false);
 const announcement = ref('');
-/** C: beim Öffnen oder Leeren der Suche offene Produkte; was danach dazukommt, bleibt als Kachel stehen. */
+/** Beim Öffnen oder Leeren der Suche offene Produkte; was danach dazukommt, bleibt als Kachel stehen. */
 const openOnArrival = shallowRef(new Set());
 const tileLimit = ref(FIRST_PAGE);
 
@@ -81,16 +70,7 @@ const input = useTemplateRef('input');
 
 let clearTimer = null;
 
-const isB = computed(() => mode.value === 'b');
 const query = computed(() => text.value.trim());
-
-const shown = computed(() => {
-    const products = query.value !== ''
-        ? search(query.value, { limit: SUGGESTION_LIMIT })
-        : topProductIds(catalog.value, suggestions.value, SUGGESTION_LIMIT).map(findProduct);
-
-    return products.map((product) => ({ product, meta: metaOf(product.id) }));
-});
 
 /** Ausgeblendet: beim Öffnen offen und noch immer offen (sonst z. B. von jemandem erledigt). */
 const hidden = computed(() => new Set([...openOnArrival.value].filter((id) => entryOf(id))));
@@ -119,7 +99,7 @@ const freeName = computed(() => (query.value !== '' && !exactProduct(query.value
 watch(query, (value) => {
     tileLimit.value = FIRST_PAGE;
 
-    if (value === '' && !isB.value) {
+    if (value === '') {
         rememberOpen();
     }
 });
@@ -130,8 +110,6 @@ watch(open, (isOpen) => {
         dismissToast();
     }
 });
-
-const emptyText = computed(() => (query.value !== '' ? t('addBar.noMatch', { name: query.value }) : t('addBar.noProducts')));
 
 const tilesEmptyText = computed(() => {
     if (query.value !== '') {
@@ -164,16 +142,6 @@ function tileMeta(product, entry) {
     return product.packageSize ?? '';
 }
 
-function metaOf(productId) {
-    const entry = entryOf(productId);
-
-    if (entry) {
-        return t('addBar.onList', { quantity: formatQuantity(entry.quantity.amount, entry.quantity.unit) });
-    }
-
-    return listState.value.done.some((item) => item.productId === productId) ? t('addProducts.done') : '';
-}
-
 function keepTyping() {
     text.value = '';
     input.value?.focus({ preventScroll: true });
@@ -184,7 +152,7 @@ function cancelClear() {
     clearTimer = null;
 }
 
-/** C: Die Suche bleibt kurz stehen; jeder weitere Tipp verlängert das. */
+/** Die Suche bleibt kurz stehen; jeder weitere Tipp verlängert das. */
 function clearSoon() {
     if (query.value === '') {
         return;
@@ -208,11 +176,6 @@ function onInput(event) {
 function addProduct(product) {
     increaseProduct(props.listId, product.id);
     announcement.value = t('addProducts.added', { name: product.name });
-}
-
-function pick(product) {
-    addProduct(product);
-    keepTyping();
 }
 
 function setTile(product, amount) {
@@ -267,11 +230,8 @@ function submit() {
 }
 
 function openBar() {
-    if (!isB.value) {
-        rememberOpen();
-        tileLimit.value = FIRST_PAGE;
-    }
-
+    rememberOpen();
+    tileLimit.value = FIRST_PAGE;
     open.value = true;
     // im selben Tipp, sonst öffnet iOS die Tastatur nicht
     input.value?.focus({ preventScroll: true });
@@ -282,18 +242,6 @@ function close() {
     open.value = false;
     text.value = '';
     input.value?.blur();
-}
-
-/** B schließt, sobald der Fokus die Leiste verlässt; zwischen ihren Knöpfen bleibt sie offen. */
-function onFocusOut(event) {
-    if (isB.value && !event.currentTarget.contains(event.relatedTarget)) {
-        open.value = false;
-    }
-}
-
-function switchMode() {
-    close();
-    nextAddBarMode();
 }
 
 function openScanner() {
@@ -312,61 +260,12 @@ defineExpose({ close });
 </script>
 
 <template>
-    <div v-if="isB && open" class="add-bar__backdrop" aria-hidden="true" @click="close"></div>
-
-    <div class="add-bar" :class="{ 'add-bar--open': isB && open }" @focusout="onFocusOut" @keydown.esc="close">
-        <AddBarSuggestions
-            v-if="isB && open"
-            class="add-bar__above"
-            :items="shown"
-            :label="t('addBar.suggestions')"
-            :empty-text="emptyText"
-            @pick="pick"
-        />
-
+    <div class="add-bar">
         <form class="add-bar__bar" @submit.prevent="submit">
             <div class="add-bar__field">
-                <input
-                    v-if="isB"
-                    ref="input"
-                    class="add-bar__input"
-                    type="text"
-                    :value="text"
-                    :maxlength="NAME_MAX"
-                    :placeholder="t('addBar.placeholder')"
-                    :aria-label="t('addBar.placeholder')"
-                    autocomplete="off"
-                    autocorrect="off"
-                    autocapitalize="sentences"
-                    spellcheck="false"
-                    enterkeyhint="enter"
-                    @input="onInput"
-                    @focus="open = true"
-                >
-                <!-- `tabindex`: Mit der Tastatur geht es direkt ins Feld, dort verschiebt sich nichts -->
-                <button
-                    v-if="isB"
-                    v-show="!open"
-                    type="button"
-                    class="add-bar__tap"
-                    tabindex="-1"
-                    :aria-label="t('addBar.placeholder')"
-                    @mousedown.prevent
-                    @click="openBar"
-                ></button>
-                <button v-else type="button" class="add-bar__fake" @click="openBar">{{ t('addBar.placeholder') }}</button>
+                <button type="button" class="add-bar__fake" @click="openBar">{{ t('addBar.placeholder') }}</button>
             </div>
 
-            <button
-                v-if="addBarSwitchable"
-                v-show="!open"
-                type="button"
-                class="add-bar__button add-bar__button--switch"
-                :aria-label="t('addBar.switchMode', { mode: mode.toUpperCase() })"
-                @click="switchMode"
-            >
-                {{ mode.toUpperCase() }}
-            </button>
             <button type="button" class="add-bar__button" :aria-label="t('addBar.scan')" aria-haspopup="dialog" @mousedown.prevent @click="openScanner">
                 <ScanBarcode aria-hidden="true" />
             </button>
@@ -376,7 +275,7 @@ defineExpose({ close });
         </form>
     </div>
 
-    <div v-if="!isB" class="add-bar__layer" :class="{ 'add-bar__layer--open': open }" :aria-hidden="open ? undefined : 'true'" @keydown.esc="close">
+    <div class="add-bar__layer" :class="{ 'add-bar__layer--open': open }" :aria-hidden="open ? undefined : 'true'" @keydown.esc="close">
         <div class="add-bar__layer-body">
             <form class="add-bar__layer-head" @submit.prevent="submit">
                 <input
@@ -421,31 +320,12 @@ defineExpose({ close });
 </template>
 
 <style scoped>
-.add-bar__backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 11;
-}
-
 .add-bar {
     position: fixed;
     left: var(--space-4);
     right: var(--space-4);
     bottom: var(--mobile-nav-bottom);
     z-index: 12;
-    /* läuft mit der Tastatur mit, die rund 250 ms braucht */
-    transition: transform 250ms cubic-bezier(0.2, 0, 0, 1);
-}
-
-.add-bar--open {
-    /* nie nach unten: `--keyboard-height` kommt erst kurz nach dem Tipp */
-    transform: translateY(min(0px, calc(var(--mobile-nav-bottom) - var(--keyboard-height) - var(--space-2))));
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .add-bar {
-        transition: none;
-    }
 }
 
 /* `position: fixed` gilt hier für die Ionic-Seite (`contain`), also neben der Seitenleiste */
@@ -470,10 +350,6 @@ defineExpose({ close });
     box-shadow: var(--shadow-float);
     backdrop-filter: var(--glass-blur) saturate(1.4);
     -webkit-backdrop-filter: var(--glass-blur) saturate(1.4);
-}
-
-.add-bar--open .add-bar__bar {
-    border-color: var(--color-accent);
 }
 
 .add-bar__field {
@@ -501,7 +377,7 @@ defineExpose({ close });
     color: var(--color-text-2);
 }
 
-/* den Fokus zeigt die grüne Kontur um Leiste und Kopf */
+/* den Fokus zeigt die grüne Linie unter dem Kopf */
 .add-bar__input:focus-visible {
     outline: none;
 }
@@ -510,11 +386,6 @@ defineExpose({ close });
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-.add-bar__tap {
-    position: absolute;
-    inset: 0;
 }
 
 .add-bar__fake:focus-visible,
@@ -532,42 +403,6 @@ defineExpose({ close });
     height: var(--stepper-button-size);
     border-radius: var(--radius-pill);
     color: var(--color-text-2);
-}
-
-/* nur bis Michael gewählt hat, deshalb schmaler als die beiden Knöpfe */
-.add-bar__button--switch {
-    width: var(--space-8);
-    font-size: var(--font-size-note);
-    font-weight: var(--font-weight-semibold);
-}
-
-.add-bar__above {
-    display: flex;
-    flex-direction: column-reverse;
-    max-height: min(30rem, calc(100svh - env(safe-area-inset-top, 0px) - var(--keyboard-height) - var(--mobile-nav-height) - var(--space-14)));
-    margin-bottom: var(--space-2);
-    border: 1px solid var(--color-border-subtle);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-float);
-}
-
-/* am Handy kurz warten, bis die Tastaturhöhe bekannt ist, sonst wäre die Liste
-   einen Moment zu hoch; ohne Bildschirmtastatur kommt nie eine Höhe, dann gilt
-   die Leiste unten */
-@media (pointer: coarse) {
-    :root:not([data-keyboard='open']) .add-bar__above {
-        animation: add-bar-wait 1ms 400ms both;
-    }
-}
-
-@keyframes add-bar-wait {
-    from {
-        visibility: hidden;
-    }
-
-    to {
-        visibility: visible;
-    }
 }
 
 .add-bar__layer {

@@ -5,6 +5,8 @@
         <!-- App-Einstellungen, geändert über PATCH /api/piklis/v1/me/settings -->
         <attributes>
             <attribute>pk.theme</attribute>
+            <attribute>pk.quantityVariant</attribute>
+            <attribute>pk.menuVariant</attribute>
         </attributes>
     </user>
 </quiqqer>

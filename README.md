@@ -95,7 +95,8 @@ under `design/piklis-designpaket/`.
   frequent products, while typing the catalog hits; a suggestion adds the
   product (open +1, done a new entry, “auf der Liste · 1 ×”), Enter takes only
   the same name from the catalog, otherwise a list item; no toast, the keyboard
-  stays open, works offline. Buttons for the scanner and the tiles. Variants B and C stay switchable until one is chosen
+  stays open, works offline. Buttons for the scanner and the tiles. The input
+  opens a layer with the catalog as tiles; a row “… zur Liste” adds free text
 - Scanner in the input bar: a barcode from the catalog goes on the list at once
   (open +1, also offline); an unknown one shows name and image from Open Food Facts
   with “Zur Liste” and “Im Katalog speichern” (on; off gives a list item with the
@@ -115,11 +116,14 @@ under `design/piklis-designpaket/`.
   “In den Katalog aufnehmen” in the entry sheet, hint “Schon im Katalog”. A daily cron removes the image 90
   days after the last list was completed (unless a template uses it) and the
   row once nothing uses it.
-- Quantity control on tiles, list rows and when editing templates: hold for
-  about 350 ms, slide to change, release to save; without sliding it stays
-  open with −, +, “Details” and “Entfernen”; packs step by 1, weights only
-  with a set unit; keyboard and screen readers reach it through a button
-  and need no gesture
+- Hold gesture on tiles, list rows and when editing templates: hold 380 ms
+  and drag to change the quantity smoothly (ruler through the row or counter
+  in the middle), release snaps and saves with a toast and “Rückgängig”, 0
+  removes; hold and release opens the actions as sheet or dialog (−, +,
+  Details, Notiz, In andere Liste übernehmen, Nicht bekommen, Entfernen).
+  Variants per user in the settings (test phase, default ruler and sheet);
+  keyboard and screen readers reach the menu through a button, the context
+  menu key or Shift+F10. g and ml show kg and l from 1000 on
 - Not got, completion and archive: swipe a row to the left for the buttons
   “Nicht bekommen” (own section, symbol and text, undo in the toast) and
   “Entfernen” (undo in the toast), swiping itself runs nothing; rows show the

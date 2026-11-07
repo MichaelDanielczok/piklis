@@ -8,7 +8,7 @@
  * Neue Liste: Zu sehen sind nur Name und „Anlegen“, Datum, „Für wen?“ und „Wie
  * möchtest du starten?“ stehen eingeklappt unter „Erweitert“ und behalten ihre
  * Standardwerte. Der Name ist hier freiwillig: Leer heißt die Liste
- * „Einkaufsliste – Do, 05.11.“ (Datum der Liste, sonst heute), der Platzhalter
+ * „Einkauf – Do, 05.11.“ (Datum der Liste, sonst heute), der Platzhalter
  * zeigt diesen Namen. Beim Bearbeiten ist er Pflicht.
  *
  * Neue Liste (Designpaket 02): „Wie möchtest du starten?“ – leer oder aus

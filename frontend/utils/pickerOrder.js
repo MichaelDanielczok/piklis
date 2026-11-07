@@ -62,12 +62,13 @@ export function freezeOrder(catalog, suggestions) {
  * @param {{ id: string, hidden?: boolean }[]} catalog
  * @param {{ productId: string }[]|null} suggestions
  * @param {number} limit
+ * @param {Set<string>} [exclude] fallen weg, bevor begrenzt wird
  * @returns {string[]}
  */
-export function topProductIds(catalog, suggestions, limit) {
+export function topProductIds(catalog, suggestions, limit, exclude = new Set()) {
     const { suggested, rest } = freezeOrder(catalog, suggestions);
 
-    return [...suggested, ...rest].slice(0, limit);
+    return [...suggested, ...rest].filter((id) => !exclude.has(id)).slice(0, limit);
 }
 
 /**

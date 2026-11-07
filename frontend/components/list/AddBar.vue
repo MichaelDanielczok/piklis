@@ -6,6 +6,7 @@
  *
  * - Vorschläge: beim Öffnen die häufigsten Produkte (wie die Kachelansicht), beim
  *   Tippen die Treffer der Katalogsuche. Listenartikel erscheinen dort nie.
+ *   B zeigt sie als Liste, C als Kacheln.
  * - Ein Vorschlag fügt genau dieses Produkt hinzu. Die Eingabetaste nimmt nur
  *   einen gleichen Namen aus dem Katalog, sonst entsteht ein Listenartikel; ein
  *   Teiltreffer wird nie gewählt. Offen auf der Liste heißt +1, erledigt ein neuer
@@ -23,25 +24,35 @@
  *   Fokus mit `preventScroll`: Tippt man direkt ins Feld, schiebt iOS die ganze
  *   Seite um die Tastaturhöhe hoch, und Vorschläge sind nicht mehr dort antippbar,
  *   wo man sie sieht.
- * - C: Eingabe und Vorschläge in einer Ebene über der Seite. Das Feld steht immer
- *   im DOM, denn nur ein vorhandenes Feld bekommt im selben Tipp den Fokus.
+ * - C: Eingabe und Kacheln in einer Ebene über der Seite. Das Feld steht immer
+ *   im DOM, denn nur ein vorhandenes Feld bekommt im selben Tipp den Fokus. Es
+ *   erscheint der ganze Katalog, beim Scrollen kommen weitere Kacheln dazu. Was
+ *   beim Öffnen oder beim Leeren der Suche offen auf der Liste steht, fehlt, die
+ *   Suche findet es trotzdem. Ohne Suche angetippte Kacheln bleiben bis dahin
+ *   stehen, damit nichts unter dem Finger springt. Nach einem Tipp auf einen
+ *   Treffer bleibt die Suche 400 ms stehen: Das Badge zeigt, was dazukam, und ein
+ *   schneller zweiter Tipp trifft dasselbe Produkt. Wer sofort weitertippt,
+ *   beginnt eine neue Suche.
  *
  * Props: listId · Emits: tiles · Exponiert `close()`
  */
-import { computed, ref, useTemplateRef, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, shallowRef, useTemplateRef, watch } from 'vue';
+import { useIonRouter } from '@ionic/vue';
 import { LayoutGrid, ScanBarcode, X } from '@lucide/vue';
 import AddBarScanSheet from './AddBarScanSheet.vue';
 import AddBarSuggestions from './AddBarSuggestions.vue';
+import AddBarTiles from './AddBarTiles.vue';
 import { addBarMode as mode, addBarSwitchable, nextAddBarMode } from './addBarMode.js';
-import { createProductOnList, increaseProduct, listView } from '@/composables/useLists.js';
+import { createProductOnList, increaseProduct, listView, setProductQuantity } from '@/composables/useLists.js';
 import { useProducts } from '@/composables/useProducts.js';
 import { dismissToast } from '@/composables/useToast.js';
-import { topProductIds } from '@/utils/pickerOrder.js';
+import { FIRST_PAGE, nextLimit, topProductIds } from '@/utils/pickerOrder.js';
 import { exactProduct } from '@/utils/productSearch.js';
 import { formatQuantity } from '@/utils/quantity.js';
 import { t } from '@/i18n/index.js';
 
 const SUGGESTION_LIMIT = 20;
+const CLEAR_DELAY_MS = 400;
 const NAME_MAX = 120;
 
 const props = defineProps({
@@ -53,6 +64,8 @@ const props = defineProps({
 
 const emit = defineEmits(['tiles']);
 
+const ionRouter = useIonRouter();
+
 const { catalog, findProduct, search, suggestions } = useProducts();
 const listState = listView(props.listId);
 
@@ -60,8 +73,13 @@ const open = ref(false);
 const text = ref('');
 const scanOpen = ref(false);
 const announcement = ref('');
+/** C: beim Öffnen oder Leeren der Suche offene Produkte; was danach dazukommt, bleibt als Kachel stehen. */
+const openOnArrival = shallowRef(new Set());
+const tileLimit = ref(FIRST_PAGE);
 
 const input = useTemplateRef('input');
+
+let clearTimer = null;
 
 const isB = computed(() => mode.value === 'b');
 const query = computed(() => text.value.trim());
@@ -74,6 +92,38 @@ const shown = computed(() => {
     return products.map((product) => ({ product, meta: metaOf(product.id) }));
 });
 
+/** Ausgeblendet: beim Öffnen offen und noch immer offen (sonst z. B. von jemandem erledigt). */
+const hidden = computed(() => new Set([...openOnArrival.value].filter((id) => entryOf(id))));
+
+const tiles = computed(() => {
+    const products = query.value !== ''
+        ? search(query.value, { limit: tileLimit.value })
+        : topProductIds(catalog.value, suggestions.value, tileLimit.value, hidden.value).map(findProduct);
+
+    return products.map((product) => {
+        const entry = entryOf(product.id);
+
+        return {
+            product,
+            amount: entry?.quantity.amount ?? 0,
+            unit: entry?.quantity.unit ?? null,
+            meta: tileMeta(product, entry)
+        };
+    });
+});
+
+/** Die Eingabetaste legt einen Listenartikel an: das steht als Zeile über den Kacheln. */
+const freeName = computed(() => (query.value !== '' && !exactProduct(query.value, catalog.value) ? query.value : ''));
+
+// neue Kacheln beginnen oben; ohne Suche fehlt, was eben dazukam
+watch(query, (value) => {
+    tileLimit.value = FIRST_PAGE;
+
+    if (value === '' && !isB.value) {
+        rememberOpen();
+    }
+});
+
 // ein Toast läge über den Vorschlägen
 watch(open, (isOpen) => {
     if (isOpen) {
@@ -83,8 +133,39 @@ watch(open, (isOpen) => {
 
 const emptyText = computed(() => (query.value !== '' ? t('addBar.noMatch', { name: query.value }) : t('addBar.noProducts')));
 
+const tilesEmptyText = computed(() => {
+    if (query.value !== '') {
+        return t('addProducts.noResults', { query: query.value });
+    }
+
+    return hidden.value.size > 0 ? t('addProducts.allSelected') : t('addBar.noProducts');
+});
+
+function entryOf(productId) {
+    return listState.value.open.find((item) => item.productId === productId);
+}
+
+function rememberOpen() {
+    openOnArrival.value = new Set(listState.value.open.map((item) => item.productId));
+}
+
+/** Nur eine volle Seite kann mehr haben. */
+function showMoreTiles() {
+    if (tiles.value.length >= tileLimit.value) {
+        tileLimit.value = nextLimit(tileLimit.value);
+    }
+}
+
+function tileMeta(product, entry) {
+    if (!entry && listState.value.done.some((item) => item.productId === product.id)) {
+        return t('addProducts.done');
+    }
+
+    return product.packageSize ?? '';
+}
+
 function metaOf(productId) {
-    const entry = listState.value.open.find((item) => item.productId === productId);
+    const entry = entryOf(productId);
 
     if (entry) {
         return t('addBar.onList', { quantity: formatQuantity(entry.quantity.amount, entry.quantity.unit) });
@@ -98,6 +179,32 @@ function keepTyping() {
     input.value?.focus({ preventScroll: true });
 }
 
+function cancelClear() {
+    clearTimeout(clearTimer);
+    clearTimer = null;
+}
+
+/** C: Die Suche bleibt kurz stehen; jeder weitere Tipp verlängert das. */
+function clearSoon() {
+    if (query.value === '') {
+        return;
+    }
+
+    cancelClear();
+    clearTimer = setTimeout(() => {
+        clearTimer = null;
+        keepTyping();
+    }, CLEAR_DELAY_MS);
+}
+
+function onInput(event) {
+    const restart = clearTimer !== null;
+
+    cancelClear();
+    text.value = restart ? (event.data ?? '') : event.target.value;
+    event.target.value = text.value;
+}
+
 function addProduct(product) {
     increaseProduct(props.listId, product.id);
     announcement.value = t('addProducts.added', { name: product.name });
@@ -108,7 +215,41 @@ function pick(product) {
     keepTyping();
 }
 
+function setTile(product, amount) {
+    const entry = entryOf(product.id);
+    const before = entry?.quantity.amount ?? 0;
+
+    setProductQuantity(props.listId, product.id, amount);
+
+    if (before === 0 && amount > 0) {
+        announcement.value = t('addProducts.added', { name: product.name });
+    } else if (before > 0 && amount <= 0) {
+        announcement.value = t('addProducts.removed', { name: product.name });
+    } else if (amount > 0) {
+        announcement.value = t('addProducts.quantity', {
+            name: product.name,
+            quantity: formatQuantity(amount, entry?.quantity.unit ?? null)
+        });
+    }
+}
+
+function openDetails(product) {
+    const entry = entryOf(product.id);
+
+    close();
+    ionRouter.push(entry
+        ? '/lists/' + encodeURIComponent(props.listId) + '/entries/' + encodeURIComponent(entry.id)
+        : '/products/' + encodeURIComponent(product.id));
+}
+
 function submit() {
+    // die Suche ist schon erledigt und läuft nur noch aus
+    if (clearTimer !== null) {
+        cancelClear();
+        keepTyping();
+        return;
+    }
+
     if (query.value === '') {
         return;
     }
@@ -126,12 +267,18 @@ function submit() {
 }
 
 function openBar() {
+    if (!isB.value) {
+        rememberOpen();
+        tileLimit.value = FIRST_PAGE;
+    }
+
     open.value = true;
     // im selben Tipp, sonst öffnet iOS die Tastatur nicht
     input.value?.focus({ preventScroll: true });
 }
 
 function close() {
+    cancelClear();
     open.value = false;
     text.value = '';
     input.value?.blur();
@@ -158,6 +305,8 @@ function openTiles() {
     close();
     emit('tiles');
 }
+
+onBeforeUnmount(cancelClear);
 
 defineExpose({ close });
 </script>
@@ -191,7 +340,7 @@ defineExpose({ close });
                     autocapitalize="sentences"
                     spellcheck="false"
                     enterkeyhint="enter"
-                    @input="text = $event.target.value"
+                    @input="onInput"
                     @focus="open = true"
                 >
                 <!-- `tabindex`: Mit der Tastatur geht es direkt ins Feld, dort verschiebt sich nichts -->
@@ -244,19 +393,24 @@ defineExpose({ close });
                     autocapitalize="sentences"
                     spellcheck="false"
                     enterkeyhint="enter"
-                    @input="text = $event.target.value"
+                    @input="onInput"
                 >
                 <button type="button" class="add-bar__button" :aria-label="t('common.close')" :tabindex="open ? 0 : -1" @mousedown.prevent @click="close">
                     <X aria-hidden="true" />
                 </button>
             </form>
-            <AddBarSuggestions
+            <AddBarTiles
                 v-if="open"
-                class="add-bar__below"
-                :items="shown"
+                :items="tiles"
                 :label="t('addBar.suggestions')"
-                :empty-text="emptyText"
-                @pick="pick"
+                :empty-text="tilesEmptyText"
+                :query="query"
+                :free-name="freeName"
+                @change="setTile"
+                @increase="clearSoon"
+                @details="openDetails"
+                @free="submit"
+                @more="showMoreTiles"
             />
         </div>
     </div>
@@ -451,12 +605,5 @@ defineExpose({ close });
 
 .add-bar__layer-head:focus-within {
     border-bottom-color: var(--color-accent);
-}
-
-.add-bar__below {
-    flex: 1;
-    min-height: 0;
-    padding-bottom: var(--keyboard-height);
-    background: none;
 }
 </style>

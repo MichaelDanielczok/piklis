@@ -194,10 +194,11 @@ const more = computed(() => Math.max(0, counts.value.open - thumbs.value.length)
     outline-offset: var(--focus-ring-offset);
 }
 
+/* 17 px, damit der automatische Name „Einkauf – Fr, 06.11.“ auch am kleinen Handy neben den Chip passt */
 .list-card__name {
     overflow: hidden;
     color: var(--color-text-1);
-    font-size: var(--font-size-h2);
+    font-size: var(--font-size-name);
     font-weight: var(--font-weight-semibold);
     line-height: var(--line-height-h2);
     text-overflow: ellipsis;

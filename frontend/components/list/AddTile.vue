@@ -12,7 +12,8 @@
  *   (`open`) und „Entfernen“ (Menge 0). Ohne Geste geht es über den Knopf
  *   „Menge“, den nur Tastatur und Bildschirmleser finden.
  *
- * v-model: Menge (0 = nicht ausgewählt).
+ * v-model: Menge (0 = nicht ausgewählt). Emits: open, increase (nur der Tipp auf
+ * die Kachel, nicht das Mengen-Control).
  * `meta`: kurzer Text neben dem Bild (Packungsgröße, „erledigt“), ohne ihn die
  * Einheit.
  */
@@ -50,7 +51,7 @@ const props = defineProps({
     }
 });
 
-const emit = defineEmits(['open']);
+const emit = defineEmits(['open', 'increase']);
 
 const quantity = defineModel({ type: Number, default: 0 });
 
@@ -75,6 +76,7 @@ let pending = null;
 function increase() {
     pending = (pending ?? quantity.value) + 1;
     quantity.value = pending;
+    emit('increase');
     nextTick(() => {
         pending = null;
     });

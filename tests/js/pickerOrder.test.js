@@ -101,4 +101,6 @@ test('die häufigsten Produkte: Vorschläge zuerst, dann der Katalog, begrenzt',
 
     assert.deepEqual(topProductIds(catalog, suggestions, 2), ['butter', 'apfel']);
     assert.deepEqual(topProductIds(catalog, null, 1), ['apfel']);
+    // Ausgeschlossene fallen vor dem Begrenzen weg, die Menge bleibt voll
+    assert.deepEqual(topProductIds(catalog, suggestions, 2, new Set(['butter'])), ['apfel', 'brot']);
 });

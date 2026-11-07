@@ -1,0 +1,1 @@
+import{L as e}from"./AppPage-Cy_N-w1r.js";var t=e({name:`minus`,size:24,node:[[`path`,{d:`M5 12h14`,key:`1ays0h`}]]});export{t};

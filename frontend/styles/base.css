@@ -127,6 +127,9 @@ ion-toast.app-toast {
     --max-width: var(--sheet-max-width);
     --start: 0;
     --end: 0;
+    /* die Abstände unten enthalten die Safe Area schon, Ionic würde sie noch mal addieren */
+    --ion-safe-area-top: 0px;
+    --ion-safe-area-bottom: 0px;
     font-family: var(--font-text);
 }
 

@@ -61,7 +61,7 @@ committed because the server does not build (no Node there).
 | `composables/` | shared state: session (with the household summary), household (`useHousehold.js`), templates with their drafts (`useTemplates.js`), toast, page transition, product catalog (`useProducts.js`), server settings (`useConfig.js`), media query, shopping lists (`useLists.js`), sorting by the drag handle (`useDragSort.js`), swiping a row (`useRowSwipe.js`), holding and sliding for the quantity control (`useQuantityHold.js`) |
 | `components/layout/` | page frame and header, sidebar, mobile navigation, nav items, user menu |
 | `components/ui/` | button, sheet, section label, theme switch, avatar, logo, empty state, search field |
-| `components/list/` | list row, row group, skeleton row, quantity, add tile, input bar with its suggestions, scan sheet and variant switch (`AddBar*.vue`, `addBarMode.js`) |
+| `components/list/` | list row, row group, skeleton row, quantity, add tile, input bar with its suggestions as list or tiles, scan sheet and variant switch (`AddBar*.vue`, `addBarMode.js`) |
 | `components/lists/` | overview card and its skeleton, sheet “Neue Liste / Liste bearbeiten” (with start from an earlier purchase), sheet for quantity and note of an entry (for list items also photo and description), card “In der Liste …” (`EntryContextCard.vue`), transfer and completion sheet (`TransferSheet.vue`), product checklist (`EntryChecklist.vue`), sheet “Liste teilen” / “Geteilte Liste” (`ListShareSheet.vue`) |
 | `components/templates/` | sheet “Neue Vorlage / Vorlage verwalten” (`TemplateFormSheet.vue`), sheet “Als Vorlage speichern” with the product check (`TemplateSaveSheet.vue`) |
 | `components/household/` | member options (`MemberSheet.vue`), leaving, switching and dissolving with the offer of personal copies (`HouseholdLeaveSheet.vue`) |
@@ -883,7 +883,7 @@ screens 01–07 and 10.
   only the name and “Anlegen” show, “Erweitert” folds out date (Ohne Datum ·
   Heute · Morgen · date field), “Für wen?” and “Wie möchtest du starten?”,
   which keep their defaults. The name is optional for a new list (at most 100
-  characters): empty gives “Einkaufsliste – Do, 05.11.” with the date of the
+  characters): empty gives “Einkauf – Do, 05.11.” with the date of the
   list, otherwise today, and the placeholder shows that name. Editing a list
   shows everything and requires a name. The new list opens at once, also
   before the server answered.
@@ -1055,10 +1055,12 @@ navigation, the plus in the head and the dashed button; archived lists and
 templates do not have it. The button in the empty state stays and leads to
 the tiles. `AppPage` (`addBar`) keeps the space free on wide screens, too.
 
-- **Suggestions** (`AddBarSuggestions.vue`): up to 20 from the catalog, list
-  items never. Empty field: the most frequent products (`topProductIds()`, same
-  weighting as the tiles). While typing: the hits of the catalog search. A
-  product on the list shows “auf der Liste · 1 ×”, a done one “erledigt”.
+- **Suggestions:** from the catalog, list items never. Empty field: the most
+  frequent products (`topProductIds()`, same weighting as the tiles). While
+  typing: the hits of the catalog search. B shows up to 20 as a list
+  (`AddBarSuggestions.vue`): a product on the list shows “auf der Liste · 1 ×”, a
+  done one “erledigt”. C shows the whole catalog as tiles (`AddBarTiles.vue`,
+  first 48, then 24 more while scrolling, see below).
 - **Adding:** a suggestion adds exactly this product (`increaseProduct()`: open
   +1, otherwise a new open entry). Enter takes a catalog product only if the name
   is the same (`exactProduct()`: case, accents and punctuation do not count, as
@@ -1083,9 +1085,18 @@ the tiles. `AppPage` (`addBar`) keeps the space free on wide screens, too.
     keyboard height, and fixed elements then no longer take taps where they are
     drawn. So a button lies over the field at rest and calls
     `focus({ preventScroll: true })`.
-  - C: field and suggestions in a layer over the page. The field is always in the
+  - C: field and tiles in a layer over the page. The field is always in the
     DOM: only an existing field gets the focus in the same tap, otherwise iOS
-    does not open the keyboard.
+    does not open the keyboard. The tiles are the ones of “Produkte hinzufügen”
+    (`AddTile`): a tap adds 1, the badge shows the quantity, holding opens the
+    quantity control. What is open on the list when the layer opens or the search
+    is emptied is left out, the search still finds it. Tiles tapped without a
+    search stay until then, so nothing moves under the finger. After a tap on a
+    search hit the search stays for 400 ms, so the badge shows what was added and a
+    quick second tap hits the same product; typing in that time starts a new search. The menu of the quantity
+    control takes the focus, so the keyboard closes until the field is tapped.
+    Without an exact catalog name a row “„Hafer“ zur Liste” above the tiles does
+    what Enter does.
 - **Hardware keyboard:** nothing depends on the on-screen keyboard. On touch
   screens the suggestions of B wait up to 400 ms for `data-keyboard="open"`,
   because they would otherwise be too tall for a moment, and then appear anyway.
